@@ -212,7 +212,7 @@ class ShellExecutorFactory (object):
     flush_log();
     # if stdout/stderr is not a file (as is the case under ipython notebook, then
     # subprocess.Popen() fails. Therefore, in these cases, or if get_output is true, we
-    # pipe the output into here
+    # pipe the output into here via communicate()
     stdout = subprocess.PIPE if self.get_output or type(sys.stdout) is not file else sys.stdout;
     stderr = subprocess.PIPE if type(sys.stderr) is not file else sys.stderr;
     po = subprocess.Popen(commands,preexec_fn=_on_parent_exit('SIGTERM'),shell=True,
@@ -832,12 +832,8 @@ def _call_exec (path,*args,**kws):
   (each kw dict element is turned into a name=value argument)""";
   allow_fail = kws.pop('allow_fail',False);
   bg = kws.pop('bg',False);
-  stdin =  kws.pop('stdin',None) or sys.stdin;
-  stdout = kws.pop('stdout',None) or sys.stdout;
-  stderr = kws.pop('stderr',None) or sys.stderr;
   verbose = kws.pop('verbose',1);
-  if kws.pop('get_output',None):
-    stdout = subprocess.PIPE;
+  get_output = kws.pop('get_output',None);
   # default is to split each argument at whitespace, but split_args=False passes them as-is
   split = kws.pop('split_args',True);
   # build list of arguments
@@ -863,18 +859,25 @@ def _call_exec (path,*args,**kws):
     _verbose(verbose,"executing '%s' in background: pid %d"%(" ".join(args),po.pid));
   else:
     _verbose(verbose,"executing '%s':"%(" ".join(args)));
-    type(sys.stdout) is file and sys.stdout.flush();
-    type(sys.stderr) is file and sys.stderr.flush();
-#    if type(stdout) is not file or type(stderr) is not file:
-#      po = subprocess.Popen(args,preexec_fn=_on_parent_exit('SIGTERM'));
-#      #retcode = subprocess.call(args);
-#    else:
-    po = subprocess.Popen(args,preexec_fn=_on_parent_exit('SIGTERM'),stdin=stdin,stdout=stdout,stderr=stderr);
+    stdout,stderr = sys.stdout,sys.stderr;
+    # if stdout/stderr is not a file (as is the case under ipython notebook, then
+    # subprocess.Popen() fails. Therefore, in these cases, or if get_output is true, we
+    # pipe the output into here via communicate()
+    if get_output or type(stdout) is not file or type(stderr) is not file:
+      stdout = stderr = subprocess.PIPE;
+    type(stdout) is file and stdout.flush();
+    type(stderr) is file and stderr.flush();
+    po = subprocess.Popen(args,preexec_fn=_on_parent_exit('SIGTERM'),
+      stdout=stdout,stderr=stderr);
     if stdout is subprocess.PIPE:
-      (output,err_output) = po.communicate();
+      output,err_output = po.communicate();
+      if not get_output:
+        sys.stdout.write(output);
+        output = None;
+      sys.stderr.write(err_output);
     else:
       po.wait();
-      output = None;
+      output = err_output = None;
     if po.returncode:
       if allow_fail:
         _warn("%s returned error code %d"%(cmdname,po.returncode));
