@@ -971,6 +971,22 @@ def _parse_cmdline_value (value):
   except:
     return value;
 
+def print_doc (symbol):
+  import pydoc;
+  # if symbol is "module.symbol", try auto-import
+  m = _re_mod_command.match(symbol);
+  if m:
+    _autoimport(m.group(1));
+  try:
+    what = eval(symbol,Pyxis.Context);
+  except:
+    print "Pyxis doesn't know anything about '%s'"%symbol;
+    return;
+  docs = pydoc.render_doc(what).split("\n");
+  if docs[0].startswith("Python Library"):
+    docs[0] = "Pyxis documentation for %s:"%symbol;
+  print "\n".join(docs);
+
 def run (*commands):
   """Runs list of commands""";
   import Pyxis.Commands
@@ -1007,7 +1023,7 @@ def run (*commands):
         # if command is 'help', disable logging
         logfile = None;
         if comname == "help":
-#          comname = 'pydoc.getdoc'
+#          comname = 'pydoc.render_doc'
           if _current_logobj:
             logfile = _current_logfile;
             set_logfile(None);
@@ -1015,7 +1031,7 @@ def run (*commands):
         comcall = find_command(comname,inspect.currentframe().f_back,autoimport=True);
         result = comcall(*args,**kws);
         assign_templates();
-        if comname == 'pydoc.getdoc':
+        if comname == 'pydoc.render_doc':
           print "help:",result;
         # reset logging, if disabled for 'help'
         if logfile:

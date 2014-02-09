@@ -1,3 +1,5 @@
+"""mqt: Pyxides module for MeqTrees-related functionality (running MeqTrees scripts, etc.)"""
+
 import os.path
 
 # register ourselves with Pyxis
@@ -27,14 +29,17 @@ def_global('EXTRA_TDLOPTS',"","extra options passed to all TDL scripts");
 ## pipeliner tool
 pipeliner = x.time.args("meqtree-pipeliner.py");
 
-def_global("SCRIPT","default TDL script");
-def_global("JOB","default TDL job to run");
-def_global("SECTION","default section to use in TDL config file");
+def_global("SCRIPT",None,"default TDL script");
+def_global("JOB",None,"default TDL job to run");
+def_global("SECTION",None,"default section to use in TDL config file");
 def_global("TDLCONFIG","tdlconf.profiles","default TDL config file",config=True);
 
 def run (script="$SCRIPT",job="$JOB",config="$TDLCONFIG",section="$SECTION",args=[],options={}):
   """Uses meqtree-pipeliner to compile the specified MeqTrees 'script', using 'config' file and config 'section',
-  then runs the specified 'job'.
+  then runs the specified 'job'. 
+
+  If you want to run a script on a given MS, then see mqt.msrun() for a convenient alternative.
+
   Use a list of 'args' to pass extra arguments to meqtree-pipeliner. Use a dict of 'options' to
   pass extra arguments as key=value.""";
   script,job,config,section = interpolate_locals("script job config section");
@@ -47,3 +52,12 @@ def run (script="$SCRIPT",job="$JOB",config="$TDLCONFIG",section="$SECTION",args
   ));
 
 document_globals(run,"MULTITHREAD EXTRA_TDLOPTS SCRIPT JOB SECTION TDLCONFIG");
+
+
+def msrun (script="$SCRIPT",job="$JOB",config="$TDLCONFIG",section="$SECTION",args=[],options={}):
+  """Like run(), but automatically adds TDL options for the currently selected MS/channels/etc
+  (according to what is defined in the 'ms' Pyxides module).""";
+  return run(script=script,job=job,config=config,section=section,
+    args = [ """${ms.MS_TDL} ${ms.CHAN_TDL} ms_sel.ms_ifr_subset_str=${ms.IFRS}""" ] + list(args),
+    options=options); 
+
