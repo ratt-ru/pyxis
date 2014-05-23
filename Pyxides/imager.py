@@ -14,7 +14,8 @@ register_pyxis_module(superglobals="MS LSM DESTDIR");
 v.define("LSM","lsm.lsm.html","""current local sky model""");
   
 # external tools  
-define('LWIMAGER_PATH','lwimager','path to lwimager binary. Default is to look in the system PATH.');
+define('LWIMAGER_PATH','lwimager','path to lwimager binary. Default is to look in the system PATH for lwimager.');
+define('LWIMAGER_PREDICT_PATH','lwimager1.2','path to lwimager binary for predicting visibilities. Default is to look in the system PATH for lwimager1.2.');
 #lwimager = x.time.args("$LWIMAGER_PATH");
 
 rm_fr = x.rm.args("-fr");
@@ -230,8 +231,8 @@ def predict_vis (msname="$MS",image="$MODEL_IMAGE",column="MODEL_DATA",channeliz
   """Converts image into predicted visibilities"""
   msname,image,column,copyto = interpolate_locals("msname image column copyto");
   
-  if LWIMAGER_PATH != "lwimager":
-    warn("using classic lwimager for predict_vis: note that newer lwimagers do not work for this!");
+  if LWIMAGER_PREDICT_PATH != "lwimager":
+    warn("using $LWIMAGER_PREDICT_PATH for predict_vis: note that newer lwimagers do not work for this!");
   
 #  # copy data into template, if specified
 #  if copy:
@@ -264,7 +265,7 @@ def predict_vis (msname="$MS",image="$MODEL_IMAGE",column="MODEL_DATA",channeliz
              chanstart=ms.CHANSTART,chanstep=ms.CHANSTEP,nchan=ms.NUMCHANS);
   
   info("Predicting visibilities from $image into MODEL_DATA");
-  _run(lwimager_path="lwimager",**kw0);
+  _run(lwimager_path=LWIMAGER_PREDICT_PATH,**kw0);
   rm_fr(casaimage);
   
   if column != "MODEL_DATA":
