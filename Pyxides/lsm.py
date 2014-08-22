@@ -95,7 +95,7 @@ def pybdsm_search (image="${imager.RESTORED_IMAGE}",output="$PYBDSM_OUTPUT",pol=
     split_args=False,
     *args);
     
-document_globals(pybdsm_search,"PYBDSM_* imager.RESTORED_IMAGE");
+document_globals(pybdsm_search,"PYBDSM_* imager.RESTORED_IMAGE CLUSTER_* MIN_EXTENT");
 
 
 
