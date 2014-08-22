@@ -25,12 +25,12 @@ define('PYBDSM_OPTIONS',{},"Extra options given to pybdsm");
 _pybdsm = x.pybdsm;
 
 define('CLUSTER_DIST',0,
-  """source clustering distance. If 0, then CLUSTER_DIST_BEAMS is used instead.""");
+  """source clustering distance, arcsec. If 0, then CLUSTER_DIST_BEAMS is used instead.""");
 define('CLUSTER_DIST_BEAMS',3,
-  """source clustering distance, in terms of number of PSFs (measured as (BMAJ+BMIN)/2). If BMAJ/BMIN is not defined,
-  falls back to 60".""");
+  """source clustering distance, in units of PSF size (measured as (BMAJ+BMIN)/2). If BMAJ/BMIN is not defined,
+  this falls back to 60 arcsec.""");
 define('MIN_EXTENT',0,
-  """minimum Gaussian source extent; sources smaller than this will be converted to point sources""");
+  """minimum Gaussian source extent, arcsec; sources smaller than this will be converted to point sources""");
 
 def pybdsm_search (image="${imager.RESTORED_IMAGE}",output="$PYBDSM_OUTPUT",pol='$PYBDSM_POLARIZED',
   select=None,
