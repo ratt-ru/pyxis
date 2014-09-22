@@ -70,7 +70,6 @@ def _filename (base,newext):
     base = base[:-1];
   return os.path.splitext(base)[0]+"."+newext;
 
-
 def prep (msname=None):
   """Prepares MS for use with MeqTrees: adds imaging columns, adds BITFLAG columns, copies current flags
   to 'legacy' flagset"""
@@ -83,9 +82,10 @@ def prep (msname=None):
   info("copying FLAG to bitflag 'legacy'");
   flagms("-Y +L -f legacy -c");
   
+def delcols (*columns):  
+  msw(v.MS).removecols(columns);
   
-  
-def copycol (msname="$MS",fromcol="DATA",tocol="CORRECTED_DATA",rowchunk=500000):
+def copycol (fromcol="DATA",tocol="CORRECTED_DATA",rowchunk=500000,msname="$MS"):
   """Copies data from one column of MS to another.
   Copies 'rowchunk' rows at a time; decrease the default if you have low RAM.
   """;

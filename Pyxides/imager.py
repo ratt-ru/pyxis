@@ -15,7 +15,27 @@ v.define("LSM","lsm.lsm.html","""current local sky model""");
   
 # external tools  
 define('LWIMAGER_PATH','lwimager','path to lwimager binary. Default is to look in the system PATH.');
-#lwimager = x.time.args("$LWIMAGER_PATH");
+
+# dict of known lwimager arguments, by version number
+# this is to accommodate newer versions
+_lwimager_known_args = {
+  0:set(("ms spwid field prior image model restored residual data mode filter nscales weight weight_fov noise robust wprojplanes padding "+
+    "cachesize stokes nfacets npix cellsize phasecenter field spwid chanmode nchan chanstart chanstep img_nchan img_chanstart img_chanstep "+
+    "select operation niter gain threshold targetflux sigma fixed constrainflux prefervelocity mask maskblc masktrc uservector maskvalue").split(" ")),
+  1003001:set(["fillmodel"])
+};
+
+# whenever the path changes, find out new version number, and build new set of arguments
+_lwimager_path_version = None,None;
+def LWIMAGER_VERSION_Template ():
+  global _lwimager_path_version,_lwimager_args;
+  if LWIMAGER_PATH != _lwimager_path_version[0]:
+    _lwimager_path_version = LWIMAGER_PATH,lwimager_version();
+    _lwimager_args = set();
+    for version,args in _lwimager_known_args.iteritems():
+      if version <= _lwimager_path_version[1][0]:
+        _lwimager_args.update(args); 
+  return _lwimager_path_version[1];
 
 rm_fr = x.rm.args("-fr");
 tigger_restore = x("tigger-restore");
@@ -46,9 +66,7 @@ no_weight_fov = False
 
 # known lwimager args -- these will be passed from keywords
 _fileargs = set("image model restored residual".split(" ")); 
-_lwimager_args = set(("ms spwid field prior image model restored residual data mode filter nscales weight weight_fov noise robust wprojplanes padding "+
-    "cachesize stokes nfacets npix cellsize phasecenter field spwid chanmode nchan chanstart chanstep img_nchan img_chanstart img_chanstep "+
-    "select operation niter gain threshold targetflux sigma fixed constrainflux prefervelocity mask maskblc masktrc uservector maskvalue").split(" "));
+
 
 def _run (convert_output_to_fits=True,lwimager_path="$LWIMAGER_PATH",**kw):
   # look up lwimager
@@ -88,14 +106,40 @@ def _run (convert_output_to_fits=True,lwimager_path="$LWIMAGER_PATH",**kw):
           im.putdata(fs*im.getdata());
         im.tofits(fitsfiles[arg],overwrite=True,velocity=velo);  
         subprocess.call("rm -fr "+args[arg],shell=True);
+
+def lwimager_version (path="$LWIMAGER_PATH"):
+  """Determines lwimager version, returns tuple of xxxyyyzzz,tail, where 
+  xxx,yyy,zzz is major, minor, patch numbers, while tail is the rest of 
+  the version string. Takes into account idiosyncarsies of older lwimager
+  version strings, so for example:
+            1003001,"" (for 1.3.1)
+            1002001,"20120223-OMS" (for 1.2.1-20120223-OMS)
+            1003000,"20130816-OMS" (for 20130816-OMS which is really 1.3.0)
+  """
+  path = interpolate_locals("path");
+  vstr = subprocess.Popen([path,"--version"],stderr=subprocess.PIPE).stderr.read().strip().split()[-1];
+  if '.' in vstr:
+    major,minor,patch = vstr.split('.')
+    patch,tail = patch.split("-",1) if "-" in patch else (patch,"");
+  else:
+    major,minor,patch,tail = 1,3,0,vstr;
+  try:
+    major,minor,patch = map(int,[major,minor,patch]);
+  except:
+    major,minor,patch,tail = 0,0,0,vstr;
+  info("$path version is $major.$minor.$patch-$tail")
+  return major*1000000+minor*1000+patch,tail;
+
       
 # filenames for images
-define("DIRTY_IMAGE_Template", "${OUTFILE}.dirty.fits","output filename for dirty image");
-define("RESTORED_IMAGE_Template", "${OUTFILE}.restored.fits","output filename for restored image");
-define("RESIDUAL_IMAGE_Template", "${OUTFILE}.residual.fits","output filename for deconvolution residuals");
-define("MODEL_IMAGE_Template", "${OUTFILE}.model.fits","output filename for deconvolution model");
-define("FULLREST_IMAGE_Template", "${OUTFILE}.fullrest.fits","output filename for LSM-restored image");
-define("MASK_IMAGE_Template", "${OUTFILE}.mask.fits","output filename for CLEAN mask");
+define("BASENAME_IMAGE_Template","${OUTFILE}","default base name for all image filenames below");
+define("DIRTY_IMAGE_Template", "${BASENAME_IMAGE}.dirty.fits","output filename for dirty image");
+define("PSF_IMAGE_Template", "${BASENAME_IMAGE}.psf.fits","output filename for psf image");
+define("RESTORED_IMAGE_Template", "${BASENAME_IMAGE}.restored.fits","output filename for restored image");
+define("RESIDUAL_IMAGE_Template", "${BASENAME_IMAGE}.residual.fits","output filename for deconvolution residuals");
+define("MODEL_IMAGE_Template", "${BASENAME_IMAGE}.model.fits","output filename for deconvolution model");
+define("FULLREST_IMAGE_Template", "${BASENAME_IMAGE}.fullrest.fits","output filename for LSM-restored image");
+define("MASK_IMAGE_Template", "${BASENAME_IMAGE}.mask.fits","output filename for CLEAN mask");
 
 # How to channelize the output image. 0 for average all, 1 to include all, 2 to average with a step of 2, etc.
 # None means defer to 'imager' module options
@@ -113,11 +157,12 @@ def fits2casa (input,output):
     rm_fr(output);
   imagecalc("in=$input out=$output");
 
-def make_image (msname="$MS",column="CORRECTED_DATA",
-                dirty=True,restore=False,restore_lsm=True,
+def make_image (msname="$MS",column="$COLUMN",
+                dirty=True,restore=False,restore_lsm=True,psf=False,
                 dirty_image="$DIRTY_IMAGE",
                 restored_image="$RESTORED_IMAGE",
                 residual_image="$RESIDUAL_IMAGE",
+                psf_image="$PSF_IMAGE",
                 model_image="$MODEL_IMAGE",
                 algorithm="$CLEAN_ALGORITHM",
                 channelize=None,lsm="$LSM",**kw0):
@@ -132,8 +177,8 @@ def make_image (msname="$MS",column="CORRECTED_DATA",
   
   'dirty_image', etc. sets the image names, with defaults determined by the globals DIRTY_IMAGE, etc.
   """;
-  msname,column,lsm,dirty_image,restored_image,residual_image,model_image,algorithm = \
-    interpolate_locals("msname column lsm dirty_image restored_image residual_image model_image algorithm"); 
+  msname,column,lsm,dirty_image,psf_image,restored_image,residual_image,model_image,algorithm = \
+    interpolate_locals("msname column lsm dirty_image psf_image restored_image residual_image model_image algorithm"); 
   makedir(DESTDIR);
   
   if restore and column != "CORRECTED_DATA":
@@ -158,6 +203,16 @@ def make_image (msname="$MS",column="CORRECTED_DATA",
       kw.update(dirty);
     kw['operation'] = 'image';
     _run(image=dirty_image,**kw);
+
+  if psf:
+    info("imager.make_image: making PSF image $psf_image");
+    kw = kw0.copy();
+    if type(psf) is dict:
+      kw.update(psf);
+    kw['operation'] = 'image';
+    kw['data'] = 'psf';
+    kw['stokes'] = "I";
+    _run(image=psf_image,**kw);
     
   if restore:
     info("imager.make_image: making restored image $RESTORED_IMAGE");
@@ -198,7 +253,7 @@ def make_image (msname="$MS",column="CORRECTED_DATA",
       opts = restore_lsm if isinstance(restore_lsm,dict) else {};
       tigger_restore("$RESTORING_OPTIONS","-f",RESTORED_IMAGE,lsm,FULLREST_IMAGE,kwopt_to_command_line(**opts));
       
-document_globals(make_image,"*_IMAGE IMAGE_CHANNELIZE MS RESTORING_OPTIONS CLEAN_ALGORITHM ms.IFRS ms.DDID ms.FIELD ms.CHANRANGE");      
+document_globals(make_image,"*_IMAGE COLUMN IMAGE_CHANNELIZE MS RESTORING_OPTIONS CLEAN_ALGORITHM ms.IFRS ms.DDID ms.FIELD ms.CHANRANGE");      
 
 def make_threshold_mask (input="$RESTORED_IMAGE",threshold=0,output="$MASK_IMAGE",high=1,low=0):
   """Makes a mask image by thresholding the input image at a given value. The output image is a copy of the input image,
@@ -230,8 +285,8 @@ def predict_vis (msname="$MS",image="$MODEL_IMAGE",column="MODEL_DATA",channeliz
   """Converts image into predicted visibilities"""
   msname,image,column,copyto = interpolate_locals("msname image column copyto");
   
-  if LWIMAGER_PATH != "lwimager":
-    warn("using classic lwimager for predict_vis: note that newer lwimagers do not work for this!");
+  if LWIMAGER_VERSION[0] in (1003000,1003001):
+    abort("lwimager 1.3.%d cannot be used to predict visibilities. Try lwimager-1.2, or upgrade to 1.3.2 or higher"%(LWIMAGER_VERSION[0]%1000))
   
 #  # copy data into template, if specified
 #  if copy:
@@ -262,12 +317,17 @@ def predict_vis (msname="$MS",image="$MODEL_IMAGE",column="MODEL_DATA",channeliz
   kw0.setdefault("weight","natural");
   kw0.update(ms=msname,niter=0,fixed=1,mode="channel",operation="csclean",model=casaimage,
              chanstart=ms.CHANSTART,chanstep=ms.CHANSTEP,nchan=ms.NUMCHANS);
-  
+  if LWIMAGER_VERSION[0] >= 1003001:
+    kw0['fillmodel'] = 1;
   info("Predicting visibilities from $image into MODEL_DATA");
-  _run(lwimager_path="lwimager",**kw0);
+  _run(**kw0);
   rm_fr(casaimage);
   
   if column != "MODEL_DATA":
     ms.copycol(msname,"MODEL_DATA",column);
 
 document_globals(predict_vis,"MS MODEL_IMAGE COPY_IMAGE_TO ms.IFRS ms.DDID ms.FIELD ms.CHANRANGE");      
+
+def make_psf (msname="$MS",**kw):
+  """Makes an image of the PSF. All other arguments as per make_image()."""
+  make_image(msname,dirty=False,psf=True,**kw);

@@ -21,7 +21,7 @@ ARCMIN = DEG/60
 ARCSEC = ARCMIN/60
 
 def _init (context):
-  global x,xo,xz,xr,v,E;
+  global x,xo,xz,xr,xro,v,E;
   # add some standard objects
   # the 'x' object is a shortcut for executing shell commands. E.g. x.ls('.')
   # the 'xo' object is a shortcut for executing shell commands that are allowed to fail. E.g. x.ls('.')
@@ -39,6 +39,11 @@ the script continuing regardless.""";
   xr.__name__ = 'xr';
   xr.__doc__ = xr.doc_proto%dict(name='xr') + """Shell commands launched via 'xr' return their output as
 a Python string.""";
+
+  xro = Pyxis.Internals.ShellExecutorFactory(get_output=True,allow_fail=True,verbose=0);
+  xro.__name__ = 'xr';
+  xro.__doc__ = xro.doc_proto%dict(name='xro') + """Shell commands launched via 'xro' return their output as
+a Python string, and ae allowed to fail.""";
 
   xz = Pyxis.Internals.ShellExecutorFactory(allow_fail=True,bg=True);
   xz.__name__ = 'xz';
@@ -378,7 +383,7 @@ def per_ms (*commands):
 def per_ddid (*commands):
   """Iterates over variable 'DDID', and executes commands. That is, for every value
   in DDID_List, sets MS to that value, then calls the commands. Default mode is serial"""
-  _per("DDID",False,*commands);
+  _per("ms.DDID",False,*commands);
 
 def is_true (arg):
   """Returns True if argument evaluates to boolean truth, possibly as a string.
