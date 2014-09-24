@@ -83,6 +83,7 @@ def pybdsm_search (image="${imager.RESTORED_IMAGE}",output="$PYBDSM_OUTPUT",pol=
     args = []
   if select:
     args += [ "--select",select ];
+  verifyGaulModel(gaul)
   tigger_convert(gaul,output,"-t","ASCII","--format",
       "name Isl_id Source_id Wave_id ra_d E_RA dec_d E_DEC i E_Total_flux Peak_flux E_Peak_flux Xposn E_Xposn Yposn E_Yposn Maj E_Maj Min E_Min PA E_PA " +
       "emaj_d E_DC_Maj emin_d E_DC_Min pa_d E_DC_PA Isl_Total_flux E_Isl_Total_flux Isl_rms Isl_mean Resid_Isl_rms Resid_Isl_mean S_Code "
@@ -98,6 +99,26 @@ def pybdsm_search (image="${imager.RESTORED_IMAGE}",output="$PYBDSM_OUTPUT",pol=
     
 document_globals(pybdsm_search,"PYBDSM_* imager.RESTORED_IMAGE CLUSTER_* MIN_EXTENT");
 
+def verifyGaulModel(gaullsm):
+  """Check all sources in a gaul file are in valid locations before running tigger
+  convert. Useful when images are 'all-sky' and have undefined regions.
+  """
+  falseSources=0
+  olsm=''
+  fh=open(gaullsm,'r')
+  for ll in fh.readlines():
+    cll=' '.join(ll.split())
+    if cll=='' or cll.startswith('#'):
+      olsm+=ll
+      continue
+    lineArray=cll.split(' ')
+    if math.isnan(float(lineArray[4])): falseSources+=1
+    else: olsm+=ll
+  fh.close()
+
+  fh=open(gaullsm,'w')
+  fh.write(olsm)
+  fh.close()
 
 
 def transfer_tags (fromlsm="$LSMREF",lsm="$LSM",output="$LSM",tags="dE",tolerance=60*ARCSEC):
