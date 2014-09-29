@@ -20,8 +20,8 @@ gcr1 = xr.gcloud.args(before="compute --project $PROJECT");
 gcro = xro.gcloud.args(before="compute --project $PROJECT",after="--zone $COMPZONE");
 
 # gsutil cp executables
-gcp = x.gsutil.args("cp");
-gcpo = xo.gsutil.args("cp");
+gcp = x.gcutil.args("cp");
+gcpo = xo.gcutil.args("cp");
 
 define('SNAPSHOT',"oms-papino-9","snapshot on which boot disk is to be based")
 define('DATADISKSIZE',200,"default data disk size (in Gb) for VM instances")
@@ -74,13 +74,14 @@ def rsh (command,vmname='$VMNAME',bg=False):
   else:
     gc("ssh $vmname --command '$command'")
 
-def rpyxis (command,vmname='$VMNAME',dir=None,bg=False):
+def rpyxis (command,vmname='$VMNAME',dir=None,bg=False,wrapup=False):
   command,vmname = interpolate_locals("command vmname");
-  cd = "cd $dir;" if dir else "";
+  cd = II("cd $dir;") if dir else "";
+  wrapup = "; pyxis gce.wrapup" if wrapup else "";
   if bg:
-    gc("ssh $vmname --command '$cd screen -L -md pyxis $command'")
+    gc("ssh $vmname --command '$cd screen -L -md pyxis $command $wrapup'")
   else:
-    gc("ssh $vmname --command '$cd pyxis $command'")
+    gc("ssh $vmname --command '$cd pyxis $command $wrapup'")
 
 
 def provision_vm (vmname="$VMNAME"):
