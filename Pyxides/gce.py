@@ -23,7 +23,7 @@ gcro = xro.gcloud.args(before="compute --project $PROJECT",after="--zone $COMPZO
 gcp = x.gsutil.args("cp");
 gcpo = xo.gsutil.args("cp");
 
-define('SNAPSHOT',"oms-papino-8","snapshot on which boot disk is to be based")
+define('SNAPSHOT',"oms-papino-9","snapshot on which boot disk is to be based")
 define('DATADISKSIZE',200,"default data disk size (in Gb) for VM instances")
 define('VMTYPE',"n1-standard-1","default VM type")
 
@@ -134,7 +134,7 @@ def attach_disk (mount="data",diskname="${vmname}-$mount",vmname="$VMNAME",
   if autodelete:
     gc("instances set-disk-auto-delete --auto-delete $name --disk $diskname")
   # execute rest on remote
-  rpyxis('_remote_attach_disk[$diskname,$mount,$clear]',name);
+  rpyxis('_remote_attach_disk[:$diskname:,:$mount:,$clear]',name);
   info("attached disk $diskname as $name:$mount ($mode)")
 
 

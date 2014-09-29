@@ -971,13 +971,16 @@ def _parse_cmdline_value (value):
   
   Argument:              Corresponding Python code:
   ---------              --------------------------
-  VAR=x                  VAR = "x" if superglobal x is undefined, else VAR=x
+  VAR=x                  VAR = "x"    if superglobal x is undefined, else VAR=x
   "VAR='x'"              VAR = "x"    note that shell will swallow the outer quotes
+  VAR=:x:                VAR = "x"    leading/trailing colon striped -- makes it easier to pass literal strings from the shell
   VAR=1                  VAR = 1
   VAR=complex(1)         VAR = 1+0j
   "VAR=dict(x='y')"      VAR = dict(x='y')
   VAR=x=1                VAR = "x=1"
   """
+  if value[0] == ':' and len(value)>1 and value[-1] == ":":
+    return value[1:-1];
   try:
     return eval(value,Pyxis.Context);
   except:
