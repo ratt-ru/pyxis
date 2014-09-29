@@ -35,7 +35,7 @@ define('OUTPUT_BUCKET_Template',"gs://$USER/outputs/$VMNAME/$OUTDIR","default cl
 
 def _remote_provision ():
   for repo in ("pyxis","meqtrees-cattery"):
-    if os.path.exists(repo):
+    if exists(repo):
       x.sh("git -C $repo pull");
   info("VM provision complete");
 
