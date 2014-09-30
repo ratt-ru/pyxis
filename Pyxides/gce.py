@@ -77,11 +77,11 @@ def rsh (command,vmname='$VMNAME',bg=False):
 def rpyxis (command,vmname='$VMNAME',dir=None,bg=False,wrapup=False):
   command,vmname = interpolate_locals("command vmname");
   cd = II("cd $dir;") if dir else "";
-  wrapup = "; pyxis gce.wrapup" if wrapup else "";
+  wrap = "; pyxis gce.wrapup" if wrapup else "";
   if bg:
-    gc("ssh $vmname --command '$cd screen -L -md pyxis $command $wrapup'")
+    gc("ssh $vmname --command 'screen -L -md bash -i -c \"$cd pyxis $command $wrap\"'")
   else:
-    gc("ssh $vmname --command '$cd pyxis $command $wrapup'")
+    gc("ssh $vmname --command 'bash -i -c \"$cd pyxis $command $wrap\"'")
 
 
 def provision_vm (vmname="$VMNAME"):
@@ -184,5 +184,7 @@ def delete_vm (vmname="$VMNAME"):
   info("deleted VM instance $name");
 
 def wrapup ():
-  gcpo("screenlog.0 /var/log/syslog* $OUTDIR/*txt $OUTPUT_BUCKET");
+  files = [ f in glob.glob("/var/log/syslog*") + glob.glob(II("$OUTDIR/*txt")) + "screenlog.0" if exists(f) ];
+  if files:
+    gcpo("%s $OUTPUT_BUCKET"%" ".join(files));
   x.sh("sudo poweroff")
