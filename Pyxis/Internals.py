@@ -979,7 +979,7 @@ def _parse_cmdline_value (value):
   "VAR=dict(x='y')"      VAR = dict(x='y')
   VAR=x=1                VAR = "x=1"
   """
-  if value[0] == ':' and len(value)>1 and value[-1] == ":":
+  if len(value)>1 and value[0] == ':' and value[-1] == ":":
     return value[1:-1];
   try:
     return eval(value,Pyxis.Context);
