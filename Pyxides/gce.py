@@ -77,11 +77,11 @@ def rsh (command,vmname='$VMNAME',bg=False):
 def rpyxis (command,vmname='$VMNAME',dir=None,bg=False,wrapup=False):
   command,vmname = interpolate_locals("command vmname");
   cd = II("cd $dir;") if dir else "";
-  wrap = "; pyxis gce.VMNAME=$VMNAME gce.wrapup" if wrapup else "";
+  wrap = II("; pyxis gce.VMNAME=$vmname gce.wrapup") if wrapup else "";
   if bg:
-    gc("ssh $vmname --command 'screen -L -md bash -i -c \"$cd pyxis gce.VMNAME=$VMNAME $command $wrap\"'")
+    gc("ssh $vmname --command 'screen -L -md bash -i -c \"$cd pyxis gce.VMNAME=$vmname $command $wrap\"'")
   else:
-    gc("ssh $vmname --command 'bash -i -c \"$cd pyxis gce.VMNAME=$VMNAME $command $wrap\"'")
+    gc("ssh $vmname --command 'bash -i -c \"$cd pyxis gce.VMNAME=$vmname $command $wrap\"'")
 
 
 def provision_vm (vmname="$VMNAME"):
