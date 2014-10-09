@@ -923,6 +923,7 @@ def _autoimport (modname):
   if modname not in _namespaces:
     _verbose(1,"auto-importing module %s"%modname);
     Pyxis.Context[modname] = __import__(modname,Pyxis.Context);
+    assign_templates();
     
     
 _re_mod_command = re.compile("^(\w[\w.]+)\\.(\w+)$");
