@@ -324,7 +324,7 @@ def predict_vis (msname="$MS",image="$MODEL_IMAGE",column="MODEL_DATA",channeliz
   rm_fr(casaimage);
   
   if column != "MODEL_DATA":
-    ms.copycol(msname,"MODEL_DATA",column);
+    ms.copycol(msname=msname,fromcol="MODEL_DATA",tocol=column);
 
 document_globals(predict_vis,"MS MODEL_IMAGE COPY_IMAGE_TO ms.IFRS ms.DDID ms.FIELD ms.CHANRANGE");      
 
