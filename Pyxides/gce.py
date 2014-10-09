@@ -39,8 +39,21 @@ def _remote_provision ():
       x.sh("git -C $repo pull");
   info("VM provision complete");
 
+def _await_vm (name):
+  """Waits for specified VM to come up""";
+  for attempt in range(1,11):
+    if gco("ssh $name --command pwd",quiet=True) is 0:
+      break;
+    if attempt is 1 and name not in get_vms():
+      abort("no such VM $name")
+    warn("VM $name is not up yet (attempt #$attempt), waiting for 5 seconds to retry");
+    time.sleep(5);
+  else:
+    abort("failed to connect to VM $name after $attempt tries")
+  return True;
+  
 ## create VM
-def init_vm (vmname="$VMNAME",vmtype="$VMTYPE",reuse_boot=True,autodelete_boot=None,provision=True):
+def init_vm (vmname="$VMNAME",vmtype="$VMTYPE",reuse_boot=True,autodelete_boot=None,provision=True,wait=False,**kw):
   """Creates a GCE VM instance""";
   name,vmtype = interpolate_locals("vmname vmtype");
   # check if a boot disk needs to be created
@@ -63,9 +76,23 @@ def init_vm (vmname="$VMNAME",vmtype="$VMTYPE",reuse_boot=True,autodelete_boot=N
   scopes = "--scopes storage-rw"
   gc("instances create $name --machine-type $vmtype --disk name=$name mode=rw boot=yes auto-delete=%s $scopes"%("yes" if autodelete_boot else "no"));
   info("created VM instance $name, type $vmtype")
-  # provision with pyxis scripts in current directory
+  up = False;
+  # attach disks
+  for key,value in kw.iteritems():
+    if key.startswith("attach_"):
+      up = up or _await_vm(name);
+      if isinstance(value,dict):
+        attach_disk(key[len("attach_"):],**value);
+      elif isinstance(value,int):
+        attach_disk(key[len("attach_"):],size=value);
+      else:
+      	raise TypeError,"unknown data type for %s"%key;
+  # provision with pyxis scripts in specified directory
   if provision:
-    provision_vm(name);
+    provision_vm(name,dir=provision if isinstance(provision,str) else "");
+    up = True;
+  if wait and not up:
+  	_await_vm(name)
 
 def rsh (command,vmname='$VMNAME',bg=False):
   command,vmname = interpolate_locals("command vmname");
@@ -84,12 +111,12 @@ def rpyxis (command,vmname='$VMNAME',dir=None,bg=False,wrapup=False):
     gc("ssh $vmname --command 'bash -i -c \"$cd pyxis gce.VMNAME=$vmname $command $wrap\"'")
 
 
-def provision_vm (vmname="$VMNAME"):
-  name = interpolate_locals("vmname");
+def provision_vm (vmname="$VMNAME",dir=""):
+  name,dir = interpolate_locals("vmname dir");
   # make sure the machine is ready -- retry the file copy until we succeed
   files = " ".join(list(glob.glob("pyxis-*py")) + list(glob.glob("pyxis-*.conf")));
   for attempt in range(1,11):
-    if gco("copy-files $files $name:",quiet=True) is 0:
+    if gco("copy-files $files $name:$dir",quiet=True) is 0:
       break;
     if attempt is 1 and name not in get_vms():
       abort("no such VM $name")
@@ -114,7 +141,7 @@ def _remote_attach_disk (diskname,mount,clear):
     gc("ln -s $mount");
 
 def attach_disk (mount="data",diskname="${vmname}-$mount",vmname="$VMNAME",
-          			 size=None,snapshot=None,ssd=False,
+                 size=None,snapshot=None,ssd=False,
                  init=False,clear=False,mode="rw",autodelete=False):
   name,diskname,disksize,mount = interpolate_locals("vmname diskname size mount")
   diskname = diskname.lower().replace("/","");
