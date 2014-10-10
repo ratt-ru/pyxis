@@ -8,22 +8,22 @@ import time
 import os.path
 
 define('PROJECT',"meerkat-7-gazing","default GCE project name")
-define('COMPZONE',"europe-west1-a","default GCE compute zone")
+define('ZONE',"europe-west1-a","default GCE compute zone")
 
 # gcloud executable
-# includes PROJECT and COMPZONE in the command line
-gc = x.gcloud.args(before="compute --project $PROJECT",after="--zone $COMPZONE");
+# includes PROJECT and ZONE in the command line
+gc = x.gcloud.args(before="compute --project $PROJECT",after="--zone $ZONE");
 gc1 = x.gcloud.args(before="compute --project $PROJECT");
-gco = xo.gcloud.args(before="compute --project $PROJECT",after="--zone $COMPZONE");
-gcr = xr.gcloud.args(before="compute --project $PROJECT",after="--zone $COMPZONE");
+gco = xo.gcloud.args(before="compute --project $PROJECT",after="--zone $ZONE");
+gcr = xr.gcloud.args(before="compute --project $PROJECT",after="--zone $ZONE");
 gcr1 = xr.gcloud.args(before="compute --project $PROJECT");
-gcro = xro.gcloud.args(before="compute --project $PROJECT",after="--zone $COMPZONE");
+gcro = xro.gcloud.args(before="compute --project $PROJECT",after="--zone $ZONE");
 
 # gsutil cp executables
 gcp = x.gsutil.args("cp");
 gcpo = xo.gsutil.args("cp");
 
-define('SNAPSHOT',"oms-papino-9","snapshot on which boot disk is to be based")
+define('SNAPSHOT',"oms-papino-10","snapshot on which boot disk is to be based")
 define('DATADISKSIZE',200,"default data disk size (in Gb) for VM instances")
 define('VMTYPE',"n1-standard-1","default VM type")
 
@@ -31,18 +31,15 @@ define('USER',E.USER,"default username to be used on remote machine")
 
 define("VMNUM",1,"VM serial number")
 define('VMNAME_Template',"${USER}-"+socket.gethostname().replace(".","-").lower()+"-$VMNUM","default VM instance name");
-define('OUTPUT_BUCKET_Template',"gs://$USER/outputs/$VMNAME/$OUTDIR","default cloud storage destination for output products"); 
+define('OUTPUT_BUCKET_Template',"gs://$USER/outputs/$VMNAME-$OUTDIR","default cloud storage destination for output products"); 
 
-def _remote_provision ():
-  for repo in ("pyxis","meqtrees-cattery"):
-    if exists(repo):
-      x.sh("git -C $repo pull");
-  info("VM provision complete");
+define('PROVISION_SCRIPT','./pyxis-provision.sh','provisioning script to run on remote VM')
 
-def _await_vm (name):
-  """Waits for specified VM to come up""";
+def provision_vm (vmname="VMNAME"):
+  """Waits for specified VM to come up and runs provisioning script""";
+  name = interpolate_locals("vmname");
   for attempt in range(1,11):
-    if gco("ssh $name --command pwd",quiet=True) is 0:
+    if gco("ssh $name --command 'if [ -x $PROVISION_SCRIPT ]; then $PROVISION_SCRIPT; fi'") is 0:
       break;
     if attempt is 1 and name not in get_vms():
       abort("no such VM $name")
@@ -50,10 +47,11 @@ def _await_vm (name):
     time.sleep(5);
   else:
     abort("failed to connect to VM $name after $attempt tries")
+  info("VM $name has been provisioned ")
   return True;
   
 ## create VM
-def init_vm (vmname="$VMNAME",vmtype="$VMTYPE",reuse_boot=True,autodelete_boot=None,provision=True,wait=False,**kw):
+def init_vm (vmname="$VMNAME",vmtype="$VMTYPE",reuse_boot=True,autodelete_boot=None,wait=False,propagate=True,**kw):
   """Creates a GCE VM instance""";
   name,vmtype = interpolate_locals("vmname vmtype");
   # check if a boot disk needs to be created
@@ -76,11 +74,11 @@ def init_vm (vmname="$VMNAME",vmtype="$VMTYPE",reuse_boot=True,autodelete_boot=N
   scopes = "--scopes storage-rw"
   gc("instances create $name --machine-type $vmtype --disk name=$name mode=rw boot=yes auto-delete=%s $scopes"%("yes" if autodelete_boot else "no"));
   info("created VM instance $name, type $vmtype")
-  up = False;
+  # run provisioning script
+  provision_vm(name);
   # attach disks
   for key,value in kw.iteritems():
     if key.startswith("attach_"):
-      up = up or _await_vm(name);
       if isinstance(value,dict):
         attach_disk(key[len("attach_"):],**value);
       elif isinstance(value,int):
@@ -88,11 +86,8 @@ def init_vm (vmname="$VMNAME",vmtype="$VMTYPE",reuse_boot=True,autodelete_boot=N
       else:
       	raise TypeError,"unknown data type for %s"%key;
   # provision with pyxis scripts in specified directory
-  if provision:
-    provision_vm(name,dir=provision if isinstance(provision,str) else "");
-    up = True;
-  if wait and not up:
-  	_await_vm(name)
+  if propagate:
+    propagate_scripts(name,dir=propagate if isinstance(propagate,str) else "");
 
 def rsh (command,vmname='$VMNAME',bg=False):
   command,vmname = interpolate_locals("command vmname");
@@ -111,21 +106,12 @@ def rpyxis (command,vmname='$VMNAME',dir=None,bg=False,wrapup=False):
     gc("ssh $vmname --command 'bash -i -c \"$cd pyxis gce.VMNAME=$vmname $command $wrap\"'")
 
 
-def provision_vm (vmname="$VMNAME",dir=""):
+def propagate_scripts (vmname="$VMNAME",dir=""):
   name,dir = interpolate_locals("vmname dir");
   # make sure the machine is ready -- retry the file copy until we succeed
   files = " ".join(list(glob.glob("pyxis-*py")) + list(glob.glob("pyxis-*.conf")));
-  for attempt in range(1,11):
-    if gco("copy-files $files $name:$dir",quiet=True) is 0:
-      break;
-    if attempt is 1 and name not in get_vms():
-      abort("no such VM $name")
-    warn("VM $name is not up yet (attempt #$attempt), waiting for 5 seconds to retry");
-    time.sleep(5);
-  else:
-    abort("failed to connect to VM $name after $attempt tries")
-  info("copied $files to VM, running provisioning command");
-  rpyxis('gce._remote_provision',name);
+  gc("copy-files $files $name:$dir");
+  info("propagated $files to VM");
 
 
 def _remote_attach_disk (diskname,mount,clear):
@@ -152,7 +138,7 @@ def attach_disk (mount="data",diskname="${vmname}-$mount",vmname="$VMNAME",
     del disks[diskname];
   if diskname not in disks:
     disktype = "pd-ssd" if ssd else "pd-standard";
-    info("disk $diskname does not exist, creating type $disktype, size $disksize Gb")
+    info("disk $diskname does not exist, creating type $disktype${ size <disksize> Gb}${ from snapshot <snapshot}")
     if not snapshot:
       size = DATADISKSIZE;
     gc("disks create $diskname ${--size <disksize} --type $disktype ${--source-snapshot <snapshot}");
@@ -162,7 +148,7 @@ def attach_disk (mount="data",diskname="${vmname}-$mount",vmname="$VMNAME",
   if autodelete:
     gc("instances set-disk-auto-delete --auto-delete $name --disk $diskname")
   # execute rest on remote
-  rpyxis('_remote_attach_disk[:$diskname:,:$mount:,$clear]',name);
+  rpyxis('gce._remote_attach_disk[:$diskname:,:$mount:,$clear]',name);
   info("attached disk $diskname as $name:$mount ($mode)")
 
 
@@ -204,11 +190,16 @@ def delete_disk (*disknames):
   for disk in disknames:
     gc("disks delete $disk --quiet");
 
-def delete_vm (vmname="$VMNAME"):
-  """Deletes a GCE VM instance""";
+def delete_vm (vmname="$VMNAME",disks=True):
+  """Deletes a GCE VM instance. If disks=True, deletes associated data disks.""";
   name = interpolate_locals("vmname");
-  gc("instances delete $name --quiet");
-  info("deleted VM instance $name");
+  gco("instances delete $name --quiet");
+  info("deleted VM instance $name" + ("; deleting asociated disks" if disks else ""));
+  if disks:
+    for key,value in get_disks().iteritems():
+      if key.startswith(name+"-"):
+        gc("disks delete $key --quiet");
+
 
 def wrapup ():
   files = [ f for f in glob.glob("/var/log/syslog*") + 
