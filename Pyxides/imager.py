@@ -165,8 +165,8 @@ def fits2casa (input,output):
 #----------------------------- MORESANE WRAP ---------------------------
 define('MORESANE_PATH_Template','${MORESANE_PATH}','Path to PyMORESANE')
 _moresane_args = {'singlerun': False,\
-'subregion': 0,\
-'scalecount': 0,\
+'subregion': None,\
+'scalecount': None,\
 'startscale': 1,\
 'stopscale': 20,\
 'sigmalevel': 4,\
