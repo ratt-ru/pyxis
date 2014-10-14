@@ -13,6 +13,7 @@ import itertools
 import time
 import fnmatch
 import shutil
+import shlex
 
 import Pyxis
 
@@ -114,22 +115,22 @@ class ShellExecutor (object):
 used to run that command. The command (and any fixed arguments) are specified in the constructor of 
 the object. ShellExecutors are typically created via the Pyxis x, xo or xz built-ins, e.g. as 
       ls = x.ls 
-      lsl = x.ls("-l")
+      lsl = x.ls.args("-l")
       ls()             # runs "ls"
       dir="./test"
       lsl("$dir")      # runs "ls -l ./test"
       ls(x=1)          # runs "ls x=1"
   """;
   
-  def __init__ (self,name,path,frame,allow_fail=False,get_output=False,bg=False,verbose=1,*args,**kws):
+  def __init__ (self,name,path,frame,allow_fail=False,get_output=False,bg=False,verbose=1,args0=(),kws0={},args1=(),kws1={},doc=False):
     self.name,self.path = name,path;
     self.allow_fail = allow_fail;
     self.bg  = bg;
     self.argframe = frame;
     self.get_output = get_output;
     self.verbose = verbose;
-    doc = kws.pop('doc',None);
-    self._add_args,self._add_kws = list(args),kws;
+    self._pre_args,self._pre_kws = (list(args0),kws0);
+    self._post_args,self._post_kws = (list(args1),kws1);
     self.__doc__ = "(Shell command: %s)"%str(self);
     if doc is not None:
       self.doc(doc);
@@ -143,13 +144,20 @@ the object. ShellExecutors are typically created via the Pyxis x, xo or xz built
     
   def args (self,*args,**kws):
     """Creates instance of executor with additional args. Local variables of caller are interpolated."""
-    args0,kws0 = interpolate_args(self._add_args,self._add_kws,self.argframe);
+    args0,kws0 = interpolate_args(self._pre_args,self._pre_kws,self.argframe);
+    args1,kws1 = interpolate_args(self._post_args,self._post_kws,self.argframe);
+    before = kws.pop("before",None);
+    after = kws.pop("after",None);
     kws0.update(kws);
+    if before is not None:
+      args0 += [ before ] if isinstance(before,str) else list(before);
+    if after is not None:
+      args1 += [ after ] if isinstance(after,str) else list(after);
     return ShellExecutor(self.name,self.path,inspect.currentframe().f_back,self.allow_fail,
-        self.get_output,self.bg,self.verbose,*(args0+list(args)),**kws0);
-    
+        self.get_output,self.bg,self.verbose,(args0+list(args)),kws0,args1,kws1);
+
   def __str__ (self):
-    return " ".join([self.path or ""]+self._add_args+["%s=%s"%(a,b) for a,b in self._add_kws.iteritems()]);
+    return " ".join([self.path or ""]+self._pre_args+["%s=%s"%(a,b) for a,b in self._pre_kws.iteritems()]);
     
   def __repr__ (self):
     return "ShellExecutor: %s"%str(self);
@@ -162,10 +170,12 @@ the object. ShellExecutors are typically created via the Pyxis x, xo or xz built
         _abort("PYXIS: shell command '%s' not found"%self.name);
       _warn("PYXIS: shell command '%s' not found"%self.name);
     else:
-      args0,kws0 = interpolate_args(self._add_args,self._add_kws,self.argframe,convert_lists=True);
+      args0,kws0 = interpolate_args(self._pre_args,self._pre_kws,self.argframe,convert_lists=True);
+      args1,kws1 = interpolate_args(self._post_args,self._post_kws,self.argframe,convert_lists=True);
       args,kws = interpolate_args(args,kws,inspect.currentframe().f_back,convert_lists=True);
       kws0.update(kws);
-      return _call_exec(self.path,get_output=self.get_output,allow_fail=self.allow_fail,bg=self.bg,verbose=self.verbose,*(args0+args),**kws0);
+      return _call_exec(self.path,get_output=self.get_output,allow_fail=self.allow_fail,bg=self.bg,verbose=self.verbose,
+        args=args0+args+args1,kws1=kws1,**kws0);
 
 class ShellExecutorFactory (object):
   """This object can be used to create proxies for shell commands called ShellExecutors."""
@@ -202,7 +212,7 @@ class ShellExecutorFactory (object):
     if len(args) == 1:
       args = args[0].split(" ");
     return ShellExecutor(args[0],args[0],None,allow_fail=self.allow_fail,bg=self.bg,
-                verbose=self.verbose,get_output=self.get_output,*args[1:],**kws);
+                verbose=self.verbose,get_output=self.get_output,args0=args[1:],kws0=kws);
     
   def sh (self,*args,**kws):
     """Directly invokes the shell with a command and arguments"""
@@ -226,11 +236,10 @@ class ShellExecutorFactory (object):
       sys.stderr.write(err_output);
     else:
       po.wait();
-      output = None;
+      output = po.returncode;
     if po.returncode:
       if self.allow_fail:
         _warn("PYXIS: '%s' returns error code %d"%(commands[0],po.returncode));
-        return;
       else:
         _abort("PYXIS: '%s' returns error code %d"%(commands[0],po.returncode));
     else:
@@ -827,26 +836,27 @@ def find_exec (cmd):
   
 _bg_processes = [];  
   
-def _call_exec (path,*args,**kws):
+def _call_exec (path,args,kws1={},**kws):
   """Helper function: calls external program with the given arguments and keywords
   (each kw dict element is turned into a name=value argument)""";
   allow_fail = kws.pop('allow_fail',False);
   bg = kws.pop('bg',False);
   verbose = kws.pop('verbose',1);
   get_output = kws.pop('get_output',None);
+  quiet = kws.pop('quiet',None);
   # default is to split each argument at whitespace, but split_args=False passes them as-is
   split = kws.pop('split_args',True);
   # build list of arguments
   args1 = [path];
   if split:
     for arg in args:
-      args1 += arg.split(" ") if isinstance(arg,str) else [ str(arg) ];
+      args1 += shlex.split(arg) if isinstance(arg,str) else [ str(arg) ];
     # eliminate empty strings
     args1 = [ x for x in args1 if x ];
   else:
     args1 += map(str,args);
   # eliminate empty strings when splitting
-  args = args1+["%s=%s"%(a,b) for a,b in kws.iteritems()];
+  args = args1 + ["%s=%s"%(a,b) for a,b in kws.iteritems()] + ["%s=%s"%(a,b) for a,b in kws1.iteritems()];
   # if command is 'time', then actual command is second argument
   cmdname = args[1] if args[0] == "time" or args[0] == "/usr/bin/time" else args[0];
   # run command
@@ -860,6 +870,8 @@ def _call_exec (path,*args,**kws):
   else:
     _verbose(verbose,"executing '%s':"%(" ".join(args)));
     stdout,stderr = sys.stdout,sys.stderr;
+    if quiet:
+      stdout = stderr = file('/dev/null','w')
     # if stdout/stderr is not a file (as is the case under ipython notebook, then
     # subprocess.Popen() fails. Therefore, in these cases, or if get_output is true, we
     # pipe the output into here via communicate()
@@ -877,11 +889,11 @@ def _call_exec (path,*args,**kws):
       sys.stderr.write(err_output);
     else:
       po.wait();
-      output = err_output = None;
+      output = po.returncode;
+      err_output = None;
     if po.returncode:
       if allow_fail:
         _warn("%s returned error code %d"%(cmdname,po.returncode));
-        return;
       else:
         _abort("%s returned error code %d"%(cmdname,po.returncode));
     else:
@@ -911,6 +923,7 @@ def _autoimport (modname):
   if modname not in _namespaces:
     _verbose(1,"auto-importing module %s"%modname);
     Pyxis.Context[modname] = __import__(modname,Pyxis.Context);
+    assign_templates();
     
     
 _re_mod_command = re.compile("^(\w[\w.]+)\\.(\w+)$");
@@ -944,7 +957,7 @@ def find_command (comname,frame=None,autoimport=True):
   if path is None:
     _abort("undefined command '%s'"%comname);
   # make callable for this shell command
-  return lambda *args:_call_exec(path,allow_fail=allow_fail,*args);
+  return lambda *args:_call_exec(path,allow_fail=allow_fail,args=args);
 
 _re_assign = re.compile("^(\w[\w.]*)(\\+?=)(.*)$");
 _re_command1 = re.compile("^(\\??\w[\w.]*)\\[(.*)\\]$");
@@ -959,13 +972,16 @@ def _parse_cmdline_value (value):
   
   Argument:              Corresponding Python code:
   ---------              --------------------------
-  VAR=x                  VAR = "x" if superglobal x is undefined, else VAR=x
+  VAR=x                  VAR = "x"    if superglobal x is undefined, else VAR=x
   "VAR='x'"              VAR = "x"    note that shell will swallow the outer quotes
+  VAR=:x:                VAR = "x"    leading/trailing colon striped -- makes it easier to pass literal strings from the shell
   VAR=1                  VAR = 1
   VAR=complex(1)         VAR = 1+0j
   "VAR=dict(x='y')"      VAR = dict(x='y')
   VAR=x=1                VAR = "x=1"
   """
+  if len(value)>1 and value[0] == ':' and value[-1] == ":":
+    return value[1:-1];
   try:
     return eval(value,Pyxis.Context);
   except:

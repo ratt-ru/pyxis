@@ -83,7 +83,22 @@ def prep (msname=None):
   flagms("-Y +L -f legacy -c");
   
 def delcols (*columns):  
+  """Deletes the given columns in the MS""";
   msw(v.MS).removecols(columns);
+
+document_globals(delcols,"MS");
+
+def zerocol (column,ddid="$DDID",field="$FIELD",msname="$MS"):  
+  """Fills the given column in the MS with zeroes""";
+  column,msname,ddid,field = interpolate_locals("column msname ddid field");
+  subtable = msw(msname).query(II("DATA_DESC_ID==$ddid && FIELD_ID==$field"));
+  col = subtable.getcol(column);
+  info("ddid $ddid field $field: will zero column $column of shape %s"%str(col.shape));
+  col[...] = 0;
+  subtable.putcol(column,col);
+  subtable.close();
+document_globals(zerocol,"MS DDID FIELD");
+
   
 def copycol (fromcol="DATA",tocol="CORRECTED_DATA",rowchunk=500000,msname="$MS"):
   """Copies data from one column of MS to another.
@@ -97,6 +112,7 @@ def copycol (fromcol="DATA",tocol="CORRECTED_DATA",rowchunk=500000,msname="$MS")
     info("Copying $msname $fromcol to $tocol (rows $row0 to %d)"%(row0+nr-1));
     tab.putcol(tocol,tab.getcol(fromcol,row0,nr),row0,nr)
   tab.close()
+document_globals(copycol,"MS");
 
   
 define('FIGURE_WIDTH',8,'width of plots, in inches');
@@ -132,7 +148,7 @@ def plot_uvcov (msname="$MS",width=None,height=None,dpi=None,save=None,select=No
     pylab.show();
   return mb
   
-document_globals(plot_uvcov,"FIGURE_*");  
+document_globals(plot_uvcov,"MS FIGURE_*");  
 
 ##
 ## ARCHIVE/UNARCHIVE FUNCTIONS
@@ -297,8 +313,8 @@ def _msddid_Template ():
       _chanspec_Template();
       info("$MS ddid $DDID is spwid $SPWID with $TOTAL_CHANNELS channels"); 
     except:
-      warn("Error accessing $MS");
       if v.VERBOSE > 1:
+        warn("Error accessing $MS");
         traceback.print_exc();
       return None;
   return II("$MS:$DDID");

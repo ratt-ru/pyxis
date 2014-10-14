@@ -16,6 +16,8 @@ v.define("LSM","lsm.lsm.html","""current local sky model""");
 # external tools  
 define('LWIMAGER_PATH','lwimager','path to lwimager binary. Default is to look in the system PATH.');
 
+define('COLUMN','CORRECTED_DATA','default column to image');
+
 # dict of known lwimager arguments, by version number
 # this is to accommodate newer versions
 _lwimager_known_args = {
@@ -117,7 +119,10 @@ def lwimager_version (path="$LWIMAGER_PATH"):
             1003000,"20130816-OMS" (for 20130816-OMS which is really 1.3.0)
   """
   path = interpolate_locals("path");
-  vstr = subprocess.Popen([path,"--version"],stderr=subprocess.PIPE).stderr.read().strip().split()[-1];
+  try:
+    vstr = subprocess.Popen([path,"--version"],stderr=subprocess.PIPE).stderr.read().strip().split()[-1];
+  except:
+    return 0,"";
   if '.' in vstr:
     major,minor,patch = vstr.split('.')
     patch,tail = patch.split("-",1) if "-" in patch else (patch,"");

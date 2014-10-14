@@ -43,7 +43,7 @@ a Python string.""";
   xro = Pyxis.Internals.ShellExecutorFactory(get_output=True,allow_fail=True,verbose=0);
   xro.__name__ = 'xr';
   xro.__doc__ = xro.doc_proto%dict(name='xro') + """Shell commands launched via 'xro' return their output as
-a Python string, and ae allowed to fail.""";
+a Python string, and are allowed to fail.""";
 
   xz = Pyxis.Internals.ShellExecutorFactory(allow_fail=True,bg=True);
   xz.__name__ = 'xz';
