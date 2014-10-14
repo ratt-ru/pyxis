@@ -164,7 +164,11 @@ def fits2casa (input,output):
 
 #----------------------------- MORESANE WRAP ---------------------------
 define('MORESANE_PATH_Template','${MORESANE_PATH}','Path to PyMORESANE')
-_moresane_args = {'singlerun': False,\
+_moresane_args = {'outputname': None,\
+'model': None,\
+'residual': None,\
+'restored':None,\
+'singlerun': False,\
 'subregion': None,\
 'scalecount': None,\
 'startscale': 1,\
@@ -185,28 +189,31 @@ _moresane_args = {'singlerun': False,\
 'edgesupression': False,\
 'edgeoffset': 0}
 
-def run_moresane(dirty_image,psf_image,threshold=3.0,image_prefix='${OUTFILE}',moresane_path='$MORESANE_PATH',**kw):
+def run_moresane(dirty_image,psf_image,threshold=3.0,image_prefix=None,moresane_path='$MORESANE_PATH',**kw):
   """ Runs PyMORESANE """
-  outfile,moresane_path = interpolate_locals('image_prefix moresane_path') 
+  moresane_path = interpolate_locals('moresane_path') 
   # Check if PyMORESANE exists
   if not os.path.exists(MORESANE_PATH): abort('Could not find PyMORESANE at $moresane_path')
+  if image_prefix: _moresane_args.update['outputname']=image_prefix+'.fits'
   # Make sure that all options passed into moresane are known
   unknown = []
   if len(kw)>0:
     for arg in kw.keys():
       if arg not in _moresane_args.keys(): uknown.append(arg)
+      else: _moresane_args[arg] = kw[arg]
     if len(unknown)>0: abort('The follwing options passed into PyMORESANE could not be recognised:\n $unknown \n')
   # Update deconvolution threshold
   if 'sigmalevel' not in kw: _moresane_args['sigmalevel'] = threshold
   else: _moresane_args['sigmalevel'] = kw['sigmalevel']
-   
+  import types 
   # Construct PyMORESANE run command
   run_cmd = 'python %s '%moresane_path
-  for key,val in _moresane_args .iteritems():
+  for key,val in _moresane_args.iteritems():
+   if val is not None:
     if type(val) is bool:
-      if val: run_cmd+='--%s=%s '%(key,val)
+      if val: run_cmd+='--%s '%(key)
     else: run_cmd+='--%s=%s '%(key,val)
-  run_cmd += '%s %s %s'%(dirty_image,psf_image,outfile+'.fits')
+  run_cmd += '%s %s'%(dirty_image,psf_image)
   x.sh(run_cmd)
   #abort('>>> $run_cmd')
   
@@ -276,9 +283,9 @@ def make_image (msname="$MS",column="$COLUMN",
     if not os.path.exists(psf_image): make_psf()
     if not os.path.exists(dirty_image): make_dirty_image()  
     if type(restore) is dict:
-      run_moresane(dirty_image,psf_image,**restore)
+      run_moresane(dirty_image,psf_image,model=model_image,residual=residual_image,restored=restored_image,**restore)
     elif restore==True: 
-      run_moresane(dirty_image,psf_image)
+      run_moresane(dirty_image,psf_image,model=model_image,residual=residual_image,restored=restored_image)
     else: abort('restore has to be either a dictionary or a boolean')
   elif restore:
     info("imager.make_image: making restored image $RESTORED_IMAGE");
