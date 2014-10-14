@@ -157,6 +157,55 @@ def fits2casa (input,output):
     rm_fr(output);
   imagecalc("in=$input out=$output");
 
+#----------------------------- MORESANE WRAP ---------------------------
+define('MORESANE_PATH_Template','${MORESANE_PATH}','Path to PyMORESANE')
+_moresane_args = {'singlerun': False,\
+'subregion': 0,\
+'scalecount': 0,\
+'startscale': 1,\
+'stopscale': 20,\
+'sigmalevel': 4,\
+'loopgain': 0.2,\
+'tolerance': 0.75,\
+'accuracy': 1e-6,\
+'majorloopmiter': 100,\
+'minorloopmiter': 50,\
+'allongpu': False,\
+'decommode': 'ser',\
+'corecount': 1,\
+'convdevice': 'cpu',\
+'convmode': 'circular',\
+'extractionmode': 'cpu',\
+'enforcepositivity': False,\
+'edgesupression': False,\
+'edgeoffset': 0}
+
+def run_moresane(dirty_image,psf_image,threshold=3.0,image_prefix='${OUTFILE}',moresane_path='$MORESANE_PATH',**kw):
+  """ Runs PyMORESANE """
+  outfile,moresane_path = interpolate_locals('image_prefix moresane_path') 
+  # Check if PyMORESANE exists
+  if not os.path.exists(MORESANE_PATH): abort('Could not find PyMORESANE at $moresane_path')
+  # Make sure that all options passed into moresane are known
+  unknown = []
+  if len(kw)>0:
+    for arg in kw.keys():
+      if arg not in _moresane_args.keys(): uknown.append(arg)
+    if len(unknown)>0: abort('The follwing options passed into PyMORESANE could not be recognised:\n $unknown \n')
+  # Update deconvolution threshold
+  if 'sigmalevel' not in kw: _moresane_args['sigmalevel'] = threshold
+  else: _moresane_args['sigmalevel'] = kw['sigmalevel']
+   
+  # Construct PyMORESANE run command
+  run_cmd = 'python %s '%moresane_path
+  for key,val in _moresane_args .iteritems():
+    if type(val) is bool:
+      if val: run_cmd+='--%s=%s '%(key,val)
+    else: run_cmd+='--%s=%s '%(key,val)
+  run_cmd += '%s %s %s'%(dirty_image,psf_image,outfile+'.fits')
+  x.sh(run_cmd)
+  #abort('>>> $run_cmd')
+  
+#--------------------------------------------------------------------------------
 def make_image (msname="$MS",column="$COLUMN",
                 dirty=True,restore=False,restore_lsm=True,psf=False,
                 dirty_image="$DIRTY_IMAGE",
@@ -196,7 +245,7 @@ def make_image (msname="$MS",column="$COLUMN",
     
   kw0.update(ms=msname,data=column);
 
-  if dirty:
+  def make_dirty_image():
     info("imager.make_image: making dirty image $dirty_image");
     kw = kw0.copy();
     if type(dirty) is dict:
@@ -204,7 +253,9 @@ def make_image (msname="$MS",column="$COLUMN",
     kw['operation'] = 'image';
     _run(image=dirty_image,**kw);
 
-  if psf:
+  if dirty: make_dirty_image()
+
+  def make_psf():
     info("imager.make_image: making PSF image $psf_image");
     kw = kw0.copy();
     if type(psf) is dict:
@@ -213,8 +264,18 @@ def make_image (msname="$MS",column="$COLUMN",
     kw['data'] = 'psf';
     kw['stokes'] = "I";
     _run(image=psf_image,**kw);
-    
-  if restore:
+
+  if psf: make_psf()
+
+  if algorithm=='moresane' and restore:
+    if not os.path.exists(psf_image): make_psf()
+    if not os.path.exists(dirty_image): make_dirty_image()  
+    if type(restore) is dict:
+      run_moresane(dirty_image,psf_image,**restore)
+    elif restore==True: 
+      run_moresane(dirty_image,psf_image)
+    else: abort('restore has to be either a dictionary or a boolean')
+  elif restore:
     info("imager.make_image: making restored image $RESTORED_IMAGE");
     info("                   (model is $MODEL_IMAGE, residual is $RESIDUAL_IMAGE)");
     kw = kw0.copy();
