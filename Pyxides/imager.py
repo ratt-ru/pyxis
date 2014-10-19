@@ -395,6 +395,7 @@ def run_wsclean(msname='$MS',image_prefix='$BASENAME_IMAGE',column='$COLUMN',
   robust = globals()['robust']
   if weight == 'briggs': 
     _wsclean_args['weight'] = 'briggs %d'%robust
+  else: _wsclean_args['weight'] = weight
   stokes = repr(list(globals()['stokes'])).strip('[]').replace('\'','')
   if niter is None: niter = globals()['niter']
   _wsclean_args['niter'] = niter 
