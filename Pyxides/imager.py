@@ -434,7 +434,7 @@ def run_wsclean(msname='$MS',image_prefix='$BASENAME_IMAGE',column='$COLUMN',
   if channelize in [0,None]:
     if dirty: 
       x.mv('${image_prefix}-dirty.fits $dirty_image')
-      if niter==0: x.mv('${image_prefix}-psf.fits $psf_image')
+      #if niter==0: x.mv('${image_prefix}-psf.fits $psf_image')
     else: rm_fr('${image_prefix}-dirty.fits')
     if niter>0: 
       x.mv('${image_prefix}-model.fits $model_image')
@@ -578,10 +578,10 @@ def make_image (msname="$MS",column="$COLUMN",imager='$IMAGER',
         rm_fr(img);
   elif imager.lower() == 'wsclean':
     kw = kw0.copy()
+    use_moresane = False
     if restore:
       info("imager.make_image: making restored image $restored_image");
       info("                   (model is $model_image, residual is $residual_image)");
-      use_moresane = False
       if algorithm.lower() in ['moresane','pymoresane']: 
         kw['niter'] = 0
         use_moresane = True
