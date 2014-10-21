@@ -217,7 +217,7 @@ def delete_vm (vmname="$VMNAME",disks=True):
 def wrapup ():
   files = [ f for f in glob.glob("/var/log/syslog*") + 
             glob.glob(II("$OUTDIR/*txt")) +
-            glob.glob(II("$USER/screenlog.0")) if exists(f) ];
+            glob.glob(os.path.exanduser("~/screenlog.*")) if exists(f) ];
   if files:
     gcpo("%s $OUTPUT_BUCKET"%" ".join(files));
   x.sh("sudo poweroff")
