@@ -313,8 +313,8 @@ def _msddid_Template ():
       _chanspec_Template();
       info("$MS ddid $DDID is spwid $SPWID with $TOTAL_CHANNELS channels"); 
     except:
-      warn("Error accessing $MS");
-      if v.VERBOSE > 1:
+      if v.VERBOSE > 2:
+        warn("Error accessing $MS");
         traceback.print_exc();
       return None;
   return II("$MS:$DDID");
