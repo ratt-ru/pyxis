@@ -313,8 +313,8 @@ def _msddid_Template ():
       _chanspec_Template();
       info("$MS ddid $DDID is spwid $SPWID with $TOTAL_CHANNELS channels"); 
     except:
+      warn("Error accessing $MS");
       if v.VERBOSE > 1:
-        warn("Error accessing $MS");
         traceback.print_exc();
       return None;
   return II("$MS:$DDID");
@@ -350,3 +350,10 @@ def _chanspec_Template ():
                (ch0,ch1,dch);
   return CHANSTART,CHANSTEP,NUMCHANS;
 
+def set_default_spectral_info():
+  tab = ms(subtable='SPECTRAL_WINDOW')
+  global CHANSTART,CHANSTEP,NUMCHANS,CHANRANGE
+  NUMCHANS = tab.getcol('NUM_CHAN')[0]
+  CHANSTART = 0
+  CHANSTEP = 1
+  CHANRANGE = CHANSTART,NUMCHANS-1,CHANSTEP

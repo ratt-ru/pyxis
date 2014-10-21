@@ -14,6 +14,7 @@ register_pyxis_module(superglobals="MS LSM DESTDIR");
 v.define("LSM","lsm.lsm.html","""current local sky model""");
   
 # external tools  
+define('IMAGER','lwimager','Imager to user. Default is lwimager.');
 define('LWIMAGER_PATH','lwimager','path to lwimager binary. Default is to look in the system PATH.');
 
 define('COLUMN','CORRECTED_DATA','default column to image');
@@ -51,6 +52,7 @@ cellsize="8arcsec"
 mode="channel"
 stokes="IQUV"
 weight="briggs"
+robust=0
 wprojplanes=0
 cachesize=4096
 niter=1000
@@ -73,6 +75,7 @@ _fileargs = set("image model restored residual".split(" "));
 def _run (convert_output_to_fits=True,lwimager_path="$LWIMAGER_PATH",**kw):
   # look up lwimager
   lwimager_path = interpolate_locals("lwimager_path");
+  lwimager_path = findImager(lwimager_path)
   # make dict of imager arguments that have been specified globally or locally
   args = dict([ (arg,globals()[arg]) for arg in _lwimager_args if arg in globals() and globals()[arg] is not None ]);
   args.update([ (arg,kw[arg]) for arg in _lwimager_args if arg in kw ]);
@@ -137,7 +140,7 @@ def lwimager_version (path="$LWIMAGER_PATH"):
 
       
 # filenames for images
-define("BASENAME_IMAGE_Template","${OUTFILE}","default base name for all image filenames below");
+define("BASENAME_IMAGE_Template","${OUTFILE}${-<IMAGER}","default base name for all image filenames below");
 define("DIRTY_IMAGE_Template", "${BASENAME_IMAGE}.dirty.fits","output filename for dirty image");
 define("PSF_IMAGE_Template", "${BASENAME_IMAGE}.psf.fits","output filename for psf image");
 define("RESTORED_IMAGE_Template", "${BASENAME_IMAGE}.restored.fits","output filename for restored image");
@@ -162,7 +165,312 @@ def fits2casa (input,output):
     rm_fr(output);
   imagecalc("in=$input out=$output");
 
-def make_image (msname="$MS",column="$COLUMN",
+
+
+def findImager(path,imager_name=None):
+  """ Find imager"""
+  ispath = len(path.split('/'))>1
+  if ispath : 
+    if os.path.exists(path): return path
+    else : abort('Could not find imager $imager_name at $path')
+  # Look in system path
+  check_path = subprocess.Popen(['which',path],stderr=subprocess.PIPE,stdout=subprocess.PIPE)
+  stdout = check_path.stdout.read().strip()
+  if stdout : return stdout
+  # Check aliases
+  stdout = os.popen('grep %s $HOME/.bash_aliases'%imager_name).read().strip()
+  if stdout: return stdout.split('=')[-1].strip("'")
+  # Don't know where else to look
+  abort('Could not find imager $imager_name at $path')
+
+#----------------------------- MORESANE WRAP ---------------------------
+define('MORESANE_PATH_Template','moresane','Path to PyMORESANE')
+_moresane_args = {'outputname': None,\
+'model-image': None,\
+'residual-image': None,\
+'restored-image':None,\
+'singlerun': False,\
+'subregion': None,\
+'scalecount': None,\
+'startscale': 1,\
+'stopscale': 20,\
+'sigmalevel': 4,\
+'loopgain': 0.2,\
+'tolerance': 0.75,\
+'accuracy': 1e-6,\
+'majorloopmiter': 100,\
+'minorloopmiter': 50,\
+'allongpu': False,\
+'decommode': 'ser',\
+'corecount': 1,\
+'convdevice': 'cpu',\
+'convmode': 'circular',\
+'extractionmode': 'cpu',\
+'enforcepositivity': False,\
+'edgesupression': False,\
+'edgeoffset': 0}
+
+def run_moresane(dirty_image,psf_image,
+                 model_image='$MODEL_IMAGE',
+                 residual_image='$RESIDUAL_IMAGE',
+                 restored_image='$RESTORED_IMAGE',
+                 threshold=3.0,
+                 image_prefix=None,
+                 path='$MORESANE_PATH',**kw):
+  """ Runs PyMORESANE """
+  # Check if PyMORESANE is where it is said to be
+  model_image,residual_image,restored_image,path = interpolate_locals('model_image residual_image restored_image path')
+  #path = path or MORESANE_PATH
+  path = findImager(path,imager_name='PyMORESANE') 
+  if image_prefix: _moresane_args.update['outputname']=image_prefix+'.moresane.fits'
+  # Update options set via this this function
+  if 'sigmalevel' not in kw: _moresane_args['sigmalevel'] = threshold
+  # Make sure that all options passed into moresane are known
+  unknown = []
+  if len(kw)>0:
+    for arg in kw.keys():
+      if arg not in _moresane_args.keys(): unknown.append(arg)
+      else: _moresane_args[arg] = kw[arg]
+    if len(unknown)>0: warn('Ignoring unknown options passed into PyMORESANE :\n $unknown \n')
+  import types 
+  _moresane_args.update({'model-image': model_image,'residual-image': residual_image,'restored-image': restored_image})
+  # Construct PyMORESANE run command
+  run_cmd = '%s '%path
+  for key,val in _moresane_args.iteritems():
+   if val is not None:
+    if type(val) is bool:
+      if val: run_cmd+='--%s '%(key)
+    else: run_cmd+='--%s=%s '%(key,val)
+  run_cmd += '%s %s'%(dirty_image,psf_image)
+  #abort('>>> $run_cmd')
+  x.sh(run_cmd)
+  
+#------------------------------- WRAP WSCLEAN ---------------------------------
+def toDeg(val):
+  """Convert angle to Deg. returns a float. val must be in form: 2arcsec, 2arcmin, or 2rad"""
+  import math
+  _convert = {'arcsec':3600.,'arcmin':60.,'rad':180/math.pi,'deg':1.}
+  val = val or cellsize
+  ind = 1
+  if type(val) is not str: raise ValueError('Angle must be a string, e.g 10arcmin')
+  for i,char in enumerate(val): 
+   if char is not '.':
+    try: int(char)
+    except ValueError: 
+      ind = i
+      break
+  a,b = val[:ind],val[ind:]
+  try: return float(a)/_convert[b]
+  except KeyError: abort('Could not recognise unit [$b]. Please use either arcsec, arcmin, deg or rad')
+  
+define('WSCLEAN_PATH_Template','wsclean','Path to WSCLEAN')
+_wsclean_args = {'name': None,\
+'predict': None,\
+'size': '2048 2048',\
+'scale': 0.01,\
+'nwlayers': None,\
+'minuvw': None,\
+'maxuvw': None,\
+'maxw': None,\
+'pol': 'I',\
+'joinpolarizations': False,\
+'multiscale': False,\
+'multiscale-threshold-bias': 0.7,\
+'multiscale-scale-bias': 0.6,\
+'cleanborder': 5,\
+'niter': 0,\
+'threshold': 0,\
+'gain': 0.1,\
+'mgain': 1.0,\
+'smallinversion': True,\
+'nosmallinversion': False,\
+'smallpsf': False,\
+'gridmode': 'kb',\
+'nonegative': None,\
+'negative': True,
+'stopnegative': False,\
+'interval': None,\
+'channelrange': None,\
+'channelsout': 1,\
+'join-channels': False,\
+'field': 0,\
+'weight': 'natural',\
+'mfsweighting': False,\
+'superweight': 1,\
+'beamsize': None,\
+'makepsf': False,\
+'imaginarypart': False,\
+'datacolumn': 'CORRECTED_DATA',\
+'gkernelsize': 7,\
+'oversampling': 63,\
+'reorder': None,\
+'no-reorder': None,\
+'addmodel': None,\
+'addmodelapp': None,\
+'savemodel': None,\
+'wlimit': None,\
+'mem': 100,\
+'absmem': None,\
+'j': None}
+
+def combine_fits(fitslist,outname='combined.fits',keep_old=False):
+  """ Combine a list of fits files into a single cube """
+  import pyfits
+  freqIndex = 0
+  nchan = 0
+  hdu = pyfits.open(fitslist[0])[0]
+  hdr = hdu.header
+  naxis = hdr['NAXIS']
+  shape = list(hdu.data.shape)
+  for key,val in hdr.iteritems():
+    if key.startswith('CTYPE'):
+      if val.upper().startswith('FREQ'): freqIndex = int(key[5:])
+  if freqIndex ==0: abort('At least one of the fits files has frequency information in the header. Cannot combine fits images.')
+  crval = hdr['CRVAL%d'%freqIndex]
+  images = []
+  import pylab
+  for fits in fitslist:
+    hdu = pyfits.open(fits)[0]
+    hdr = hdu.header
+    temp_crval = hdr['CRVAL%d'%freqIndex]
+    nchan += hdr['NAXIS%d'%freqIndex]
+    if temp_crval < crval : crval = temp_crval
+    images.append(hdu.data)
+  ind = naxis - freqIndex # numpy array indexing differnt from FITS
+  hdr['CRVAL%d'%freqIndex] = crval
+  shape[ind] = nchan
+  new_data = numpy.reshape(np.array(images),shape)
+  pyfits.writeto(outname,new_data,hdr,clobber=True)
+  if keep_old is False:
+    for fits in fitslist: 
+      rm_fr(fits)
+ 
+# wsclean work around
+def add_weight_spectrum(msname='$MS'):
+ msname = interpolate_locals('msname')
+ tab = pyrap.tables.table(msname,readonly=False)
+ try: tab.getcol('WEIGHT_SPECTRUM')
+ except RuntimeError:
+  warn('Did not find WEIGHT_SPECTRUM column in $msname')
+  from pyrap.tables import maketabdesc
+  from pyrap.tables import makearrcoldesc
+  coldmi = tab.getdminfo('DATA')
+  dshape = tab.getcol('DATA').shape
+  coldmi['NAME'] = 'weight_spec'
+  info('adding WEIGHT_SPECTRUM column to $msname')
+  shape = tab.getcol('DATA')[0].shape
+  tab.addcols(maketabdesc(makearrcoldesc('WEIGHT_SPECTRUM',0,shape=shape,valuetype='float')),coldmi)
+  ones = np.ndarray(dshape)
+  info('Filling WEIGHT_SPECTRUM with unity')
+  ones[...] = 1
+  tab.putcol('WEIGHT_SPECTRUM',ones)
+ tab.close()
+
+ 
+def run_wsclean(msname='$MS',image_prefix='$BASENAME_IMAGE',column='$COLUMN',
+                path=None,
+                npix=0,cellsize=None,
+                niter=None,
+                dirty=True,
+                channelize=None,
+                psf_image='$PSF_IMAGE',
+                dirty_image='$DIRTY_IMAGE',
+                model_image='$MODEL_IMAGE',
+                residual_image='$RESIDUAL_IMAGE',
+                restored_image='$RESTORED_IMAGE',**kw):
+  """ run WSCLEAN """
+  
+  msname,image_prefix,column,model_image,residual_image,restored_image =\
+ interpolate_locals('msname image_prefix column model_image residual_image restored_image')
+  # Check if WSCLEAN is where it is said to be
+  path = path or WSCLEAN_PATH
+  path = findImager(path,imager_name='WSCLEAN')
+  add_weight_spectrum(msname) # wsclean requires a WEIGHT_SPECTRUM column in the MS
+  _wsclean_args['name'] = image_prefix
+  npix = npix or globals()['npix']
+  cellsize = cellsize or globals()['cellsize']
+  _wsclean_args['threshold'] = globals()['threshold']
+  ms.set_default_spectral_info()
+  weight = globals()['weight']
+  robust = globals()['robust']
+  if weight == 'briggs': 
+    _wsclean_args['weight'] = 'briggs %d'%robust
+  else: _wsclean_args['weight'] = weight
+  stokes = repr(list(globals()['stokes'])).strip('[]').replace('\'','')
+  if niter is None: niter = globals()['niter']
+  _wsclean_args['niter'] = niter 
+  # Update options set via this this function
+  if 'datacolumn' not in kw: _wsclean_args['datacolumn'] = column
+  if 'size' not in kw: _wsclean_args['size'] = '%d %d'%(npix,npix)
+  if 'cellsize' not in kw: _wsclean_args['scale'] = toDeg(cellsize)
+  # Check if extra arguments are valid
+  unknown = []
+  if len(kw)>0:
+    for arg in kw.keys():
+      if arg not in _wsclean_args.keys(): unknown.append(arg)
+    if len(unknown)>0: warn('Ignoring unkown options passed into WSCLEAN :\n $unknown \n')
+  if column: _wsclean_args['datacolumn'] = column
+  if image_prefix: _wsclean_args['name'] = image_prefix
+  import types 
+  if channelize is None:
+    channelize = IMAGE_CHANNELIZE
+  if channelize == 0:
+    _wsclean_args['channelrange'] = '%d %d'%(ms.CHANSTART,ms.NUMCHANS)
+  elif channelize > 0:
+    nr = ms.NUMCHANS//channelize
+    _wsclean_args['channelsout'] = nr
+  _wsclean_args.update(kw) # extra options get preference
+  # Construct WSCLEAN run command
+  run_cmd = '%s '%path
+  for key,val in _wsclean_args.iteritems():
+   if val is not None:
+    if type(val) is bool:
+      if val: run_cmd+='-%s '%(key)
+    else: run_cmd+='-%s %s '%(key,val)
+  run_cmd += msname
+#  abort('>>> $run_cmd')
+  x.sh(run_cmd)
+  # Combine images if needed
+  if channelize in [0,None]:
+    if dirty: 
+      x.mv('${image_prefix}-dirty.fits $dirty_image')
+      #if niter==0: x.mv('${image_prefix}-psf.fits $psf_image')
+    else: rm_fr('${image_prefix}-dirty.fits')
+    if niter>0: 
+      x.mv('${image_prefix}-model.fits $model_image')
+      x.mv('${image_prefix}-residual.fits $residual_image')
+      x.mv('${image_prefix}-image.fits $restored_image')
+      x.mv('${image_prefix}-psf.fits $psf_image')
+    elif niter==0: rm_fr('${image_prefix}-image.fits')
+  elif channelize>0:
+    restored_images = []
+    residual_images = []
+    model_images = []
+    dirty_images = []
+    psf_images = []
+    for i in range(nr):
+      label = str(i).zfill(4)
+      restored_images.append('%s-%s-image.fits'%(image_prefix,label))
+      if _wsclean_args['makepsf'] or niter>0 : psf_images.append('%s-%s-psf.fits'%(image_prefix,label))
+      if niter>0: 
+        model_images.append('%s-%s-model.fits'%(image_prefix,label))
+        residual_images.append('%s-%s-residual.fits'%(image_prefix,label))
+      if dirty: dirty_images.append('%s-%s-dirty.fits'%(image_prefix,label))
+    if niter==0: 
+      rm_fr('${image_prefix}-MFS-image.fits')
+      for fits in model_images+residual_images+restored_images: rm_fr(fits)
+    else:
+      combine_fits(model_images,outname=model_image,keep_old=False)
+      combine_fits(residual_images,outname=residual_image,keep_old=False)
+      combine_fits(restored_images,outname=restored_image,keep_old=False)
+      x.mv('${image_prefix}-MFS-image.fits ${image_prefix}-MFS-restored.fits')
+    if dirty is False:
+      for fits in dirty_images: rm_fr(fits)
+    else: combine_fits(dirty_images,outname=dirty_image,keep_old=False)
+    if len(psf_images)>0: combine_fits(psf_images,outname=psf_image,keep_old=False)
+#--------------------------------------------------------------------------------
+
+def make_image (msname="$MS",column="$COLUMN",imager='$IMAGER',
                 dirty=True,restore=False,restore_lsm=True,psf=False,
                 dirty_image="$DIRTY_IMAGE",
                 restored_image="$RESTORED_IMAGE",
@@ -182,77 +490,112 @@ def make_image (msname="$MS",column="$COLUMN",
   
   'dirty_image', etc. sets the image names, with defaults determined by the globals DIRTY_IMAGE, etc.
   """;
-  msname,column,lsm,dirty_image,psf_image,restored_image,residual_image,model_image,algorithm = \
-    interpolate_locals("msname column lsm dirty_image psf_image restored_image residual_image model_image algorithm"); 
+  global IMAGER
+  IMAGER = II(imager)
+  if algorithm.lower() in ['moresane','pymoresane']: IMAGER = 'moresane'
+  imager,msname,column,lsm,dirty_image,psf_image,restored_image,residual_image,model_image,algorithm = \
+    interpolate_locals("imager msname column lsm dirty_image psf_image restored_image residual_image model_image algorithm"); 
   makedir(DESTDIR);
+  if imager.lower() == 'lwimager':
+    if restore and column != "CORRECTED_DATA":
+      abort("Due to imager limitations, restored images can only be made from the CORRECTED_DATA column.");
   
-  if restore and column != "CORRECTED_DATA":
-    abort("Due to imager limitations, restored images can only be made from the CORRECTED_DATA column.");
-  
-  # setup imager options
-  kw0.update(dict(chanstart=ms.CHANSTART,chanstep=ms.CHANSTEP,nchan=ms.NUMCHANS));
-  if 'img_nchan' not in kw0 or 'img_chanstart' not in kw0:
-    if channelize is None:
-      channelize = IMAGE_CHANNELIZE;
-    if channelize == 0:
-      kw0.update(img_nchan=1,img_chanstart=ms.CHANSTART,img_chanstep=ms.NUMCHANS);
-    elif channelize > 0:
-      kw0.update(img_nchan=ms.NUMCHANS//channelize,img_chanstart=ms.CHANSTART,img_chanstep=channelize);
+    # setup imager options
+    kw0.update(dict(chanstart=ms.CHANSTART,chanstep=ms.CHANSTEP,nchan=ms.NUMCHANS));
+    if 'img_nchan' not in kw0 or 'img_chanstart' not in kw0:
+      if channelize is None:
+        channelize = IMAGE_CHANNELIZE;
+      if channelize == 0:
+        kw0.update(img_nchan=1,img_chanstart=ms.CHANSTART,img_chanstep=ms.NUMCHANS);
+      elif channelize > 0:
+        kw0.update(img_nchan=ms.NUMCHANS//channelize,img_chanstart=ms.CHANSTART,img_chanstep=channelize);
     
-  kw0.update(ms=msname,data=column);
+    kw0.update(ms=msname,data=column);
 
-  if dirty:
-    info("imager.make_image: making dirty image $dirty_image");
-    kw = kw0.copy();
-    if type(dirty) is dict:
-      kw.update(dirty);
-    kw['operation'] = 'image';
-    _run(image=dirty_image,**kw);
+    def make_dirty():
+      info("imager.make_image: making dirty image $dirty_image");
+      kw = kw0.copy();
+      if type(dirty) is dict:
+        kw.update(dirty);
+      kw['operation'] = 'image';
+      _run(image=dirty_image,**kw);
 
-  if psf:
-    info("imager.make_image: making PSF image $psf_image");
-    kw = kw0.copy();
-    if type(psf) is dict:
-      kw.update(psf);
-    kw['operation'] = 'image';
-    kw['data'] = 'psf';
-    kw['stokes'] = "I";
-    _run(image=psf_image,**kw);
-    
+    if dirty: make_dirty()
+
+    def make_psf():
+      info("imager.make_image: making PSF image $psf_image");
+      kw = kw0.copy();
+      if type(psf) is dict:
+        kw.update(psf);
+      kw['operation'] = 'image';
+      kw['data'] = 'psf';
+      kw['stokes'] = "I";
+      _run(image=psf_image,**kw);
+    if psf: make_psf()
+
+
+    if algorithm=='moresane' and restore:
+      if not os.path.exists(psf_image): make_psf()
+      if not os.path.exists(dirty_image): make_dirty()  
+      if type(restore) is dict:
+        run_moresane(dirty_image,psf_image,model=model_image,residual=residual_image,restored=restored_image,**restore)
+      elif restore==True: 
+        run_moresane(dirty_image,psf_image,model_image=model_image,residual_image=residual_image,restored_image=restored_image)
+      else: abort('restore has to be either a dictionary or a boolean')
+    elif restore:
+      info("imager.make_image: making restored image $restored_image");
+      info("                   (model is $model_image, residual is $residual_image)");
+      kw = kw0.copy();
+      if type(restore) is dict:
+        kw.update(restore);
+      kw.setdefault("operation",algorithm or "clark");
+      temp_images = [];
+      ## if fixed model was specified as a fits image, convert to CASA image
+      if kw.pop('fixed',None):
+        kw['fixed'] = 1;
+        if not os.path.exists(model_image):
+          warn("fixed=1 (use prior model) specified, but $model_image does not exist, ignoring"); 
+        elif not os.path.isdir(model_image):
+          info("converting prior model $model_image into CASA image");
+          modimg = model_image+".img";
+          temp_images.append(modimg);
+          fits2casa(model_image,modimg);
+          model_image = modimg;
+      ## if mask was specified as a fits image, convert to CASA image
+      mask = kw.get("mask");
+      if mask and not isinstance(mask,str):
+        kw['mask'] = mask = MASK_IMAGE; 
+      imgmask = None;
+      if mask and os.path.exists(mask) and not os.path.isdir(mask):
+        info("converting clean mask $mask into CASA image");
+        kw['mask'] = imgmask = mask+".img";
+        fits2casa(mask,imgmask);
+        temp_images.append(imgmask);
+      ## run the imager
+      _run(restored=restored_image,model=model_image,residual=residual_image,**kw)
+      ## delete CASA temp images if created above
+      for img in temp_images:
+        rm_fr(img);
+  elif imager.lower() == 'wsclean':
+    kw = kw0.copy()
+    use_moresane = False
+    if restore:
+      info("imager.make_image: making restored image $restored_image");
+      info("                   (model is $model_image, residual is $residual_image)");
+      if algorithm.lower() in ['moresane','pymoresane']: 
+        kw['niter'] = 0
+        use_moresane = True
+        kw['makepsf'] = True
+      else:
+        info("imager.make_image: making dirty image $dirty_image");
+        if type(restore) is dict: kw.update(restore)
+    else: kw['niter'] = 0
+    run_wsclean(channelize=channelize,psf_image=psf_image,model_image=model_image,residual_image=residual_image,dirty_image=dirty_image,**kw)
+    if use_moresane: 
+      if type(restore) is dict: run_moresane(dirty_image=dirty_image,psf_image=psf_image,**restore)
+      elif type(restore) is bool: run_moresane(dirty_image=dirty_image,psf_image=psf_image)
+      else: abort('restore has to be either a boolean or a python dictionary')
   if restore:
-    info("imager.make_image: making restored image $RESTORED_IMAGE");
-    info("                   (model is $MODEL_IMAGE, residual is $RESIDUAL_IMAGE)");
-    kw = kw0.copy();
-    if type(restore) is dict:
-      kw.update(restore);
-    kw.setdefault("operation",algorithm or "clark");
-    temp_images = [];
-    ## if fixed model was specified as a fits image, convert to CASA image
-    if kw.pop('fixed',None):
-      kw['fixed'] = 1;
-      if not os.path.exists(model_image):
-        warn("fixed=1 (use prior model) specified, but $model_image does not exist, ignoring"); 
-      elif not os.path.isdir(model_image):
-        info("converting prior model $model_image into CASA image");
-        modimg = model_image+".img";
-        temp_images.append(modimg);
-        fits2casa(model_image,modimg);
-        model_image = modimg;
-    ## if mask was specified as a fits image, convert to CASA image
-    mask = kw.get("mask");
-    if mask and not isinstance(mask,str):
-      kw['mask'] = mask = MASK_IMAGE; 
-    imgmask = None;
-    if mask and os.path.exists(mask) and not os.path.isdir(mask):
-      info("converting clean mask $mask into CASA image");
-      kw['mask'] = imgmask = mask+".img";
-      fits2casa(mask,imgmask);
-      temp_images.append(imgmask);
-    ## run the imager
-    _run(restored=restored_image,model=model_image,residual=residual_image,**kw)
-    ## delete CASA temp images if created above
-    for img in temp_images:
-      rm_fr(img);
     if lsm and restore_lsm:
       info("Restoring LSM into FULLREST_IMAGE=$FULLREST_IMAGE");
       opts = restore_lsm if isinstance(restore_lsm,dict) else {};
