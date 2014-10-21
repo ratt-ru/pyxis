@@ -8,7 +8,7 @@ import time
 import os.path
 
 define('PROJECT',"meerkat-7-gazing","default GCE project name")
-define('ZONE',"europe-west1-a","default GCE compute zone")
+define('ZONE',"europe-west1-b","default GCE compute zone")
 
 # gcloud executable
 # includes PROJECT and ZONE in the command line
@@ -23,13 +23,13 @@ gcro = xro.gcloud.args(before="compute --project $PROJECT",after="--zone $ZONE")
 gcp = x.gsutil.args("cp");
 gcpo = xo.gsutil.args("cp");
 
-define('SNAPSHOT',"oms-papino-10","snapshot on which boot disk is to be based")
+define('SNAPSHOT',"oms-papino-*","snapshot on which boot disk is to be based")
 define('DATADISKSIZE',200,"default data disk size (in Gb) for VM instances")
 define('VMTYPE',"n1-standard-1","default VM type")
 
 define('USER',E.USER,"default username to be used on remote machine")
 
-define("VMNUM",1,"VM serial number")
+define('VMNUM',1,"VM serial number")
 define('VMNAME_Template',"${USER}-"+socket.gethostname().replace(".","-").lower()+"-$VMNUM","default VM instance name");
 define('OUTPUT_BUCKET_Template',"gs://$USER/outputs/$VMNAME-$OUTDIR","default cloud storage destination for output products"); 
 
@@ -50,6 +50,13 @@ def provision_vm (vmname="VMNAME"):
   info("VM $name has been provisioned ")
   return True;
   
+def _version_suffix (x,sep='-'):
+  """Helper function: given a string such as "foo-N", returns N as integer, or 0 if string does not match.""";
+  try:
+    return int(x.rsplit(sep,1)[-1]);
+  except:
+    return 0;
+
 ## create VM
 def init_vm (vmname="$VMNAME",vmtype="$VMTYPE",reuse_boot=True,autodelete_boot=None,wait=False,propagate=True,**kw):
   """Creates a GCE VM instance""";
@@ -66,7 +73,13 @@ def init_vm (vmname="$VMNAME",vmtype="$VMTYPE",reuse_boot=True,autodelete_boot=N
       gc("disks delete $name --quiet")
       del disks[name];
   if name not in disks:
-    gc("disks create $name --source-snapshot $SNAPSHOT")
+    snapshot = SNAPSHOT;
+    if '*' in snapshot:
+      matching = sorted(get_snapshots(snapshot).keys(),
+        lambda a,b:-cmp(_version_suffix(a),_version_suffix(b)));
+      snapshot = matching[0];
+      info("using latest snapshot $snapshot");
+    gc("disks create $name --source-snapshot $snapshot")
     if autodelete_boot is None:
       info("boot disk $name will be auto-deleted when VM is destroyed")
       autodelete_boot = True;
