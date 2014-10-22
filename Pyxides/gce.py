@@ -58,9 +58,14 @@ def _version_suffix (x,sep='-'):
     return 0;
 
 ## create VM
-def init_vm (vmname="$VMNAME",vmtype="$VMTYPE",reuse_boot=True,autodelete_boot=None,wait=False,propagate=True,**kw):
+def init_vm (vmname="$VMNAME",vmtype="$VMTYPE",
+             autodelete=True,reuse_boot=True,autodelete_boot=None,wait=False,propagate=True,**kw):
   """Creates a GCE VM instance""";
   name,vmtype = interpolate_locals("vmname vmtype");
+  # check if VM exists and needs to be deleted
+  if autodelete and name in get_vms():
+    warning("deleting existing VM $name");
+    delete_vm(name,disks=False);
   # check if a boot disk needs to be created
   disks = get_disks();
   if name in disks:
@@ -217,7 +222,7 @@ def delete_vm (vmname="$VMNAME",disks=True):
 def wrapup ():
   files = [ f for f in glob.glob("/var/log/syslog*") + 
             glob.glob(II("$OUTDIR/*txt")) +
-            glob.glob(os.path.exanduser("~/screenlog.*")) if exists(f) ];
+            glob.glob(os.path.expanduser("~/screenlog.*")) if exists(f) ];
   if files:
     gcpo("%s $OUTPUT_BUCKET"%" ".join(files));
   x.sh("sudo poweroff")
