@@ -159,13 +159,14 @@ define("CLEAN_ALGORITHM","clark","CLEAN algorithm (clark, hogbom, csclean, etc.)
 
 def fits2casa (input,output):
   """Converts FITS image to CASA image.""";
-  for char in "/-*+()":
-    input = input.replace(char,"\\"+char);
-  if input[0] in "0123456789":
-    input = "\\" + input;
+  # for char in "/-*+()":
+  #   input = input.replace(char,"\\"+char);
+  # if input[0] in "0123456789":
+  #   input = "\\" + input;
   if exists(output):
     rm_fr(output);
-  imagecalc("in=$input out=$output");
+#  abort("in=$input out=$output");
+  imagecalc("in='$input' out=$output",split_args=False);
 
 
 
