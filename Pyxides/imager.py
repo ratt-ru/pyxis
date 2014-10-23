@@ -166,7 +166,7 @@ def fits2casa (input,output):
   if exists(output):
     rm_fr(output);
 #  abort("in=$input out=$output");
-  imagecalc("in='$input' out=$output",split_args=False);
+  imagecalc("in='$input'","out=$output",split_args=False);
 
 
 
