@@ -64,7 +64,7 @@ def init_vm (vmname="$VMNAME",vmtype="$VMTYPE",
   name,vmtype = interpolate_locals("vmname vmtype");
   # check if VM exists and needs to be deleted
   if autodelete and name in get_vms():
-    warning("deleting existing VM $name");
+    warn("deleting existing VM $name");
     delete_vm(name,disks=False);
   # check if a boot disk needs to be created
   disks = get_disks();
