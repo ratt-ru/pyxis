@@ -166,7 +166,7 @@ def fits2casa (input,output):
   if exists(output):
     rm_fr(output);
 #  abort("in=$input out=$output");
-  imagecalc("in='$input' out=$output",split_args=False);
+  imagecalc("in='$input'","out=$output",split_args=False);
 
 
 
@@ -211,7 +211,9 @@ _moresane_args = {'outputname': None,\
 'extractionmode': 'cpu',\
 'enforcepositivity': False,\
 'edgesupression': False,\
-'edgeoffset': 0}
+'edgeoffset': 0,
+'mfs':False,
+'spc':False}
 
 def run_moresane(dirty_image,psf_image,
                  model_image='$MODEL_IMAGE',
@@ -399,7 +401,7 @@ def run_wsclean(msname='$MS',image_prefix='$BASENAME_IMAGE',column='$COLUMN',
   if weight == 'briggs': 
     _wsclean_args['weight'] = 'briggs %d'%robust
   else: _wsclean_args['weight'] = weight
-  stokes = repr(list(globals()['stokes'])).strip('[]').replace('\'','')
+  _wsclean_args['pol'] = repr(list(globals()['stokes'])).strip('[]').replace('\'','').replace(' ','')
   if niter is None: niter = globals()['niter']
   _wsclean_args['niter'] = niter 
   # Update options set via this this function
@@ -410,7 +412,9 @@ def run_wsclean(msname='$MS',image_prefix='$BASENAME_IMAGE',column='$COLUMN',
   unknown = []
   if len(kw)>0:
     for arg in kw.keys():
-      if arg not in _wsclean_args.keys(): unknown.append(arg)
+      if arg not in _wsclean_args.keys(): 
+         unknown.append(arg)
+         del kw[arg]
     if len(unknown)>0: warn('Ignoring unkown options passed into WSCLEAN :\n $unknown \n')
   if column: _wsclean_args['datacolumn'] = column
   if image_prefix: _wsclean_args['name'] = image_prefix
