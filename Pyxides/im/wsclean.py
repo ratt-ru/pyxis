@@ -1,0 +1,265 @@
+"""Pyxis module for MS-related operations""";
+from Pyxis.ModSupport import *
+
+import argo
+import ms
+import im
+rm_fr = x.rm.args("-fr")
+
+# register ourselves with Pyxis and define the superglobals
+register_pyxis_module(superglobals="MS LSM DESTDIR");
+
+# standard imaging options 
+npix = 1024
+cellsize = '2arcsec'
+mode = 'channel'
+stokes = 'IQUV'
+weight = 'briggs'
+robust = 0
+niter = 1000
+gain = 0.1
+threshold = 0
+
+define('WSCLEAN_PATH_Template','wsclean','Path to WSCLEAN')
+_wsclean_args = {'name': None,
+                 'predict': None,
+                 'size': '2048 2048',
+                 'scale': 0.01,
+                 'nwlayers': None,
+                 'minuvw': None,
+                 'maxuvw': None,
+                 'maxw': None,
+                 'pol': 'I',
+                 'joinpolarizations': False,
+                 'multiscale': False,
+                 'multiscale-threshold-bias': 0.7,
+                 'multiscale-scale-bias': 0.6,
+                 'cleanborder': 5,
+                 'niter': 0,
+                 'threshold': 0,
+                 'gain': 0.1,
+                 'mgain': 1.0,
+                 'smallinversion': True,
+                 'nosmallinversion': False,
+                 'smallpsf': False,
+                 'gridmode': 'kb',
+                 'nonegative': None,
+                 'negative': True,
+                 'stopnegative': False,
+                 'interval': None,
+                 'channelrange': None,
+                 'channelsout': 1,
+                 'join-channels': False,
+                 'field': 0,
+                 'weight': 'natural',
+                 'mfsweighting': False,
+                 'superweight': 1,
+                 'beamsize': None,
+                 'makepsf': False,
+                 'imaginarypart': False,
+                 'datacolumn': 'CORRECTED_DATA',
+                 'gkernelsize': 7,
+                 'oversampling': 63,
+                 'reorder': None,
+                 'no-reorder': None,
+                 'addmodel': None,
+                 'addmodelapp': None,
+                 'savemodel': None,
+                 'wlimit': None,
+                 'mem': 100,
+                 'absmem': None,
+                 'j': None
+}
+
+def _run(msname='$MS',clean=False,path='${im.WSCLEAN_PATH}',**kw):
+    """ Run WSCLEAN """
+
+    msname,path = interpolate_locals('msname path')
+    path = argo.findImager(path,imager_name='WSCLEAN')
+    if path is False:
+        abort('Could not find WSCLEAN in system path, alises or at $path')
+
+    # map stokes and npix and cellsize to wsclean equivalents
+    global scale,pol,size
+    scale = argo.toDeg(cellsize)
+    pol = repr(list(stokes)).strip('[]').replace('\'','').replace(' ','')
+    size = '%d %d'%(npix,npix)
+    
+    # make dict of imager arguments that have been specified globally or locally
+    args = dict([ (arg,globals()[arg]) for arg in _wsclean_args if arg in globals() and globals()[arg] is not None ]);
+    args.update([ (arg,kw[arg]) for arg in _wsclean_args if arg in kw ])
+    
+    if not clean:
+        args['niter'] = 0
+
+    ms.FIELD is not None and args.setdefault('field',ms.FIELD)
+    x.sh(argo.gen_run_cmd(path,args,suf='-',assign=' ',pos_args=[msname]))
+   
+def make_image(msname='$MS',image_prefix='${im.BASENAME_IMAGE}',column='${im.COLUMN}',
+                path='${im.WSCLEAN_PATH}',
+                restore=False,
+                dirty=True,
+                psf=False,
+                restore_lsm=False,
+                lsm='$LSM',
+                algorithm='${im.CLEAN_ALGORITHM}',
+                channelize='${im.IMAGE_CHANNELIZE}',
+                psf_image='${im.PSF_IMAGE}',
+                dirty_image='${im.DIRTY_IMAGE}',
+                model_image='${im.MODEL_IMAGE}',
+                residual_image='${im.RESIDUAL_IMAGE}',
+                restored_image='${im.RESTORED_IMAGE}',**kw):
+    """ run WSCLEAN """
+
+    makedir('$DESTDIR')
+
+    im.IMAGER = 'wsclean'
+    path,msname,image_prefix,column,dirty_image,model_image,residual_image,restored_image,psf_image,channelize = \
+interpolate_locals('path msname image_prefix column dirty_image \
+model_image residual_image restored_image psf_image channelize')
+
+    # Check if WSCLEAN is where it is said to be
+    path = argo.findImager(path,imager_name='WSCLEAN')
+    
+    # wsclean requires a WEIGHT_SPECTRUM column in the MS
+    argo.addcol(msname,colname='WEIGHT_SPECTRUM',valuetype='float',init_with=1) 
+    
+    # Cater for moresane
+    moresane = False
+    if restore and algorithm.lower() in ['moresane','pymoresane']:
+        kw['niter'] = 0
+        kw['makepsf'] = True
+        if isinstance(restore,dict):
+            kw0 = restore.copy()
+        else: 
+            kw0 = {}
+        restore = False
+        moresane = True
+    else:
+        if isinstance(restore,dict):
+            kw.update(restore)
+            restore = True
+        elif not isinstance(restore,bool):
+            restore = False
+
+    kw['name'] = image_prefix    
+
+    # Check channel selection options in kw
+    if 'interval' in kw.keys():
+        start,end = map(int,kw['interval'].split())
+        ms.CHANSTART = start
+        ms.NUMCHANS = end-start
+
+    channelize = int(channelize)
+    nr = 0
+    if channelize and ms.NUMCHANS==1:
+        ms.set_default_spectral_info()
+        nr = ms.NUMCHANS//channelize
+        if 'channelsout' in kw.keys():
+            nr = kw['channelsout']
+
+    nr = nr or ms.NUMCHANS//channelize
+    if nr: kw['channelsout'] = nr
+
+    if dirty: info("im.wsclean.make_image: making dirty image $dirty_image")
+    if restore: info("                   (restored image is $restored_image \
+model is $model_image, residual is $residual_image)")
+    
+    if psf and not restore:
+        args['makepsf'] = True
+
+    if 'pol' not in kw.keys():
+        pol = repr(list(stokes)).strip('[]').replace('\'','').replace(' ','')
+    else:
+        pol = kw['pol']
+    _run(msname,clean=restore,**kw)
+
+    # Combine images if needed
+    if not channelize:
+        if dirty:
+            x.mv('${image_prefix}-dirty.fits $dirty_image')
+        else: rm_fr('${image_prefix}-dirty.fits')
+
+        if restore:
+             x.mv('${image_prefix}-model.fits $model_image')
+             x.mv('${image_prefix}-residual.fits $residual_image')
+             x.mv('${image_prefix}-image.fits $restored_image')
+             x.mv('${image_prefix}-psf.fits $psf_image')
+        else:
+            rm_fr('${image_prefix}-image.fits')
+    else:
+        def eval_list(vals):
+            l = []
+            for val in vals:
+                l.append(II(val))
+            return l
+
+        # Combine component images from wsclean
+        labels = ['%04d'%d for d in range(nr)]
+        if psf or restore: 
+            psfs = eval_list(['$image_prefix-%s-psf.fits'%d for d in labels])
+            argo.combine_fits(psfs,outname=II('$image_prefix.psf.fits'),ctype='FREQ',keep_old=False)
+        
+        if len(pol.split(','))==1 :
+            pol = ''
+
+        for i in pol.split(','):
+
+            if i : 
+                i = '-%s'%i
+         
+            dirtys = eval_list(['$image_prefix-%s$i-dirty.fits'%d for d in labels])
+            if dirty:
+                argo.combine_fits(dirtys,outname=II('$image_prefix$i-dirty.fits'),ctype='FREQ',keep_old=False)
+            else: 
+                for fits in dirtys:
+                    rm_fr(fits)
+            if restore:
+                model = eval_list(['$image_prefix-%s$i-model.fits'%d for d in labels])
+                argo.combine_fits(model,outname=II('$image_prefix$i-model.fits'),ctype='FREQ',keep_old=False)
+
+                residual = eval_list(['$image_prefix-%s$i-residual.fits'%d for d in labels])
+                argo.combine_fits(residual,outname=II('$image_prefix$i-residual.fits'),ctype='FREQ',keep_old=False)
+
+                restored = eval_list(['$image_prefix-%s$i-image.fits'%d for d in labels])
+                argo.combine_fits(restored,outname=II('$image_prefix$i-image.fits'),ctype='FREQ',keep_old=False)
+
+        if pol:
+            if dirty: 
+                dirtys = eval_list(['$image_prefix-%s-dirty.fits'%d for d in pol.split(',')])
+                argo.combine_fits(dirtys,outname=dirty_image,ctype='STOKES',keep_old=False)
+
+            if restore:
+                model = eval_list(['$image_prefix-%s-model.fits'%d for d in pol.split(',')])
+                argo.combine_fits(model,outname=model_image,ctype='STOKES',keep_old=False)
+                model_mfs = eval_list(['$image_prefix-MFS-%s-model.fits'%d for d in pol.split(',')])
+                argo.combine_fits(model_mfs,outname=model_image.replace('.model.fits','-MFS.model.fits'),ctype='STOKES',keep_old=False)
+
+                residual = eval_list(['$image_prefix-%s-residual.fits'%d for d in pol.split(',')])
+                argo.combine_fits(residual,outname=residual_image,ctype='STOKES',keep_old=False)
+                residual_mfs = eval_list(['$image_prefix-MFS-%s-residual.fits'%d for d in pol.split(',')])
+                argo.combine_fits(residual_mfs,outname=restored_image.replace('.residual.fits','-MFS.residual.fits'),ctype='STOKES',keep_old=False)
+
+                restored = eval_list(['$image_prefix-%s-image.fits'%d for d in pol.split(',')])
+                argo.combine_fits(restored,outname=restored_image,ctype='STOKES',keep_old=False)
+                restored_mfs = eval_list(['$image_prefix-MFS-%s-image.fits'%d for d in pol.split(',')])
+                argo.combine_fits(restored_mfs,outname=restored_image.replace('.restored.fits','-MFS.restored.fits'),ctype='STOKES',keep_old=False)
+
+    if moresane:
+        restored_image = restored_image.replace('wsclean','moresane')
+        residual_image = residual_image.replace('wsclean','moresane')
+        model_image = model_image.replace('wsclean','moresane')
+
+        info(" im.moresane.deconv: making estored image $restored_image \
+model is $model_image, residual is $residual_image)")
+
+        im.moresane.deconv(dirty_image,psf_image,model_image=model_image,
+                           residual_image=residual_image,
+                           restored_image=restored_image,**kw0)
+    if restore:
+        if lsm and restore_lsm:
+            info("Restoring LSM into FULLREST_IMAGE=${im.FULLREST_IMAGE}");
+            opts = restore_lsm if isinstance(restore_lsm,dict) else {};
+            tigger_restore("${im.RESTORING_OPTIONS}","-f",restored_image,lsm,FULLREST_IMAGE,kwopt_to_command_line(**opts));
+
+document_globals(make_image,"im.*_IMAGE COLUMN im.IMAGE_CHANNELIZE MS im.RESTORING_OPTIONS im.CLEAN_ALGORITHM ms.IFRS ms.DDID ms.FIELD ms.CHANRANGE")
