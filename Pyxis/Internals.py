@@ -722,7 +722,7 @@ def initconf (force=False,*files):
   if not _initconf_done:
     _initconf_done = True;
   if not files:
-    files = glob.glob("pyxis*.conf") + glob.glob("pyxis*.py");
+    files = glob.glob("pyxis*.py") + glob.glob("pyxis*.conf");
   global _config_files;
   _config_files = files;
   # remember current set of globals
