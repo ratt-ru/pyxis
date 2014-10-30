@@ -88,7 +88,7 @@ restored_image residual_image model_image algorithm")
     else: 
 
         abort('Uknown imager: $imager')
-    call_imager(msname,column=column,dirty=dirty,restore_lsm=restore_lsm,
+    call_imager(msname,column=column,dirty=dirty,restore_lsm=restore_lsm,restore=restore,
                 psf=psf,dirty_image=dirty_image,restored_image=restored_image,
                 psf_image=psf_image,model_image=model_image,algorithm=algorithm,
                 channelize=channelize,lsm=lsm,**kw0)
