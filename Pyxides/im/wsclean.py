@@ -4,6 +4,7 @@ from Pyxis.ModSupport import *
 import argo
 import ms
 import im
+import subprocess
 rm_fr = x.rm.args("-fr")
 
 # register ourselves with Pyxis and define the superglobals
@@ -20,56 +21,47 @@ niter = 1000
 gain = 0.1
 threshold = 0
 
-define('WSCLEAN_PATH_Template','wsclean','Path to WSCLEAN')
-_wsclean_args = {'name': None,
-                 'predict': None,
-                 'size': '2048 2048',
-                 'scale': 0.01,
-                 'nwlayers': None,
-                 'minuvw': None,
-                 'maxuvw': None,
-                 'maxw': None,
-                 'pol': 'I',
-                 'joinpolarizations': False,
-                 'multiscale': False,
-                 'multiscale-threshold-bias': 0.7,
-                 'multiscale-scale-bias': 0.6,
-                 'cleanborder': 5,
-                 'niter': 0,
-                 'threshold': 0,
-                 'gain': 0.1,
-                 'mgain': 1.0,
-                 'smallinversion': True,
-                 'nosmallinversion': False,
-                 'smallpsf': False,
-                 'gridmode': 'kb',
-                 'nonegative': None,
-                 'negative': True,
-                 'stopnegative': False,
-                 'interval': None,
-                 'channelrange': None,
-                 'channelsout': 1,
-                 'join-channels': False,
-                 'field': 0,
-                 'weight': 'natural',
-                 'mfsweighting': False,
-                 'superweight': 1,
-                 'beamsize': None,
-                 'makepsf': False,
-                 'imaginarypart': False,
-                 'datacolumn': 'CORRECTED_DATA',
-                 'gkernelsize': 7,
-                 'oversampling': 63,
-                 'reorder': None,
-                 'no-reorder': None,
-                 'addmodel': None,
-                 'addmodelapp': None,
-                 'savemodel': None,
-                 'wlimit': None,
-                 'mem': 100,
-                 'absmem': None,
-                 'j': None
+define('WSCLEAN_PATH','wsclean','Path to WSCLEAN')
+
+# dict of known lwimager arguments, by version number
+# this is to accommodate newer versions
+_wsclean_known_args = {1.4:set('name predict size scale nwlayers minuvw maxuvw maxw pol '
+                       'joinpolarizations multiscale multiscale-threshold-bias multiscale-scale-bias '
+                       'cleanborder niter threshold gain mgain smallinversion '
+                       'nosmallinversion smallpsf gridmode nonegative negative '
+                       'stopnegative interval channelrange channelsout join-channels '
+                       'field weight natural mfsweighting superweight beamsize makepsf '
+                       'imaginarypart datacolumn gkernelsize oversampling reorder no-reorder '
+                       'addmodel addmodelapp savemodel wlimit mem absmem j'.split())
 }
+
+# whenever the path changes, find out new version number, and build new set of arguments
+_wsclean_path_version = None,None;
+def WSCLEAN_VERSION_Template ():
+    global _wsclean_path_version,_wsclean_args
+    if WSCLEAN_PATH != _wsclean_path_version[0]:
+        _wsclean_path_version = WSCLEAN_PATH,wsclean_version()
+        _wsclean_args = set()
+        for version,args in _wsclean_known_args.iteritems():
+            if version <= _wsclean_path_version[1][0]:
+                _wsclean_args.update(args)
+    return _wsclean_path_version[1]
+
+def wsclean_version(path='${im.WSCLEAN_PATH}'):
+    """ try to find wsclean version """
+    path = interpolate_locals('path')
+    std = subprocess.Popen([path,'--version'],stderr=subprocess.PIPE,stdout=subprocess.PIPE)
+    if std.stderr.read():
+        abort('Executing: $path --version failed.')
+    else:
+        stdout = std.stdout.read()
+        version = stdout.split()
+        ind = version.index('version')
+        version = version[ind+1]
+    info('$path version is $version')
+    return version
+    
+
 
 def _run(msname='$MS',clean=False,path='${im.WSCLEAN_PATH}',**kw):
     """ Run WSCLEAN """
@@ -80,10 +72,13 @@ def _run(msname='$MS',clean=False,path='${im.WSCLEAN_PATH}',**kw):
         abort('Could not find WSCLEAN in system path, alises or at $path')
 
     # map stokes and npix and cellsize to wsclean equivalents
-    global scale,pol,size
-    scale = argo.toDeg(cellsize)
+    global scale,pol,size,weight
+    scale = cellsize if isinstance(cellsize,(int,float)) else argo.toDeg(cellsize)
     pol = repr(list(stokes)).strip('[]').replace('\'','').replace(' ','')
+
     size = '%d %d'%(npix,npix)
+    if weight is 'briggs':
+        weight = '%s %.2f'%(weight,robust)
     
     # make dict of imager arguments that have been specified globally or locally
     args = dict([ (arg,globals()[arg]) for arg in _wsclean_args if arg in globals() and globals()[arg] is not None ]);
