@@ -199,7 +199,7 @@ def gen_run_cmd(path,options,suf='',assign='=',pos_args=None):
 
     for key,val in options.iteritems():
         if val is not None:
-            if isinstance(val,bool) and not suf:
+            if isinstance(val,bool) and suf:
                 if val:
                     run_cmd+='%s%s '%(suf,key)
             else:
