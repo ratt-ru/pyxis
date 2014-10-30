@@ -32,7 +32,8 @@ _wsclean_known_args = {1.4:set('name predict size scale nwlayers minuvw maxuvw m
                        'stopnegative interval channelrange channelsout join-channels '
                        'field weight natural mfsweighting superweight beamsize makepsf '
                        'imaginarypart datacolumn gkernelsize oversampling reorder no-reorder '
-                       'addmodel addmodelapp savemodel wlimit mem absmem j'.split())
+                       'addmodel addmodelapp savemodel wlimit mem absmem j'.split()),
+                       0:set('addmodel addmodelapp savemodel'.split())
 }
 
 # whenever the path changes, find out new version number, and build new set of arguments
@@ -52,14 +53,15 @@ def wsclean_version(path='${im.WSCLEAN_PATH}'):
     path = interpolate_locals('path')
     std = subprocess.Popen([path,'--version'],stderr=subprocess.PIPE,stdout=subprocess.PIPE)
     if std.stderr.read():
-        abort('Executing: $path --version failed.')
+        # if return error assume its version 0
+        version = 0
     else:
         stdout = std.stdout.read()
         version = stdout.split()
         ind = version.index('version')
         version = version[ind+1]
     info('$path version is $version')
-    return version
+    return version,""
     
 
 
