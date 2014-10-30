@@ -148,7 +148,7 @@ def make_image (msname="$MS",column="${im.COLUMN}",imager='${im.IMAGER}',
                 psf_image="${im.PSF_IMAGE}",
                 model_image="${im.MODEL_IMAGE}",
                 algorithm="${im.CLEAN_ALGORITHM}",
-                channelize='${im.IMAGE_CHANNELIZE}',lsm="$LSM",**kw0):
+                channelize=None,lsm="$LSM",**kw0):
   """Makes image(s) from MS. Set dirty and restore to True or False to make the appropriate images. You can also
   set either to a dict of options to be passed to the imager. If restore=True and restore_lsm is True and 'lsm' is set, 
   it will also make a full-restored image (i.e. will restore the LSM into the image) with tigger-restore. Use this when 
