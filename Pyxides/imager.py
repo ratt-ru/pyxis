@@ -88,10 +88,12 @@ restored_image residual_image model_image algorithm")
     else: 
 
         abort('Uknown imager: $imager')
+
     call_imager(msname,column=column,dirty=dirty,restore_lsm=restore_lsm,restore=restore,
                 psf=psf,dirty_image=dirty_image,restored_image=restored_image,
                 psf_image=psf_image,model_image=model_image,algorithm=algorithm,
-                channelize=channelize,lsm=lsm,**kw0)
+                channelize=channelize,lsm=lsm,fullrest_image='${FULLREST_IMAGE}',
+                restoring_options='${RESTORING_OPTIONS}',**kw0)
     
 document_globals(make_image,"*_IMAGE IMAGER COLUMN IMAGE_CHANNELIZE MS RESTORING_OPTIONS CLEAN_ALGORITHM ms.IFRS ms.DDID ms.FIELD ms.CHANRANGE")
 

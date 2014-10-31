@@ -5,7 +5,9 @@ import argo
 import ms
 import im
 import subprocess
+
 rm_fr = x.rm.args("-fr")
+tigger_restore = x("tigger-restore")
 
 # register ourselves with Pyxis and define the superglobals
 register_pyxis_module(superglobals="MS LSM DESTDIR");
@@ -105,15 +107,18 @@ def make_image(msname='$MS',image_prefix='${im.BASENAME_IMAGE}',column='${im.COL
                 dirty_image='${im.DIRTY_IMAGE}',
                 model_image='${im.MODEL_IMAGE}',
                 residual_image='${im.RESIDUAL_IMAGE}',
-                restored_image='${im.RESTORED_IMAGE}',**kw):
+                restored_image='${im.RESRORED_IMAGE}',
+                fullrest_image='${im.FULLREST_IMAGE}',
+                restoring_options='${im.RESTORING_OPTIONS}',**kw):
     """ run WSCLEAN """
 
     makedir('$DESTDIR')
 
     im.IMAGER = 'wsclean'
-    path,msname,image_prefix,column,dirty_image,model_image,residual_image,restored_image,psf_image,channelize = \
-interpolate_locals('path msname image_prefix column dirty_image \
-model_image residual_image restored_image psf_image channelize')
+    path,msname,image_prefix,column,dirty_image,model_image,residual_image,restored_image,psf_image,channelize,\
+      fullrest_image,restoring_optins = \
+      interpolate_locals('path msname image_prefix column dirty_image model_image residual_image '
+                         'restored_image psf_image channelize fullrest_image restoring_options')
 
     # Check if WSCLEAN is where it is said to be
     path = argo.findImager(path,imager_name='WSCLEAN')
@@ -260,6 +265,6 @@ model is $model_image, residual is $residual_image)")
         if lsm and restore_lsm:
             info("Restoring LSM into FULLREST_IMAGE=${im.FULLREST_IMAGE}");
             opts = restore_lsm if isinstance(restore_lsm,dict) else {};
-            tigger_restore("${im.RESTORING_OPTIONS}","-f",restored_image,lsm,FULLREST_IMAGE,kwopt_to_command_line(**opts));
+            tigger_restore(restoring_options,"-f",restored_image,lsm,fullrest_image,kwopt_to_command_line(**opts));
 
 document_globals(make_image,"im.*_IMAGE COLUMN im.IMAGE_CHANNELIZE MS im.RESTORING_OPTIONS im.CLEAN_ALGORITHM ms.IFRS ms.DDID ms.FIELD ms.CHANRANGE")

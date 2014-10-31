@@ -147,6 +147,8 @@ def make_image (msname="$MS",column="${im.COLUMN}",imager='${im.IMAGER}',
                 residual_image="${im.RESIDUAL_IMAGE}",
                 psf_image="${im.PSF_IMAGE}",
                 model_image="${im.MODEL_IMAGE}",
+                fullrest_image="${im.FULLREST_IMAGE}",
+                restoring_options="${im.RESTORING_OPTIONS}",
                 algorithm="${im.CLEAN_ALGORITHM}",
                 channelize=None,lsm="$LSM",**kw0):
   """Makes image(s) from MS. Set dirty and restore to True or False to make the appropriate images. You can also
@@ -163,8 +165,11 @@ def make_image (msname="$MS",column="${im.COLUMN}",imager='${im.IMAGER}',
   
 #  add_im_globals()
   if algorithm.lower() in ['moresane','pymoresane']: im.IMAGER = 'moresane'
-  imager,msname,column,lsm,dirty_image,psf_image,restored_image,residual_image,model_image,algorithm = \
-    interpolate_locals("imager msname column lsm dirty_image psf_image restored_image residual_image model_image algorithm"); 
+
+  imager,msname,column,lsm,dirty_image,psf_image,restored_image,residual_image,model_image,algorithm,\
+     fullrest_image,restoring_options = \
+     interpolate_locals("imager msname column lsm dirty_image psf_image restored_image "
+                        "residual_image model_image algorithm fullrest_image restoring_options");
   makedir('$DESTDIR');
   if restore and column != "CORRECTED_DATA":
     abort("Due to imager limitations, restored images can only be made from the CORRECTED_DATA column.");
@@ -248,9 +253,9 @@ def make_image (msname="$MS",column="${im.COLUMN}",imager='${im.IMAGER}',
       rm_fr(img);
   if restore:
     if lsm and restore_lsm:
-      info("Restoring LSM into FULLREST_IMAGE=${im.FULLREST_IMAGE}");
+      info("Restoring LSM into FULLREST_IMAGE=$fullrest_image");
       opts = restore_lsm if isinstance(restore_lsm,dict) else {};
-      tigger_restore("${im.RESTORING_OPTIONS}","-f",RESTORED_IMAGE,lsm,FULLREST_IMAGE,kwopt_to_command_line(**opts));
+      tigger_restore(restoring_options,"-f",restored_image,lsm,fullrest_image,kwopt_to_command_line(**opts));
       
 document_globals(make_image,"im.*_IMAGE COLUMN im.IMAGE_CHANNELIZE MS im.RESTORING_OPTIONS im.CLEAN_ALGORITHM ms.IFRS ms.DDID ms.FIELD ms.CHANRANGE");      
 
