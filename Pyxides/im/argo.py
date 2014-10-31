@@ -11,6 +11,8 @@ import subprocess
 # borrow some Pyxis functionality
 from Pyxis.ModSupport import *
 
+rm_fr = x.rm.args("-fr")
+
 def fits2casa (input,output):
     """Converts FITS image to CASA image."""
     if exists(output):
