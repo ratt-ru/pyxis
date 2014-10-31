@@ -23,7 +23,7 @@ niter = 1000
 gain = 0.1
 threshold = 0
 
-define('WSCLEAN_PATH','wsclean','Path to WSCLEAN')
+define('WSCLEAN_PATH','${im.WSCLEAN_PATH}','Path to WSCLEAN')
 
 # dict of known lwimager arguments, by version number
 # this is to accommodate newer versions
@@ -40,17 +40,23 @@ _wsclean_known_args = {1.4:set('name predict size scale nwlayers minuvw maxuvw m
 
 # whenever the path changes, find out new version number, and build new set of arguments
 _wsclean_path_version = None,None;
-def WSCLEAN_VERSION_Template ():
+def WSCLEAN_VERSION_Template (path='$WSCLEAN_PATH'):
+    """ initilise imager arguments """
+    # first check if wsclean is installed
+    path = interpolate_locals('path')
+    path = im.argo.findImager(path)
+    if path is False:
+        return -1
     global _wsclean_path_version,_wsclean_args
-    if WSCLEAN_PATH != _wsclean_path_version[0]:
-        _wsclean_path_version = WSCLEAN_PATH,wsclean_version()
+    if path != _wsclean_path_version[0]:
+        _wsclean_path_version = path,wsclean_version()
         _wsclean_args = set()
         for version,args in _wsclean_known_args.iteritems():
             if version <= _wsclean_path_version[1][0]:
                 _wsclean_args.update(args)
     return _wsclean_path_version[1]
 
-def wsclean_version(path='${im.WSCLEAN_PATH}'):
+def wsclean_version(path='${WSCLEAN_PATH}'):
     """ try to find wsclean version """
     path = interpolate_locals('path')
     std = subprocess.Popen([path,'--version'],stderr=subprocess.PIPE,stdout=subprocess.PIPE)
