@@ -38,7 +38,9 @@ _moresane_args = {'outputname': None,
                   'edgesupression': False,
                   'edgeoffset': 0,
                   'mfs':False,
-                  'spc':False
+                  'mfs-chanrange':None,
+                  'spi-sigmalevel':10,
+                  'spec-curv':False
 }
 
 def deconv(dirty_image,psf_image,
@@ -52,7 +54,11 @@ def deconv(dirty_image,psf_image,
     # Check if PyMORESANE is where it is said to be
     model_image,residual_image,restored_image,path = interpolate_locals('model_image residual_image restored_image path')
     path = argo.findImager(path,imager_name='PyMORESANE') 
-
+   
+    kw['model-image'] = model_image
+    kw['residual-image'] = residual_image
+    kw['restored-image'] = restored_image
+    
     # make dict of imager arguments that have been specified globally or locally
     args = dict([ (arg,globals()[arg]) for arg in _moresane_args if arg in globals() and globals()[arg] is not None ]);
     args.update([ (arg,kw[arg]) for arg in _moresane_args if arg in kw ])

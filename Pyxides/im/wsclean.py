@@ -56,7 +56,7 @@ def wsclean_version(path='${im.WSCLEAN_PATH}'):
         # if return error assume its version 0
         version = 0
     else:
-        stdout = std.stdout.read()
+        stdout = std.stdout.read().lower()
         version = stdout.split()
         ind = version.index('version')
         version = version[ind+1]
@@ -126,6 +126,7 @@ model_image residual_image restored_image psf_image channelize')
     if restore and algorithm.lower() in ['moresane','pymoresane']:
         kw['niter'] = 0
         kw['makepsf'] = True
+        psf = True
         if isinstance(restore,dict):
             kw0 = restore.copy()
         else: 
@@ -163,7 +164,7 @@ model_image residual_image restored_image psf_image channelize')
 model is $model_image, residual is $residual_image)")
     
     if psf and not restore:
-        args['makepsf'] = True
+        kw['makepsf'] = True
 
     if 'pol' not in kw.keys():
         pol = repr(list(stokes)).strip('[]').replace('\'','').replace(' ','')
@@ -208,6 +209,8 @@ model is $model_image, residual is $residual_image)")
             dirtys = eval_list(['$image_prefix-%s$i-dirty.fits'%d for d in labels])
             if dirty:
                 argo.combine_fits(dirtys,outname=II('$image_prefix$i-dirty.fits'),ctype='FREQ',keep_old=False)
+                if not restore:
+                    xo.sh('rm -fr ${image_prefix}*image*.fits')
             else: 
                 for fits in dirtys:
                     rm_fr(fits)
