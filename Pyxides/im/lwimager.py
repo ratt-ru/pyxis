@@ -47,15 +47,17 @@ tigger_restore = x("tigger-restore");
 
 imagecalc = x("imagecalc");
 
-npix = 1024
-cellsize = '2arcsec'
-mode = 'channel'
-stokes = 'IQUV'
-weight = 'briggs'
-robust = 0
-niter = 1000
-gain = 0.1
-threshold = 0
+def STANDARD_IMAGING_OPTS_Template():
+    global npix,cellsize,mode,stokes,weight,robust,niter,gain,threshold
+    npix = im.npix
+    cellsize = im.cellsize
+    mode = im.mode
+    stokes = im.stokes
+    weight = im.weight
+    robust = im.robust
+    niter = im.niter
+    gain = im.gain
+    threshold = im.threshold
 
 wprojplanes = 0
 cachesize = 4096

@@ -32,24 +32,24 @@ define("IMAGE_CHANNELIZE",0,"image channels selection: 0 for all, 1 for per-chan
 define("RESTORING_OPTIONS","","extra options to tigger-restore for LSM-restoring")
 
 # Standard imaging options
-#ifrs = ""
-#npix = 1024
-#cellsize = "2arcsec"
-#mode = "channel"
-#stokes = "IQUV"
-#weight = "briggs"
-#robust = 0
-#niter = 1000
-#gain = .1
-#threshold = 0
-#wprojplanes = 0
-#cachesize = 4096
-#fixed = 0
-## rescale images by factor
-#flux_rescale=1
-## use velocity rather than frequency
-#velocity = False 
-#no_weight_fov = False
+ifrs = ""
+npix = 1024
+cellsize = "2arcsec"
+mode = "channel"
+stokes = "IQUV"
+weight = "briggs"
+robust = 0
+niter = 1000
+gain = .1
+threshold = 0
+wprojplanes = 0
+cachesize = 4096
+fixed = 0
+# rescale images by factor
+flux_rescale=1
+# use velocity rather than frequency
+velocity = False 
+no_weight_fov = False
 
 
 import wsclean

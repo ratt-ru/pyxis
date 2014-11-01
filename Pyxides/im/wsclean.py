@@ -221,7 +221,7 @@ model is $model_image, residual is $residual_image)")
          
             dirtys = eval_list(['$image_prefix-%s$i-dirty.fits'%d for d in labels])
             if dirty:
-                argo.combine_fits(dirtys,outname=II('$image_prefix$i-dirty.fits'),ctype='FREQ',keep_old=False)
+                argo.combine_fits(dirtys,outname=II('$image_prefix$i-dirty.fits') if pol else dirty_image,ctype='FREQ',keep_old=False)
                 if not restore:
                     xo.sh('rm -fr ${image_prefix}*image*.fits')
             else: 
@@ -229,13 +229,15 @@ model is $model_image, residual is $residual_image)")
                     rm_fr(fits)
             if restore:
                 model = eval_list(['$image_prefix-%s$i-model.fits'%d for d in labels])
-                argo.combine_fits(model,outname=II('$image_prefix$i-model.fits'),ctype='FREQ',keep_old=False)
+                argo.combine_fits(model,outname=II('$image_prefix$i-model.fits') if pol else model_image,ctype='FREQ',keep_old=False)
 
                 residual = eval_list(['$image_prefix-%s$i-residual.fits'%d for d in labels])
-                argo.combine_fits(residual,outname=II('$image_prefix$i-residual.fits'),ctype='FREQ',keep_old=False)
+                argo.combine_fits(residual,outname=II('$image_prefix$i-residual.fits') if pol else residual_image,ctype='FREQ',keep_old=False)
 
                 restored = eval_list(['$image_prefix-%s$i-image.fits'%d for d in labels])
-                argo.combine_fits(restored,outname=II('$image_prefix$i-image.fits'),ctype='FREQ',keep_old=False)
+                argo.combine_fits(restored,outname=II('$image_prefix$i-image.fits') if pol else restored_image ,ctype='FREQ',keep_old=False)
+                if not pol:
+                    x.mv('${image_prefix}-MFS-image.fits %s'%(restored_image.replace('.restored.fits','-MFS.restored.fits')))
 
         if pol:
             if dirty: 
