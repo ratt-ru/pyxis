@@ -12,16 +12,18 @@ tigger_restore = x("tigger-restore")
 # register ourselves with Pyxis and define the superglobals
 register_pyxis_module(superglobals="MS LSM DESTDIR");
 
-# standard imaging options 
-npix = 1024
-cellsize = '2arcsec'
-mode = 'channel'
-stokes = 'IQUV'
-weight = 'briggs'
-robust = 0
-niter = 1000
-gain = 0.1
-threshold = 0
+def STANDARD_IMAGER_OPTS_Template():
+    """ Initialise standard imager options """
+    global npix,cellsize,mode,stokes,weight,robust,niter,gain,threshold
+    npix = im.npix
+    cellsize = im.cellsize
+    mode = im.mode
+    stokes = im.stokes
+    weight = im.weight
+    robust = im.robust
+    niter = im.niter
+    gain = im.gain
+    threshold = im.threshold
 
 define('WSCLEAN_PATH','${im.WSCLEAN_PATH}','Path to WSCLEAN')
 
@@ -113,7 +115,7 @@ def make_image(msname='$MS',image_prefix='${im.BASENAME_IMAGE}',column='${im.COL
                 dirty_image='${im.DIRTY_IMAGE}',
                 model_image='${im.MODEL_IMAGE}',
                 residual_image='${im.RESIDUAL_IMAGE}',
-                restored_image='${im.RESRORED_IMAGE}',
+                restored_image='${im.RESTORED_IMAGE}',
                 fullrest_image='${im.FULLREST_IMAGE}',
                 restoring_options='${im.RESTORING_OPTIONS}',**kw):
     """ run WSCLEAN """
