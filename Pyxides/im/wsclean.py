@@ -26,10 +26,11 @@ def STANDARD_IMAGER_OPTS_Template():
     threshold = im.threshold
 
 define('WSCLEAN_PATH','${im.WSCLEAN_PATH}','Path to WSCLEAN')
+define('IMAGER','wsclean','Imager name')
 
 # dict of known lwimager arguments, by version number
 # this is to accommodate newer versions
-_wsclean_known_args = {1.4:set('name predict size scale nwlayers minuvw maxuvw maxw pol '
+_wsclean_known_args = {0:set('name predict size scale nwlayers minuvw maxuvw maxw pol '
                        'joinpolarizations multiscale multiscale-threshold-bias multiscale-scale-bias '
                        'cleanborder niter threshold gain mgain smallinversion '
                        'nosmallinversion smallpsf gridmode nonegative negative '
@@ -37,18 +38,21 @@ _wsclean_known_args = {1.4:set('name predict size scale nwlayers minuvw maxuvw m
                        'field weight natural mfsweighting superweight beamsize makepsf '
                        'imaginarypart datacolumn gkernelsize oversampling reorder no-reorder '
                        'addmodel addmodelapp savemodel wlimit mem absmem j'.split()),
-                       0:set('addmodel addmodelapp savemodel'.split())
+                       1.4:{}
 }
 
 # whenever the path changes, find out new version number, and build new set of arguments
 _wsclean_path_version = None,None;
+
 def WSCLEAN_VERSION_Template (path='$WSCLEAN_PATH'):
     """ initilise imager arguments """
+
     # first check if wsclean is installed
     path = interpolate_locals('path')
     path = im.argo.findImager(path)
     if path is False:
         return -1
+
     global _wsclean_path_version,_wsclean_args
     if path != _wsclean_path_version[0]:
         _wsclean_path_version = path,wsclean_version()
@@ -56,24 +60,39 @@ def WSCLEAN_VERSION_Template (path='$WSCLEAN_PATH'):
         for version,args in _wsclean_known_args.iteritems():
             if version <= _wsclean_path_version[1][0]:
                 _wsclean_args.update(args)
+
+    # the following options are not versions > 1.4 
+    if _wsclean_path_version[1]>=1.4:
+        for item in 'addmodel addmodelapp savemodel'.split():
+            _wsclean_args.discard(item)
+
     return _wsclean_path_version[1]
 
 def wsclean_version(path='${WSCLEAN_PATH}'):
     """ try to find wsclean version """
+
     path = interpolate_locals('path')
-    std = subprocess.Popen([path,'--version'],stderr=subprocess.PIPE,stdout=subprocess.PIPE)
+    std = subprocess.Popen([path,'-version'],stderr=subprocess.PIPE,stdout=subprocess.PIPE)
     if std.stderr.read():
         # if return error assume its version 0
-        version = 0
+        version = '0.0'
+        tail = ""
     else:
         stdout = std.stdout.read().lower()
         version = stdout.split()
         ind = version.index('version')
-        version = version[ind+1]
-    info('$path version is $version')
-    return version,""
-    
+        version = version[ind+1].split('-')[0]
+        tail = version.split('-')[-1] if '-' in version else ""
+    info('$path version is $version${-<tail}')
 
+    if '.' in version:
+        try:
+            version = map(int,version.split('.'))
+        except ValueError: 
+            version = 0,0
+        vstr = '%d.' + '%d'*(len(version)-1)
+        version = float(vstr%(tuple(version)))
+    return version,tail
 
 def _run(msname='$MS',clean=False,path='${im.WSCLEAN_PATH}',**kw):
     """ Run WSCLEAN """
@@ -84,9 +103,8 @@ def _run(msname='$MS',clean=False,path='${im.WSCLEAN_PATH}',**kw):
         abort('Could not find WSCLEAN in system path, alises or at $path')
 
     # map stokes and npix and cellsize to wsclean equivalents
-    global scale,pol,size,weight
+    global scale,size,weight
     scale = cellsize if isinstance(cellsize,(int,float)) else argo.toDeg(cellsize)
-    pol = repr(list(stokes)).strip('[]').replace('\'','').replace(' ','')
 
     size = '%d %d'%(npix,npix)
     if weight is 'briggs':
@@ -104,6 +122,7 @@ def _run(msname='$MS',clean=False,path='${im.WSCLEAN_PATH}',**kw):
    
 def make_image(msname='$MS',image_prefix='${im.BASENAME_IMAGE}',column='${im.COLUMN}',
                 path='${im.WSCLEAN_PATH}',
+                imager='$IMAGER',
                 restore=False,
                 dirty=True,
                 psf=False,
@@ -121,8 +140,7 @@ def make_image(msname='$MS',image_prefix='${im.BASENAME_IMAGE}',column='${im.COL
     """ run WSCLEAN """
 
     makedir('$DESTDIR')
-
-    im.IMAGER = 'wsclean'
+    im.IMAGER = imager
     path,msname,image_prefix,column,dirty_image,model_image,residual_image,restored_image,psf_image,channelize,\
       fullrest_image,restoring_optins = \
       interpolate_locals('path msname image_prefix column dirty_image model_image residual_image '
@@ -161,7 +179,7 @@ def make_image(msname='$MS',image_prefix='${im.BASENAME_IMAGE}',column='${im.COL
         ms.CHANSTART = start
         ms.NUMCHANS = end-start
 
-    channelize = int(channelize)
+    channelize = channelize or im.IMAGE_CHANNELIZE
     nr = 0
     if channelize and ms.NUMCHANS==1:
         ms.set_default_spectral_info()
@@ -179,42 +197,77 @@ model is $model_image, residual is $residual_image)")
     if psf and not restore:
         kw['makepsf'] = True
 
-    if 'pol' not in kw.keys():
-        pol = repr(list(stokes)).strip('[]').replace('\'','').replace(' ','')
-    else:
+    
+
+    if 'pol' in kw.keys():
         pol = kw['pol']
+    else:
+        pol = stokes
+        kw['pol'] = pol
+
+    if ',' in pol:
+        pol = pol.split(',')
     _run(msname,clean=restore,**kw)
 
     # Combine images if needed
-    if not channelize:
+    def eval_list(vals):
+        l = []
+        for val in vals:
+            l.append(II(val))
+        return l
+
+    def combine_pol(pol,image_prefix=None,mfs=False):
+        dirtys = eval_list(['$image_prefix-%s-dirty.fits'%d for d in pol])
         if dirty:
-            x.mv('${image_prefix}-dirty.fits $dirty_image')
-        else: rm_fr('${image_prefix}-dirty.fits')
+            argo.combine_fits(dirtys,outname=dirty_image,ctype='STOKES',keep_old=False)
+        else:
+            for item in dirtys:
+                rm_fr(item)
 
         if restore:
-             x.mv('${image_prefix}-model.fits $model_image')
-             x.mv('${image_prefix}-residual.fits $residual_image')
-             x.mv('${image_prefix}-image.fits $restored_image')
-             x.mv('${image_prefix}-psf.fits $psf_image')
-        else:
-            rm_fr('${image_prefix}-image.fits')
-    else:
-        def eval_list(vals):
-            l = []
-            for val in vals:
-                l.append(II(val))
-            return l
+            model = eval_list(['$image_prefix-%s-model.fits'%d for d in pol])
+            argo.combine_fits(model,outname=model_image,ctype='STOKES',keep_old=False)
 
+            residual = eval_list(['$image_prefix-%s-residual.fits'%d for d in pol])
+            argo.combine_fits(residual,outname=residual_image,ctype='STOKES',keep_old=False)
+
+            restored = eval_list(['$image_prefix-%s-image.fits'%d for d in pol])
+            argo.combine_fits(restored,outname=restored_image,ctype='STOKES',keep_old=False)
+
+            if mfs:
+                model_mfs = eval_list(['$image_prefix-MFS-%s-model.fits'%d for d in pol])
+                argo.combine_fits(model_mfs,outname=model_image.replace('.model.fits','-MFS.model.fits'),ctype='STOKES',keep_old=False)
+                residual_mfs = eval_list(['$image_prefix-MFS-%s-residual.fits'%d for d in pol])
+                argo.combine_fits(residual_mfs,outname=restored_image.replace('.residual.fits','-MFS.residual.fits'),ctype='STOKES',keep_old=False)
+                restored_mfs = eval_list(['$image_prefix-MFS-%s-image.fits'%d for d in pol])
+                argo.combine_fits(restored_mfs,outname=restored_image.replace('.restored.fits','-MFS.restored.fits'),ctype='STOKES',keep_old=False)
+
+    if not channelize:
+        if pol:
+            combine_pol(pol,image_prefix)
+        else:
+            if dirty:
+                x.mv('${image_prefix}-dirty.fits $dirty_image')
+            else: rm_fr('${image_prefix}-dirty.fits')
+
+            if restore:
+                 x.mv('${image_prefix}-model.fits $model_image')
+                 x.mv('${image_prefix}-residual.fits $residual_image')
+                 x.mv('${image_prefix}-image.fits $restored_image')
+                 x.mv('${image_prefix}-psf.fits $psf_image')
+            else:
+                rm_fr('${image_prefix}-image.fits')
+    else:
         # Combine component images from wsclean
         labels = ['%04d'%d for d in range(nr)]
         if psf or restore: 
             psfs = eval_list(['$image_prefix-%s-psf.fits'%d for d in labels])
             argo.combine_fits(psfs,outname=II('$image_prefix.psf.fits'),ctype='FREQ',keep_old=False)
         
-        if len(pol.split(','))==1 :
+        if len(pol)==1 :
             pol = ''
 
-        for i in pol.split(','):
+        for i in pol:
 
             if i : 
                 i = '-%s'%i
@@ -240,25 +293,7 @@ model is $model_image, residual is $residual_image)")
                     x.mv('${image_prefix}-MFS-image.fits %s'%(restored_image.replace('.restored.fits','-MFS.restored.fits')))
 
         if pol:
-            if dirty: 
-                dirtys = eval_list(['$image_prefix-%s-dirty.fits'%d for d in pol.split(',')])
-                argo.combine_fits(dirtys,outname=dirty_image,ctype='STOKES',keep_old=False)
-
-            if restore:
-                model = eval_list(['$image_prefix-%s-model.fits'%d for d in pol.split(',')])
-                argo.combine_fits(model,outname=model_image,ctype='STOKES',keep_old=False)
-                model_mfs = eval_list(['$image_prefix-MFS-%s-model.fits'%d for d in pol.split(',')])
-                argo.combine_fits(model_mfs,outname=model_image.replace('.model.fits','-MFS.model.fits'),ctype='STOKES',keep_old=False)
-
-                residual = eval_list(['$image_prefix-%s-residual.fits'%d for d in pol.split(',')])
-                argo.combine_fits(residual,outname=residual_image,ctype='STOKES',keep_old=False)
-                residual_mfs = eval_list(['$image_prefix-MFS-%s-residual.fits'%d for d in pol.split(',')])
-                argo.combine_fits(residual_mfs,outname=restored_image.replace('.residual.fits','-MFS.residual.fits'),ctype='STOKES',keep_old=False)
-
-                restored = eval_list(['$image_prefix-%s-image.fits'%d for d in pol.split(',')])
-                argo.combine_fits(restored,outname=restored_image,ctype='STOKES',keep_old=False)
-                restored_mfs = eval_list(['$image_prefix-MFS-%s-image.fits'%d for d in pol.split(',')])
-                argo.combine_fits(restored_mfs,outname=restored_image.replace('.restored.fits','-MFS.restored.fits'),ctype='STOKES',keep_old=False)
+            combine_pol(pol,image_prefix,mfs=True)
 
     if moresane:
         restored_image = restored_image.replace('wsclean','moresane')
@@ -266,7 +301,7 @@ model is $model_image, residual is $residual_image)")
         model_image = model_image.replace('wsclean','moresane')
 
         info(" im.moresane.deconv: making estored image $restored_image \
-model is $model_image, residual is $residual_image)")
+              model is $model_image, residual is $residual_image)")
 
         im.moresane.deconv(dirty_image,psf_image,model_image=model_image,
                            residual_image=residual_image,

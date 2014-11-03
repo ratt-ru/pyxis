@@ -19,7 +19,7 @@ v.define("LSM","lsm.lsm.html","""current local sky model""");
   
 # external tools  
 define('LWIMAGER_PATH','lwimager','path to lwimager binary. Default is to look in the system PATH.');
-
+define('IMAGER','lwimager','Imager name')
 
 # dict of known lwimager arguments, by version number
 # this is to accommodate newer versions
@@ -49,6 +49,7 @@ imagecalc = x("imagecalc");
 
 def STANDARD_IMAGING_OPTS_Template():
     global npix,cellsize,mode,stokes,weight,robust,niter,gain,threshold
+    global wprojplanes,cachesize,ifrs,fixed,flux_rescale,velocity,no_weight_fov
     npix = im.npix
     cellsize = im.cellsize
     mode = im.mode
@@ -58,19 +59,15 @@ def STANDARD_IMAGING_OPTS_Template():
     niter = im.niter
     gain = im.gain
     threshold = im.threshold
-
-wprojplanes = 0
-cachesize = 4096
-ifrs = ""
-fixed = 0
-
-# rescale images by factor
-flux_rescale=1
-
-# use velocity rather than frequency
-velocity = False;
-
-no_weight_fov = False
+    wprojplanes = im.wprojplanes
+    cachesize = im.cachesize
+    ifrs = im.ifrs
+    fixed = im.fixed
+    # rescale images by factor
+    flux_rescale= im.flux_rescale
+    # use velocity rather than frequency
+    velocity = im.velocity
+    no_weight_fov = im.no_weight_fov
 
 # known lwimager args -- these will be passed from keywords
 _fileargs = set("image model restored residual".split(" ")); 
@@ -139,10 +136,10 @@ def lwimager_version (path="$LWIMAGER_PATH"):
     major,minor,patch = map(int,[major,minor,patch]);
   except:
     major,minor,patch,tail = 0,0,0,vstr;
-  info("$path version is $major.$minor.$patch-$tail")
+  info("$path version is $major.$minor.$patch${-<tail}")
   return major*1000000+minor*1000+patch,tail;
 
-def make_image (msname="$MS",column="${im.COLUMN}",imager='${im.IMAGER}',
+def make_image (msname="$MS",column="${im.COLUMN}",imager='$IMAGER',
                 dirty=True,restore=False,restore_lsm=True,psf=False,
                 dirty_image="${im.DIRTY_IMAGE}",
                 restored_image="${im.RESTORED_IMAGE}",
@@ -165,12 +162,16 @@ def make_image (msname="$MS",column="${im.COLUMN}",imager='${im.IMAGER}',
   'dirty_image', etc. sets the image names, with defaults determined by the globals DIRTY_IMAGE, etc.
   """;
   
-#  add_im_globals()
-  if algorithm.lower() in ['moresane','pymoresane']: im.IMAGER = 'moresane'
+  im.IMAGER = imager
+  # retain lwimager label for dirty maps and psf_maps
+  dirty_image,psf_image = interpolate_locals('dirty_image psf_image') 
 
-  imager,msname,column,lsm,dirty_image,psf_image,restored_image,residual_image,model_image,algorithm,\
+  if algorithm.lower() in ['moresane','pymoresane']: 
+      im.IMAGER = 'moresane'
+
+  imager,msname,column,lsm,restored_image,residual_image,model_image,algorithm,\
      fullrest_image,restoring_options = \
-     interpolate_locals("imager msname column lsm dirty_image psf_image restored_image "
+     interpolate_locals("imager msname column lsm restored_image "
                         "residual_image model_image algorithm fullrest_image restoring_options");
   makedir('$DESTDIR');
   if restore and column != "CORRECTED_DATA":
@@ -212,13 +213,9 @@ def make_image (msname="$MS",column="${im.COLUMN}",imager='${im.IMAGER}',
   if algorithm=='moresane' and restore:
     if not psf: make_psf()
     if not dirty: make_dirty()  
-    if isinstance(restore,dict):
-      im.moresane.deconv(dirty_image,psf_image,model=model_image,
-                         residual=residual_image,restored=restored_image,**restore)
-    elif restore==True: 
-      im.moresane.deconv(dirty_image,psf_image,model_image=model_image,
-                         residual_image=residual_image,restored_image=restored_image)
-    else: abort('restore has to be either a dictionary or a boolean')
+    opts = restore if isinstance(restore,dict) else {}
+    im.moresane.deconv(dirty_image,psf_image,model=model_image,
+                       residual=residual_image,restored=restored_image,**opts)
   elif restore:
     info("im.lwimager.make_image: making restored image $restored_image");
     info("                   (model is $model_image, residual is $residual_image)");
@@ -260,31 +257,6 @@ def make_image (msname="$MS",column="${im.COLUMN}",imager='${im.IMAGER}',
       tigger_restore(restoring_options,"-f",restored_image,lsm,fullrest_image,kwopt_to_command_line(**opts));
       
 document_globals(make_image,"im.*_IMAGE COLUMN im.IMAGE_CHANNELIZE MS im.RESTORING_OPTIONS im.CLEAN_ALGORITHM ms.IFRS ms.DDID ms.FIELD ms.CHANRANGE");      
-
-def make_threshold_mask (input="${im.RESTORED_IMAGE}",threshold=0,output="$MASK_IMAGE",high=1,low=0):
-  """Makes a mask image by thresholding the input image at a given value. The output image is a copy of the input image,
-  with pixel values of 'high' (1 by default) where input pixels are >= threshold, and 'low' (0 default) where pixels are <threshold.
-  """
-  input,output = interpolate_locals("input output");
-  ff = pyfits.open(input);
-  d = ff[0].data;
-  d[d<threshold] = low;
-  d[d>threshold] = high;
-  ff.writeto(output,clobber=True);
-  info("made mask image $output by thresholding $input at %g"%threshold);
-  
-document_globals(make_threshold_mask,"im.RESTORED_IMAGE MASK_IMAGE");
-
-def make_empty_image (msname="$MS",image="$COPY_IMAGE_TO",channelize=None,**kw0):
-  msname,image = interpolate_locals("msname image");
-  
-  # setup imager options
-  kw0.update(dict(ms=msname,channelize=channelize,dirty=True,dirty_image=image,restore=False,
-                   select="ANTENNA1==0 && ANTENNA2==1"));
-  make_image(**kw0);
-  info("created empty image $image");
-
-define("COPY_IMAGE_TO_Template", "${MS:BASE}.imagecopy.fits","container for image copy");
 
 def predict_vis (msname="$MS",image="${im.MODEL_IMAGE}",column="MODEL_DATA",channelize=None,
   copy=False,copyto="$COPY_IMAGE_TO",**kw0):

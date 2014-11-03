@@ -7,9 +7,13 @@ import numpy
 import math
 import pyrap.tables
 import subprocess
+import im
 
 # borrow some Pyxis functionality
 from Pyxis.ModSupport import *
+
+# register ourselves with Pyxis and define the superglobals
+register_pyxis_module(superglobals="MS LSM OUTDIR DESTDIR")
 
 rm_fr = x.rm.args("-fr")
 
@@ -18,6 +22,32 @@ def fits2casa (input,output):
     if exists(output):
         rm_fr(output)
     x.imagecalc("in='$input'","out=$output",split_args=False)
+
+def make_threshold_mask (input="${im.RESTORED_IMAGE}",threshold=0,output="$im.MASK_IMAGE",high=1,low=0):
+    """
+    Makes a mask image by thresholding the input image at a given value. The output image is a copy of the input image,
+    with pixel values of 'high' (1 by default) where input pixels are >= threshold, and 'low' (0 default) where pixels are <threshold.
+    """
+    input,output = interpolate_locals("input output")
+    ff = pyfits.open(input)
+    d = ff[0].data
+    d[d<threshold] = low
+    d[d>threshold] = high
+    ff.writeto(output,clobber=True)
+    info("made mask image $output by thresholding $input at %g"%threshold)
+
+document_globals(make_threshold_mask,"im.RESTORED_IMAGE im.MASK_IMAGE");
+
+def make_empty_image (msname="$MS",image="${COPY_IMAGE_TO}",channelize=None,**kw0):
+    msname,image = interpolate_locals("msname image")
+
+    # setup imager options
+    kw0.update(dict(ms=msname,channelize=channelize,dirty=True,dirty_image=image,restore=False,
+                   select="ANTENNA1==0 && ANTENNA2==1"))
+    make_image(**kw0);
+    info("created empty image $image")
+
+define("COPY_IMAGE_TO_Template", "${MS:BASE}.imagecopy.fits","container for image copy")
 
 def combine_fits(fitslist,outname='combined.fits',axis=0,ctype=None,keep_old=False):
     """ Combine a list of fits files along a given axiis"""
@@ -193,7 +223,7 @@ def swap_stokes_freq(fitsname,freq2stokes=False):
         pyfits.writeto(fitsname,np.rollaxis(data,1),hdr,clobber=True)
     return 0
 
-def gen_run_cmd(path,options,suf='',assign='=',pos_args=None):
+def gen_run_cmd(path,options,suf='',assign='=',lv_str=False,pos_args=None):
     """ Generate command line run command """
 
     pos_args = pos_args or []
@@ -201,6 +231,8 @@ def gen_run_cmd(path,options,suf='',assign='=',pos_args=None):
 
     for key,val in options.iteritems():
         if val is not None:
+            if isinstance(val,str) and lv_str:
+                val = '"%s"'%val
             if isinstance(val,bool) and suf:
                 if val:
                     run_cmd+='%s%s '%(suf,key)
