@@ -210,6 +210,10 @@ model is $model_image, residual is $residual_image)")
     _run(msname,clean=restore,**kw)
 
     # Combine images if needed
+
+    if len(pol)==1 :
+       pol = ''
+
     def eval_list(vals):
         l = []
         for val in vals:
@@ -264,8 +268,6 @@ model is $model_image, residual is $residual_image)")
             psfs = eval_list(['$image_prefix-%s-psf.fits'%d for d in labels])
             argo.combine_fits(psfs,outname=II('$image_prefix.psf.fits'),ctype='FREQ',keep_old=False)
         
-        if len(pol)==1 :
-            pol = ''
 
         for i in pol:
 
