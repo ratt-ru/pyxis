@@ -158,6 +158,7 @@ def make_image(msname='$MS',image_prefix='${im.BASENAME_IMAGE}',column='${im.COL
         kw['niter'] = 0
         kw['makepsf'] = True
         psf = True
+        dirty = True
         if isinstance(restore,dict):
             kw0 = restore.copy()
         else: 
