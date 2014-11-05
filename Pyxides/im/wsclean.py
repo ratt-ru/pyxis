@@ -179,7 +179,8 @@ def make_image(msname='$MS',image_prefix='${im.BASENAME_IMAGE}',column='${im.COL
         start,end = map(int,kw['interval'].split())
         ms.CHANSTART = start
         ms.NUMCHANS = end-start
-
+ 
+    #TODO:: Very untidy. Clean up! 
     channelize = channelize or im.IMAGE_CHANNELIZE
     nr = 0
     if channelize and ms.NUMCHANS==1:
@@ -188,7 +189,10 @@ def make_image(msname='$MS',image_prefix='${im.BASENAME_IMAGE}',column='${im.COL
         if 'channelsout' in kw.keys():
             nr = kw['channelsout']
 
-    nr = nr or ms.NUMCHANS//channelize
+    if channelize == 0:
+        nr = 1
+    else:
+        nr = ms.NUMCHANS//channelize
     if nr: kw['channelsout'] = nr
 
     if dirty: info("im.wsclean.make_image: making dirty image $dirty_image")

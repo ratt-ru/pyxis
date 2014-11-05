@@ -19,6 +19,7 @@ v.define("LSM","lsm.lsm.html","""current local sky model""");
   
 # external tools  
 define('LWIMAGER_PATH','lwimager','path to lwimager binary. Default is to look in the system PATH.');
+
 define('IMAGER','lwimager','Imager name')
 
 # dict of known lwimager arguments, by version number
