@@ -156,16 +156,16 @@ def findImager(path,imager_name=None):
     stdout = check_path.stdout.read().strip()
     if stdout : 
         return path
-    # Check aliases
-    ##TODO: [@sphe] Potential issues with looking in aliases. Might need to review this
-    stdout = subprocess.Popen(['grep',path,'$HOME/.bash_aliases'],stderr=subprocess.PIPE,stdout=subprocess.PIPE)
-    err,out = stdout.stderr.read(),stdout.stdout.read()
-    if err:
-        return False
-    elif out: 
-        path = out.split('=')[-1].strip("'")
-        path = path.split('#')[0] # Incase there is a comment im the line
-        return path
+#   # Check aliases
+#   ##TODO: [@sphe] Potential issues with looking in aliases. Might need to review this
+#   stdout = subprocess.Popen(['grep',path,'$HOME/.bash_aliases'],stderr=subprocess.PIPE,stdout=subprocess.PIPE)
+#   err,out = stdout.stderr.read(),stdout.stdout.read()
+#   if err:
+#       return False
+#   elif out: 
+#       path = out.split('=')[-1].strip("'")
+#       path = path.split('#')[0] # Incase there is a comment im the line
+#       return path
     else:
         return False # Exhausted all sensible options, give up. 
 

@@ -9,6 +9,8 @@ v.define("LSM","lsm.lsm.html","""current local sky model""");
 # external tools  
 define('IMAGER','lwimager','Imager to user. Default is lwimager.');
 define('LWIMAGER_PATH','lwimager','path to lwimager binary. Default is to look in the system PATH.');
+define('WSCLEAN_PATH','{im.WSCLEAN_PATH}','path to lwimager binary. Default is to look in the system PATH.');
+define('MORESANE_PATH','{m.MORESANE_PATH}','path to lwimager binary. Default is to look in the system PATH.');
 
 define('COLUMN','CORRECTED_DATA','default column to image');
 
@@ -93,7 +95,10 @@ restored_image residual_image model_image algorithm fullrest_image restoring_opt
     else: 
 
         abort('Uknown imager: $imager')
-   
+    if MORESANE_PATH != '{im.MORESANE_PATH}':
+       im.MORESANE_PATH = MORESANE_PATH
+    if WSCLEAN_PATH != '{im.WSCLEAN_PATH}':
+       im.WSCLEAN_PATH = WSCLEAN_PATH
     # make dict of imager arguments that have been specified globally or locally
     args_to_parse = 'npix weight robust stokes field no_weight_fov ifrs gain niter cachesize mode wprojplanes threshold'.split()
     kw = dict([ (arg,globals()[arg]) for arg in args_to_parse if arg in globals() and globals()[arg] is not None ])

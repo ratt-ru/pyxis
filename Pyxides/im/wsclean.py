@@ -256,6 +256,7 @@ model is $model_image, residual is $residual_image)")
     if not channelize:
         if len(pol)>1:
             combine_pol(pol,image_prefix)
+            x.mv('${image_prefix}-psf.fits $psf_image')
         else:
             if dirty:
                 x.mv('${image_prefix}-dirty.fits $dirty_image')
