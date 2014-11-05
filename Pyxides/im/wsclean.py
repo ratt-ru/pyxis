@@ -249,6 +249,9 @@ model is $model_image, residual is $residual_image)")
                 argo.combine_fits(residual_mfs,outname=restored_image.replace('.residual.fits','-MFS.residual.fits'),ctype='STOKES',keep_old=False)
                 restored_mfs = eval_list(['$image_prefix-MFS-%s-image.fits'%d for d in pol])
                 argo.combine_fits(restored_mfs,outname=restored_image.replace('.restored.fits','-MFS.restored.fits'),ctype='STOKES',keep_old=False)
+        else:
+            for fits in ['$image_prefix-%s-image.fits'%d for d in pol]:
+                rm_fr(fits)
 
     if not channelize:
         if len(pol)>1:
