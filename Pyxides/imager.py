@@ -101,6 +101,7 @@ restored_image residual_image model_image algorithm fullrest_image restoring_opt
     if imager == 'wsclean':
         kw.update(weight='%s %.2f'%(weight,robust) if weight=='briggs' else weight)
     kw.update([ (arg,kw[arg]) for arg in args_to_parse if arg in kw0 ])
+    kw.update(**kw0)
 
     call_imager(msname,column=column,dirty=dirty,restore_lsm=restore_lsm,restore=restore,
                 psf=psf,dirty_image=dirty_image,restored_image=restored_image,
