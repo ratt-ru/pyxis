@@ -129,7 +129,7 @@ def make_image(msname='$MS',image_prefix='${im.BASENAME_IMAGE}',column='${im.COL
                 restore_lsm=False,
                 lsm='$LSM',
                 algorithm='${im.CLEAN_ALGORITHM}',
-                channelize='${im.IMAGE_CHANNELIZE}',
+                channelize=None,
                 psf_image='${im.PSF_IMAGE}',
                 dirty_image='${im.DIRTY_IMAGE}',
                 model_image='${im.MODEL_IMAGE}',
@@ -140,7 +140,7 @@ def make_image(msname='$MS',image_prefix='${im.BASENAME_IMAGE}',column='${im.COL
     """ run WSCLEAN """
 
     makedir('$DESTDIR')
-    im.IMAGER = imager
+    im.IMAGER = II(imager)
     path,msname,image_prefix,column,dirty_image,model_image,residual_image,restored_image,psf_image,channelize,\
       fullrest_image,restoring_optins = \
       interpolate_locals('path msname image_prefix column dirty_image model_image residual_image '
@@ -211,9 +211,8 @@ model is $model_image, residual is $residual_image)")
     _run(msname,clean=restore,**kw)
 
     # Combine images if needed
-
-    if len(pol)==1 :
-       pol = ''
+    mfs = mode if 'mode' not in kw.keys() else kw['mode']
+    mfs = mode=='mfs'
 
     def eval_list(vals):
         l = []
@@ -221,7 +220,7 @@ model is $model_image, residual is $residual_image)")
             l.append(II(val))
         return l
 
-    def combine_pol(pol,image_prefix=None,mfs=False):
+    def combine_pol(pol,image_prefix=None):
         dirtys = eval_list(['$image_prefix-%s-dirty.fits'%d for d in pol])
         if dirty:
             argo.combine_fits(dirtys,outname=dirty_image,ctype='STOKES',keep_old=False)
@@ -248,7 +247,7 @@ model is $model_image, residual is $residual_image)")
                 argo.combine_fits(restored_mfs,outname=restored_image.replace('.restored.fits','-MFS.restored.fits'),ctype='STOKES',keep_old=False)
 
     if not channelize:
-        if pol:
+        if len(pol)>1:
             combine_pol(pol,image_prefix)
         else:
             if dirty:
@@ -271,6 +270,8 @@ model is $model_image, residual is $residual_image)")
         
 
         for i in pol:
+            if len(pol) == 1:
+               i = ''
 
             if i : 
                 i = '-%s'%i
@@ -285,17 +286,22 @@ model is $model_image, residual is $residual_image)")
                     rm_fr(fits)
             if restore:
                 model = eval_list(['$image_prefix-%s$i-model.fits'%d for d in labels])
-                argo.combine_fits(model,outname=II('$image_prefix$i-model.fits') if pol else model_image,ctype='FREQ',keep_old=False)
+                argo.combine_fits(model,outname=II('$image_prefix$i-model.fits') if i else model_image,ctype='FREQ',keep_old=False)
 
                 residual = eval_list(['$image_prefix-%s$i-residual.fits'%d for d in labels])
-                argo.combine_fits(residual,outname=II('$image_prefix$i-residual.fits') if pol else residual_image,ctype='FREQ',keep_old=False)
+                argo.combine_fits(residual,outname=II('$image_prefix$i-residual.fits') if i else residual_image,ctype='FREQ',keep_old=False)
 
                 restored = eval_list(['$image_prefix-%s$i-image.fits'%d for d in labels])
-                argo.combine_fits(restored,outname=II('$image_prefix$i-image.fits') if pol else restored_image ,ctype='FREQ',keep_old=False)
-                if not pol:
-                    x.mv('${image_prefix}-MFS-image.fits %s'%(restored_image.replace('.restored.fits','-MFS.restored.fits')))
+                argo.combine_fits(restored,outname=II('$image_prefix$i-image.fits') if i else restored_image ,ctype='FREQ',keep_old=False)
+                if len(pol)==1:
+                    for old,new in zip([image_prefix+'-MFS-%s.fits'%img for img in 'model residual image'.split()],
+                                       [model_image.replace('.model.fits','-MFS.model.fits'),residual_image.replace('.residual.fits','-MFS.residual.fits'),restored_image.replace('.restored.fits','-MFS.restored.fits')]):
+                        if mfs:
+                            x.mv('$old $new')
+                        else: 
+                            rm_fr(old)
 
-        if pol:
+        if len(pol)>1:
             combine_pol(pol,image_prefix,mfs=True)
 
     if moresane:

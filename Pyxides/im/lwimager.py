@@ -162,7 +162,7 @@ def make_image (msname="$MS",column="${im.COLUMN}",imager='$IMAGER',
   'dirty_image', etc. sets the image names, with defaults determined by the globals DIRTY_IMAGE, etc.
   """;
   
-  im.IMAGER = imager
+  im.IMAGER = II(imager)
   # retain lwimager label for dirty maps and psf_maps
   dirty_image,psf_image = interpolate_locals('dirty_image psf_image') 
 

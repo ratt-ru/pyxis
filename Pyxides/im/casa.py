@@ -152,7 +152,7 @@ def make_image (msname="$MS",column="${im.COLUMN}",imager='$IMAGER',
                 restoring_options="${im.RESTORING_OPTIONS}",
                 channelize=None,lsm="$LSM",**kw0):
     """ run casa imager """
-    im.IMAGER = imager
+    im.IMAGER = II(imager)
     if algorithm.lower() in ['moresane','pymoresane']: 
         im.IMAGER = 'moresane'
 

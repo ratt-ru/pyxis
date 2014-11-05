@@ -1,14 +1,16 @@
 from Pyxis.ModSupport import *
+
+# register ourselves with Pyxis and define the superglobals
+#register_pyxis_module(superglobals="MS LSM OUTDIR DESTDIR")
+
 register_pyxis_module('im')
 
-
-#class set():
-# def __init__(self):
-    # external tools  
+# external tools  
 define('IMAGER','lwimager','Imager to user. Default is lwimager.')
 define('LWIMAGER_PATH','lwimager','path to lwimager binary. Default is to look in the system PATH.')
 define('WSCLEAN_PATH_Template','wsclean','Path to WSCLEAN')
 define('MORESANE_PATH_Template','moresane','Path to PyMORSANE')
+define('CASA_PATH_Template','casapy','Path to PyMORSANE')
 
 # default clean algorithm
 define("CLEAN_ALGORITHM","clark","CLEAN algorithm (clark, hogbom, csclean, etc.)")
@@ -51,7 +53,7 @@ flux_rescale=1
 velocity = False 
 no_weight_fov = False
 
-
 import wsclean
 import lwimager
+import casa
 import moresane
