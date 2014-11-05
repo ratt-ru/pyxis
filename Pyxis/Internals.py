@@ -52,6 +52,9 @@ PERSIST: if False, then per() commands (such as per_ms) will abort processing on
 per commands will carry on with other items in the list, and will only report the error afterwards.
 """
 
+# set of protected variables -- assignments to these via templates or asign() will be ignored
+_protected_variables = set();
+
 def init (context):
   """init internals, attach to the given context""";
   global _debug
@@ -209,7 +212,9 @@ class ShellExecutorFactory (object):
     """An alternative way to make ShellExecutors, e.g. as x("command arg1 arg2").
     Useful when the command contains e.g. dots or slashes, thus making the x.command syntax unsuitable."""
 #    args,kws = interpolate_args(args,kws,inspect.currentframe().f_back);
-    if len(args) == 1:
+    if len(args) < 1:
+      _abort("can't call %s without arguments"%self.__name__);
+    elif len(args) == 1:
       args = args[0].split(" ");
     return ShellExecutor(args[0],args[0],None,allow_fail=self.allow_fail,bg=self.bg,
                 verbose=self.verbose,get_output=self.get_output,args0=args[1:],kws0=kws);
@@ -482,11 +487,16 @@ def assign (name,value,namespace=None,default_namespace=None,interpolate=True,fr
     namespaces += [ ns for ns in _namespaces.itervalues() if name in _superglobals.get(id(ns)) and ns is not namespace ];
   # now assign
   for ns in namespaces:
-    _verbose(verbose_level,"setting %s.%s=%s"%(ns['__name__'] if ns is not Pyxis.Context else "v",name,value1));
-    ns[name] = value1;
-    # if assigning a template, make sure the template is re-enabled
-    if name.endswith("_Template"):
-      ns.get('__pyxis_template_ids',{}).pop(name[:-len("_Template")],None);
+    nsname = ns['__name__'] if ns is not Pyxis.Context else "v";
+    # skip protected variables in global context
+    if name in ns.setdefault('__pyxis_protected_variables',set()):
+      _verbose(verbose_level,"ignoring assign('%s.%s',...): protected variable"%(nsname,name));
+    else:
+      _verbose(verbose_level,"setting %s.%s=%s"%(nsname,name,value1));
+      ns[name] = value1;
+      # if assigning a template, make sure the template is re-enabled
+      if name.endswith("_Template"):
+        ns.get('__pyxis_template_ids',{}).pop(name[:-len("_Template")],None);
   # reprocess templates
   assign_templates();
 
@@ -563,8 +573,12 @@ def assign_templates ():
       # interpolate new values for each variable that has a _Template equivalent
       for var,value in list(context.iteritems()):
         if var.endswith("_Template"):
-          # get old value of variable
           varname = var[:-len("_Template")];
+          # skip protected variables in global context
+          if varname in context.setdefault('__pyxis_protected_variables',set()):
+            _verbose(3,"ignoring template assignment of %s.%s: protected variable"%(modname,varname));
+            continue;
+          # get old value of variable
           oldvalue = varvalue = context.get(varname);
           # check if template is defined in the wrong place, superglobal templates must be defined
           # in the superglobal context

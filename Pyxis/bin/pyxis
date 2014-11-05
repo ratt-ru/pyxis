@@ -64,9 +64,9 @@ if __name__ == "__main__":
                     help="disable logging: ignore assignments to LOG and send all output to console.\n"
                     "Equivalent to LOG_DISABLE=True.");
   parser.add_option("--log",type="string",metavar="FILENAME",
-                    help="log output to file. Equivalent to LOG=FILENAME.");
+                    help="log output to file. Equivalent to LOG=FILENAME. Overrides any config file LOG settings.");
   parser.add_option("-l","--default-log",dest="default_log",action="store_true",
-                    help="log output to default log file default.log");
+                    help="log output to default log file default.log. Overrides any config file LOG settings.");
   parser.add_option("-f","--flush-log",dest="flush_log",action="store_true",
                     help="flush old logfiles. Default is to append to existing logs.\n"
                     "Equivalent to LOG_FLUSH=True.");
@@ -75,7 +75,7 @@ if __name__ == "__main__":
   parser.add_option("-p","--persist",action="store_true",
                     help="Persist with per-lists as far as possible on error. Equivalent to PERSIST=1.");
   parser.add_option("-o","--outdir",type="string",metavar="DIR",
-                    help="direct outputs to subdirectory. Equivalent to OUTDIR=DIR.");
+                    help="redirect all outputs to subdirectory. Equivalent to OUTDIR=DIR. Overrides any config file OUTDIR settings.");
   parser.add_option("-x","--no-x11",action="store_true",
                     help="explicitly disable X11 connections. Equivalent to NO_X11=True.\n"
                     "HIGHLY RECOMMENDED for offline jobs, as some tools (e.g. matplolib) like\n"
@@ -126,9 +126,16 @@ if __name__ == "__main__":
   LOG_HEADER = cmdline = time.strftime("## %c:\n")+" ".join(sys.argv);  
   LOG_FLUSH = options.flush_log;
 
+  # protect preset variables while config is being loaded
+  presets = set([varname for varname in 'OUTDIR','LOG' if varname in globals() ])
+  __pyxis_protected_variables = set(presets);
+
   # init configuration. This preloads pyxis-*.
   PYXIS_LOAD_CONFIG = True
   Pyxis.Internals.initconf();
+
+  # unprotect variables
+  __pyxis_protected_variables -= presets;
 
   # print docs and exit, if -d option
   if options.doc:
