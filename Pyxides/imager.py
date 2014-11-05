@@ -65,6 +65,8 @@ def make_image (msname="$MS",column="$COLUMN",imager='$IMAGER',
                 psf_image="$PSF_IMAGE",
                 model_image="$MODEL_IMAGE",
                 algorithm="$CLEAN_ALGORITHM",
+                fullrest_image='${FULLREST_IMAGE}',
+                restoring_options='${RESTORING_OPTIONS}',
                 channelize=None,lsm="$LSM",**kw0):
     """Makes image(s) from MS. Set dirty and restore to True or False to make the appropriate images. You can also
     set either to a dict of options to be passed to the imager. If restore=True and restore_lsm is True and 'lsm' is set, 
@@ -78,9 +80,11 @@ def make_image (msname="$MS",column="$COLUMN",imager='$IMAGER',
     'dirty_image', etc. sets the image names, with defaults determined by the globals DIRTY_IMAGE, etc.
     """
 
-    imager,msname,column,lsm,dirty_image,psf_image,restored_image,residual_image,model_image,algorithm = \
+    global IMAGER
+    IMAGER =  II(imager)
+    imager,msname,column,lsm,dirty_image,psf_image,restored_image,residual_image,model_image,algorithm,fullrest_image,restoring_options = \
 interpolate_locals("imager msname column lsm dirty_image psf_image \
-restored_image residual_image model_image algorithm")
+restored_image residual_image model_image algorithm fullrest_image restoring_options")
 
     makedir('$DESTDIR')
     if imager in ['lwimager','wsclean']:
@@ -88,7 +92,6 @@ restored_image residual_image model_image algorithm")
     else: 
 
         abort('Uknown imager: $imager')
-
     call_imager(msname,column=column,dirty=dirty,restore_lsm=restore_lsm,restore=restore,
                 psf=psf,dirty_image=dirty_image,restored_image=restored_image,
                 psf_image=psf_image,model_image=model_image,algorithm=algorithm,
