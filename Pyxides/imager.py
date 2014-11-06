@@ -38,7 +38,7 @@ velocity = False;
 
 no_weight_fov = False
 
-# filenames for images
+# filenames for images 
 define("BASENAME_IMAGE_Template","${OUTFILE}${-<IMAGER}","default base name for all image filenames below");
 define("DIRTY_IMAGE_Template", "${BASENAME_IMAGE}.dirty.fits","output filename for dirty image");
 define("PSF_IMAGE_Template", "${BASENAME_IMAGE}.psf.fits","output filename for psf image");
@@ -102,7 +102,7 @@ restored_image residual_image model_image algorithm fullrest_image restoring_opt
     if WSCLEAN_PATH != '{im.WSCLEAN_PATH}':
        im.WSCLEAN_PATH = WSCLEAN_PATH
     # make dict of imager arguments that have been specified globally or locally
-    args_to_parse = 'npix weight robust stokes field no_weight_fov ifrs gain niter cachesize mode wprojplanes threshold'.split()
+    args_to_parse = 'npix weight robust stokes field no_weight_fov ifrs gain niter cachesize mode wprojplanes threshold cellsize'.split()
     kw = dict([ (arg,globals()[arg]) for arg in args_to_parse if arg in globals() and globals()[arg] is not None ])
     kw.update( pol=stokes,scale=im.argo.toDeg(cellsize),size='%d %d'%(npix,npix) )
     if imager == 'wsclean':
