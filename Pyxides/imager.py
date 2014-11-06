@@ -36,7 +36,7 @@ velocity = False;
 
 no_weight_fov = False
 
-# filenames for images
+# filenames for images 
 define("BASENAME_IMAGE_Template","${OUTFILE}${-<IMAGER}","default base name for all image filenames below");
 define("DIRTY_IMAGE_Template", "${BASENAME_IMAGE}.dirty.fits","output filename for dirty image");
 define("PSF_IMAGE_Template", "${BASENAME_IMAGE}.psf.fits","output filename for psf image");
