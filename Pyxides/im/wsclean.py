@@ -80,9 +80,13 @@ def wsclean_version(path='${WSCLEAN_PATH}'):
     else:
         stdout = std.stdout.read().lower()
         version = stdout.split()
-        ind = version.index('version')
-        version = version[ind+1].split('-')[0]
-        tail = version.split('-')[-1] if '-' in version else ""
+        try:
+            ind = version.index('version')
+            version = version[ind+1].split('-')[0]
+            tail = version.split('-')[-1] if '-' in version else ""
+        except ValueError:
+            version = '0.0'
+            tail = ""
     info('$path version is $version${-<tail}')
 
     if '.' in version:
