@@ -1,5 +1,6 @@
 import ms  
 import im 
+import im.argo
 
 from Pyxis.ModSupport import *
 
@@ -89,6 +90,7 @@ restored_image residual_image model_image algorithm fullrest_image restoring_opt
 
     makedir('$DESTDIR')
     if imager in ['lwimager','wsclean']:
+        __import__('im.%s'%imager.lower());
         call_imager = eval( 'im.%s.make_image'%(imager.lower()) )
     else: 
 
@@ -116,7 +118,7 @@ def make_threshold_mask (input="$RESTORED_IMAGE",threshold=0,output="$MASK_IMAGE
     with pixel values of 'high' (1 by default) where input pixels are >= threshold, and 'low' (0 default) where pixels are <threshold.
     """
     input,output = interpolate_locals("input output");
-    im.lwimager.make_threshold_mask(input=input,threshold=threshold,output=output,high=high,low=low)
+    im.argo.make_threshold_mask(input=input,threshold=threshold,output=output,high=high,low=low)
 
 document_globals(make_threshold_mask,"RESTORED_IMAGE MASK_IMAGE")
 

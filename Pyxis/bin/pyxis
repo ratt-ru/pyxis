@@ -44,7 +44,7 @@ def report_elapsed (ts0):
   h = ts0//3600;
   m = (ts0-h*3600)//60;
   s = ts0%60;     
-  info("Elapsed time is %dh%dm%.2fs"%(h,m,s));
+  info("elapsed time is %dh%dm%.2fs"%(h,m,s));
 
 if __name__ == "__main__":
 
@@ -64,9 +64,9 @@ if __name__ == "__main__":
                     help="disable logging: ignore assignments to LOG and send all output to console.\n"
                     "Equivalent to LOG_DISABLE=True.");
   parser.add_option("--log",type="string",metavar="FILENAME",
-                    help="log output to file. Equivalent to LOG=FILENAME.");
+                    help="log output to file. Equivalent to LOG=FILENAME. Overrides any config file LOG settings.");
   parser.add_option("-l","--default-log",dest="default_log",action="store_true",
-                    help="log output to default log file default.log");
+                    help="log output to default log file default.log. Overrides any config file LOG settings.");
   parser.add_option("-f","--flush-log",dest="flush_log",action="store_true",
                     help="flush old logfiles. Default is to append to existing logs.\n"
                     "Equivalent to LOG_FLUSH=True.");
@@ -75,7 +75,9 @@ if __name__ == "__main__":
   parser.add_option("-p","--persist",action="store_true",
                     help="Persist with per-lists as far as possible on error. Equivalent to PERSIST=1.");
   parser.add_option("-o","--outdir",type="string",metavar="DIR",
-                    help="direct outputs to subdirectory. Equivalent to OUTDIR=DIR.");
+                    help="redirect all outputs to subdirectory. Equivalent to OUTDIR=DIR. Overrides any config file OUTDIR settings.");
+  parser.add_option("-w","--wrapup",type="string",metavar="COMMAND",action="append",
+                    help="executes command on exit, regardless of success or failure. Can be specified multiple times for multiple commands.");
   parser.add_option("-x","--no-x11",action="store_true",
                     help="explicitly disable X11 connections. Equivalent to NO_X11=True.\n"
                     "HIGHLY RECOMMENDED for offline jobs, as some tools (e.g. matplolib) like\n"
@@ -126,9 +128,16 @@ if __name__ == "__main__":
   LOG_HEADER = cmdline = time.strftime("## %c:\n")+" ".join(sys.argv);  
   LOG_FLUSH = options.flush_log;
 
+  # protect preset variables while config is being loaded
+  presets = set([varname for varname in 'OUTDIR','LOG' if varname in globals() ])
+  __pyxis_protected_variables = set(presets);
+
   # init configuration. This preloads pyxis-*.
   PYXIS_LOAD_CONFIG = True
   Pyxis.Internals.initconf();
+
+  # unprotect variables
+  __pyxis_protected_variables -= presets;
 
   # print docs and exit, if -d option
   if options.doc:
@@ -138,7 +147,12 @@ if __name__ == "__main__":
   # make output directory
   if OUTDIR:
     makedir(OUTDIR,no_interpolate=True);
-  file((OUTDIR or '.')+"/pyxis.log","a").write(cmdline+"\n");
+  pyxislog = (OUTDIR or '.')+"/pyxis.log"
+  try:
+    file(pyxislog,'a').write(cmdline+"\n");
+  except:
+    verbose(-99,"error writing to $pyxislog, perhaps no write permissions? Proceeding anyway.")
+
   Pyxis.Internals.saveconf();
  
   # sort arguments into commands and MSs
@@ -191,12 +205,40 @@ if __name__ == "__main__":
         error("aborted with Ctrl+C");
       retcode = 130;
  
+  wrapfail = None;
   if Pyxis.Commands._subprocess_id is None:
+    # execute wrapup commands
+    if options.wrapup:
+      try:
+        Pyxis.Internals.run(*options.wrapup);
+      except Exception:
+        if sys.stdout is not sys.__stdout__:
+          traceback.print_exc();
+          error("Exception raised during wrapup command");
+          Pyxis.Internals.flush_log();
+        sys.stdout = sys.__stdout__;
+        sys.stderr = sys.__stderr__;
+        traceback.print_exc();
+        error("Exception raised during wrapup command");
+        wrapfail = "failed with an exception";
+      except SystemExit,exc:
+        wrapfail = "exited with code %d"%exc.code;
+      except KeyboardInterrupt:
+        if Pyxis.Commands._subprocess_id is None:
+          error("Wrapup command aborted with Ctrl+C");
+        wrapfail = "been interrupted with Ctrl+C";
+    
+    # print status
     if not retcode:
       info("all commands have executed successfully");
+      if wrapfail:
+        info("  (though wrapup commands have $wrapfail)");
     else:
       error("exiting with error code %d, check the logs for errors"%retcode);
-  
+      if wrapfail:
+        info("  (and wrapup commands have $wrapfail");
+
+    # close log
     logobj,logfile = Pyxis.Internals.get_logfile();
     if logobj:
       Pyxis.Internals.set_logfile(None,quiet=True);

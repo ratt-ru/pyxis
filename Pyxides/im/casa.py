@@ -58,7 +58,8 @@ def casa_version(path='$CASA_PATH'):
     """ try to find casa version """
 
     path = interpolate_locals('path')
-    std = subprocess.Popen([path,'--help'],stderr=subprocess.PIPE,stdout=subprocess.PIPE)
+    std = subprocess.Popen([path,'--help','--log2term','--nologger','--nogui','--help','-c','quit'],
+                            stderr=subprocess.PIPE,stdout=subprocess.PIPE)
     if std.stderr.read():
         version = '4.10' # start support from casa 4.10
         tail = ""
