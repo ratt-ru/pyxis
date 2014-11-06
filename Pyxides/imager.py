@@ -92,7 +92,7 @@ restored_image residual_image model_image algorithm fullrest_image restoring_opt
 
     makedir('$DESTDIR')
     if imager in ['lwimager','wsclean']:
-        eval('import im.%s'%imager.lower());
+        __import__('im.%s'%imager.lower());
         call_imager = eval( 'im.%s.make_image'%(imager.lower()) )
     else: 
 
