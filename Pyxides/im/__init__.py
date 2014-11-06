@@ -6,11 +6,11 @@ from Pyxis.ModSupport import *
 register_pyxis_module('im')
 
 # external tools  
-define('IMAGER','lwimager','Imager to user. Default is lwimager.')
+define('IMAGER','lwimager','imager to use. Default is lwimager.')
 define('LWIMAGER_PATH','lwimager','path to lwimager binary. Default is to look in the system PATH.')
-define('WSCLEAN_PATH_Template','wsclean','Path to WSCLEAN')
-define('MORESANE_PATH_Template','moresane','Path to PyMORSANE')
-define('CASA_PATH_Template','casapy','Path to PyMORSANE')
+define('WSCLEAN_PATH_Template','wsclean','path to wsclean binary.')
+define('MORESANE_PATH_Template','moresane','path to PyMORESANE')
+define('CASA_PATH_Template','casapy','path to casapy')
 
 # default clean algorithm
 define("CLEAN_ALGORITHM","clark","CLEAN algorithm (clark, hogbom, csclean, etc.)")
@@ -53,7 +53,7 @@ flux_rescale=1
 velocity = False 
 no_weight_fov = False
 
-import wsclean
-import lwimager
-import casa
-import moresane
+# import wsclean
+# import lwimager
+# import casa
+# import moresane
