@@ -95,7 +95,7 @@ restored_image residual_image model_image algorithm fullrest_image restoring_opt
         abort('Uknown imager: $imager')
    
     # make dict of imager arguments that have been specified globally or locally
-    args_to_parse = 'npix weight robust stokes field no_weight_fov ifrs gain niter cachesize mode wprojplanes threshold'.split()
+    args_to_parse = 'npix weight robust stokes field no_weight_fov ifrs gain niter cachesize mode wprojplanes threshold cellsize'.split()
     kw = dict([ (arg,globals()[arg]) for arg in args_to_parse if arg in globals() and globals()[arg] is not None ])
     kw.update( pol=stokes,scale=im.argo.toDeg(cellsize),size='%d %d'%(npix,npix) )
     if imager == 'wsclean':
