@@ -149,7 +149,7 @@ if __name__ == "__main__":
     makedir(OUTDIR,no_interpolate=True);
   pyxislog = (OUTDIR or '.')+"/pyxis.log"
   try:
-    file(pyxislog).write(cmdline+"\n");
+    file(pyxislog,'a').write(cmdline+"\n");
   except:
     verbose(-99,"error writing to $pyxislog, perhaps no write permissions? Proceeding anyway.")
 
