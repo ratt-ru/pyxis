@@ -115,7 +115,11 @@ if __name__ == "__main__":
       VERBOSE = -1;
   else:
     VERBOSE = options.verbose;
-      
+
+  # protect preset variables while config is being loaded
+  presets = set([varname for varname in 'OUTDIR','LOG' if varname in globals() ])
+  __pyxis_protected_variables = set(presets);
+
   import Pyxis
   import Pyxis.Internals
   import Pyxis.Commands
@@ -127,10 +131,6 @@ if __name__ == "__main__":
 
   LOG_HEADER = cmdline = time.strftime("## %c:\n")+" ".join(sys.argv);  
   LOG_FLUSH = options.flush_log;
-
-  # protect preset variables while config is being loaded
-  presets = set([varname for varname in 'OUTDIR','LOG' if varname in globals() ])
-  __pyxis_protected_variables = set(presets);
 
   # init configuration. This preloads pyxis-*.
   PYXIS_LOAD_CONFIG = True
