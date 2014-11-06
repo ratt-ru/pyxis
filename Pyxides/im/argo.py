@@ -122,6 +122,15 @@ def addcol(msname,colname,shape=None,valuetype=None,init_with=0):
         print 'Column added successfuly.'
     tab.close()
 
+def toJy(val):
+    _convert = dict(m=1e-3,u=1e-6,n=1e-9)
+    unit = val.lower().split('jy')[0][-1]
+    if str.isalpha(unit) :
+        val= val.lower().split(unit+'jy')[0]
+        return float(val)*_convert[unit]
+    else:
+        return float(val.lower().split('jy')[0])
+
 def toDeg(val):
     """Convert angle to Deg. returns a float. val must be in form: 2arcsec, 2arcmin, or 2rad"""
     import math

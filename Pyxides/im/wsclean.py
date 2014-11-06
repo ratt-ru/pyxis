@@ -103,12 +103,14 @@ def _run(msname='$MS',clean=False,path='${im.WSCLEAN_PATH}',**kw):
         abort('Could not find WSCLEAN in system path, alises or at $path')
 
     # map stokes and npix and cellsize to wsclean equivalents
-    global scale,size,weight
+    global scale,size,weight,threshold
     scale = cellsize if isinstance(cellsize,(int,float)) else argo.toDeg(cellsize)
 
     size = '%d %d'%(npix,npix)
     if weight is 'briggs':
         weight = '%s %.2f'%(weight,robust)
+    if isinstance(threshold,str):
+        threshold = im.argo.toJy(threshold)
     
     # make dict of imager arguments that have been specified globally or locally
     args = dict([ (arg,globals()[arg]) for arg in _wsclean_args if arg in globals() and globals()[arg] is not None ]);
@@ -153,7 +155,7 @@ def make_image(msname='$MS',image_prefix='${im.BASENAME_IMAGE}',column='${im.COL
     argo.addcol(msname,colname='WEIGHT_SPECTRUM',valuetype='float',init_with=1) 
     
     # Cater for moresane
-    moresane = False
+    do_moresane = False
     if restore and algorithm.lower() in ['moresane','pymoresane']:
         kw['niter'] = 0
         kw['makepsf'] = True
@@ -164,7 +166,8 @@ def make_image(msname='$MS',image_prefix='${im.BASENAME_IMAGE}',column='${im.COL
         else: 
             kw0 = {}
         restore = False
-        moresane = True
+        do_moresane = True
+        from im import moresane
     else:
         if isinstance(restore,dict):
             kw.update(restore)
@@ -312,20 +315,21 @@ model is $model_image, residual is $residual_image)")
         if len(pol)>1:
             combine_pol(pol,image_prefix,mfs=True)
 
-    if moresane:
-        restored_image = restored_image.replace('wsclean','moresane')
-        residual_image = residual_image.replace('wsclean','moresane')
-        model_image = model_image.replace('wsclean','moresane')
+    if do_moresane:
+        restored_image = restored_image.replace('-wsclean','-moresane')
+        residual_image = residual_image.replace('-wsclean','-moresane')
+        model_image = model_image.replace('-wsclean','-moresane')
+        fullrest_image = fullrest_image.replace('-wsclean','-moresane')
 
         info(" im.moresane.deconv: making estored image $restored_image \
               model is $model_image, residual is $residual_image)")
 
-        im.moresane.deconv(dirty_image,psf_image,model_image=model_image,
+        moresane.deconv(dirty_image,psf_image,model_image=model_image,
                            residual_image=residual_image,
                            restored_image=restored_image,**kw0)
-    if restore:
+    if restore or do_moresane:
         if lsm and restore_lsm:
-            info("Restoring LSM into FULLREST_IMAGE=${im.FULLREST_IMAGE}");
+            info("Restoring LSM into FULLREST_IMAGE=$fullrest_image");
             opts = restore_lsm if isinstance(restore_lsm,dict) else {};
             tigger_restore(restoring_options,"-f",restored_image,lsm,fullrest_image,kwopt_to_command_line(**opts));
 

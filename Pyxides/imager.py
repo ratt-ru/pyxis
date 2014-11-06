@@ -107,6 +107,8 @@ restored_image residual_image model_image algorithm fullrest_image restoring_opt
     kw.update( pol=stokes,scale=im.argo.toDeg(cellsize),size='%d %d'%(npix,npix) )
     if imager == 'wsclean':
         kw.update(weight='%s %.2f'%(weight,robust) if weight=='briggs' else weight)
+        if isinstance(threshold,str):
+            kw.update(threshold=im.argo.toJy(threshold))
     kw.update([ (arg,kw[arg]) for arg in args_to_parse if arg in kw0 ])
     kw.update(**kw0)
 
