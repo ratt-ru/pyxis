@@ -30,7 +30,7 @@ def STANDARD_IMAGING_OPTS_Template():
     global npix,cellsize,mode,stokes,weight,robust,niter,gain,threshold,algorithm
     npix = im.npix
     cellsize = im.cellsize
-    mode = 'mfs' #im.mode
+    mode = im.mode
     stokes = im.stokes
     weight = im.weight
     robust = im.robust

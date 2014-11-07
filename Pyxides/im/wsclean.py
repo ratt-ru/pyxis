@@ -34,11 +34,11 @@ _wsclean_known_args = {0:set('name predict size scale nwlayers minuvw maxuvw max
                        'joinpolarizations multiscale multiscale-threshold-bias multiscale-scale-bias '
                        'cleanborder niter threshold gain mgain smallinversion '
                        'nosmallinversion smallpsf gridmode nonegative negative '
-                       'stopnegative interval channelrange channelsout join-channels '
+                       'stopnegative interval channelrange join-channels '
                        'field weight natural mfsweighting superweight beamsize makepsf '
                        'imaginarypart datacolumn gkernelsize oversampling reorder no-reorder '
-                       'addmodel addmodelapp savemodel wlimit mem absmem j'.split()),
-                       1.4:{}
+                       'addmodel addmodelapp savemodel wlimit'.split()),
+                       1.4:set('channelsout mem absmem j'.split())
 }
 
 # whenever the path changes, find out new version number, and build new set of arguments
