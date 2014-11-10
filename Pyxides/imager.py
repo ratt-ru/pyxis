@@ -11,7 +11,7 @@ v.define("LSM","lsm.lsm.html","""current local sky model""");
 define('IMAGER','lwimager','Imager to user. Default is lwimager.');
 define('LWIMAGER_PATH','lwimager','path to lwimager binary. Default is to look in the system PATH.');
 define('WSCLEAN_PATH','{im.WSCLEAN_PATH}','path to lwimager binary. Default is to look in the system PATH.');
-define('MORESANE_PATH','{m.MORESANE_PATH}','path to lwimager binary. Default is to look in the system PATH.');
+define('MORESANE_PATH','{im.MORESANE_PATH}','path to lwimager binary. Default is to look in the system PATH.');
 
 define('COLUMN','CORRECTED_DATA','default column to image');
 

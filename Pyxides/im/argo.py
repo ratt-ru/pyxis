@@ -13,7 +13,7 @@ import im
 from Pyxis.ModSupport import *
 
 # register ourselves with Pyxis and define the superglobals
-register_pyxis_module(superglobals="MS LSM OUTDIR DESTDIR")
+register_pyxis_module(superglobals="MS LSM")
 
 rm_fr = x.rm.args("-fr")
 
@@ -50,7 +50,14 @@ def make_empty_image (msname="$MS",image="${COPY_IMAGE_TO}",channelize=None,**kw
 define("COPY_IMAGE_TO_Template", "${MS:BASE}.imagecopy.fits","container for image copy")
 
 def combine_fits(fitslist,outname='combined.fits',axis=0,ctype=None,keep_old=False):
-    """ Combine a list of fits files along a given axiis"""
+    """ Combine a list of fits files along a given axiis.
+       
+       fitslist: list of fits file to combine
+       outname: output file name
+       axis: axis along which to combine the files (numpy index. not FITS index)
+       ctype: Axis label in the fits header (if given, axis will be ignored)
+       keep_old: Keep component files after combining?
+    """
 
     hdu = pyfits.open(fitslist[0])[0]
     hdr = hdu.header

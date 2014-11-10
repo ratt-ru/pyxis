@@ -136,7 +136,8 @@ def _run(path='${im.CASA_PATH}',clean=False,makepsf=False,**kw):
     info('running clean($casa_clean) in casapy.')
     x.sh('casapy --nogui --nologfile -c $casa_script')
     # remove ipython logfile
-    xo.sh('rm -f ipython-*.log clean.last exportfits.last')
+    casa_log_time_stamp = "%d%02d%02d-%02d%02d"%(time.gmtime()[:5])
+    xo.sh('rm -f ipython-%s*.log clean.last exportfits.last'%casa_log_time_stamp)
     # delete casa images
     for image in ['$imagename.%s'%s for s in 'model residual image flux psf'.split()]:
         rm_fr(image)

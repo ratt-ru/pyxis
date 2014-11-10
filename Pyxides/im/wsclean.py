@@ -9,6 +9,8 @@ import subprocess
 rm_fr = x.rm.args("-fr")
 tigger_restore = x("tigger-restore")
 
+# Keep wsclean gridding image? 
+KEEP_GRIDDING_IMAGE = False        
 # register ourselves with Pyxis and define the superglobals
 register_pyxis_module(superglobals="MS LSM DESTDIR");
 
@@ -127,7 +129,7 @@ def _run(msname='$MS',clean=False,path='${im.WSCLEAN_PATH}',**kw):
     x.sh(argo.gen_run_cmd(path,args,suf='-',assign=' ',pos_args=[msname]))
    
 def make_image(msname='$MS',image_prefix='${im.BASENAME_IMAGE}',column='${im.COLUMN}',
-                path='${im.WSCLEAN_PATH}',
+                path='${WSCLEAN_PATH}',
                 imager='$IMAGER',
                 restore=False,
                 dirty=True,
@@ -186,30 +188,20 @@ def make_image(msname='$MS',image_prefix='${im.BASENAME_IMAGE}',column='${im.COL
         start,end = map(int,kw['interval'].split())
         ms.CHANSTART = start
         ms.NUMCHANS = end-start
- 
-    #TODO:: Very untidy. Clean up! 
-    channelize = channelize or im.IMAGE_CHANNELIZE
-    nr = 0
-    if channelize and ms.NUMCHANS==1:
-        ms.set_default_spectral_info()
-        nr = ms.NUMCHANS//channelize
-        if 'channelsout' in kw.keys():
-            nr = kw['channelsout']
 
-    if channelize == 0:
-        nr = 1
-    else:
+    nr = 1 
+    if channelize is None:
+        channelize = im.IMAGE_CHANNELIZE
+    if channelize:
         nr = ms.NUMCHANS//channelize
-    if nr: kw['channelsout'] = nr
-
+        kw['channelsout'] = nr
+   
     if dirty: info("im.wsclean.make_image: making dirty image $dirty_image")
     if restore: info("                   (restored image is $restored_image \
 model is $model_image, residual is $residual_image)")
     
     if psf and not restore:
         kw['makepsf'] = True
-
-    
 
     if 'pol' in kw.keys():
         pol = kw['pol']
@@ -221,9 +213,15 @@ model is $model_image, residual is $residual_image)")
         pol = pol.split(',')
     _run(msname,clean=restore,**kw)
 
+    # delete gridding image unless user wants it
+    if not KEEP_GRIDDING_IMAGE:
+        rm_fr('$image_prefix-gridding.fits')
+
+    #TODO(sphe): always keep wsclean MFS images?
     # Combine images if needed
-    mfs = mode if 'mode' not in kw.keys() else kw['mode']
-    mfs = mode=='mfs'
+#    mfs = mode if 'mode' not in kw.keys() else kw['mode']
+#    mfs = mode=='mfs'
+#    abort(mfs,mode)
 
     def eval_list(vals):
         l = []
@@ -231,7 +229,7 @@ model is $model_image, residual is $residual_image)")
             l.append(II(val))
         return l
 
-    def combine_pol(pol,image_prefix=None):
+    def combine_pol(pol,image_prefix=None,mfs=False):
         dirtys = eval_list(['$image_prefix-%s-dirty.fits'%d for d in pol])
         if dirty:
             argo.combine_fits(dirtys,outname=dirty_image,ctype='STOKES',keep_old=False)
@@ -251,38 +249,52 @@ model is $model_image, residual is $residual_image)")
 
             if mfs:
                 model_mfs = eval_list(['$image_prefix-MFS-%s-model.fits'%d for d in pol])
-                argo.combine_fits(model_mfs,outname=model_image.replace('.model.fits','-MFS.model.fits'),ctype='STOKES',keep_old=False)
+                argo.combine_fits(model_mfs,
+                       outname=model_image.replace('.model.fits','-MFS.model.fits'),
+                       ctype='STOKES',keep_old=False)
+
                 residual_mfs = eval_list(['$image_prefix-MFS-%s-residual.fits'%d for d in pol])
-                argo.combine_fits(residual_mfs,outname=restored_image.replace('.residual.fits','-MFS.residual.fits'),ctype='STOKES',keep_old=False)
+                argo.combine_fits(residual_mfs,
+                       outname=residual_image.replace('.residual.fits','-MFS.residual.fits'),
+                       ctype='STOKES',keep_old=False)
+
                 restored_mfs = eval_list(['$image_prefix-MFS-%s-image.fits'%d for d in pol])
-                argo.combine_fits(restored_mfs,outname=restored_image.replace('.restored.fits','-MFS.restored.fits'),ctype='STOKES',keep_old=False)
+                argo.combine_fits(restored_mfs,
+                       outname=restored_image.replace('.restored.fits','-MFS.restored.fits'),
+                       ctype='STOKES',keep_old=False)
         else:
             for fits in ['$image_prefix-%s-image.fits'%d for d in pol]:
                 rm_fr(fits)
 
     if not channelize:
+        if psf:
+            x.mv('${image_prefix}-psf.fits $psf_image')
+        elif restore:
+            rm_fr('${image_prefix}-psf.fits')
         if len(pol)>1:
             combine_pol(pol,image_prefix)
-            x.mv('${image_prefix}-psf.fits $psf_image')
         else:
             if dirty:
                 x.mv('${image_prefix}-dirty.fits $dirty_image')
-            else: rm_fr('${image_prefix}-dirty.fits')
+            else: 
+                rm_fr('${image_prefix}-dirty.fits')
 
             if restore:
                  x.mv('${image_prefix}-model.fits $model_image')
                  x.mv('${image_prefix}-residual.fits $residual_image')
                  x.mv('${image_prefix}-image.fits $restored_image')
-                 x.mv('${image_prefix}-psf.fits $psf_image')
+                # x.mv('${image_prefix}-psf.fits $psf_image')
             else:
                 rm_fr('${image_prefix}-image.fits')
     else:
         # Combine component images from wsclean
         labels = ['%04d'%d for d in range(nr)]
-        if psf or restore: 
-            psfs = eval_list(['$image_prefix-%s-psf.fits'%d for d in labels])
+        psfs = eval_list(['$image_prefix-%s-psf.fits'%d for d in labels])
+        if psf: 
             argo.combine_fits(psfs,outname=II('$image_prefix.psf.fits'),ctype='FREQ',keep_old=False)
-        
+        elif restore:
+            for fits in psfs:
+                rm_fr(fits)
 
         for i in pol:
             if len(pol) == 1:
@@ -293,28 +305,37 @@ model is $model_image, residual is $residual_image)")
          
             dirtys = eval_list(['$image_prefix-%s$i-dirty.fits'%d for d in labels])
             if dirty:
-                argo.combine_fits(dirtys,outname=II('$image_prefix$i-dirty.fits') if pol else dirty_image,ctype='FREQ',keep_old=False)
+                argo.combine_fits(dirtys,
+                       outname=II('$image_prefix$i-dirty.fits') if i else dirty_image,
+                       ctype='FREQ',keep_old=False)
                 if not restore:
                     xo.sh('rm -fr ${image_prefix}*image*.fits')
             else: 
                 for fits in dirtys:
                     rm_fr(fits)
+
             if restore:
                 model = eval_list(['$image_prefix-%s$i-model.fits'%d for d in labels])
-                argo.combine_fits(model,outname=II('$image_prefix$i-model.fits') if i else model_image,ctype='FREQ',keep_old=False)
+                argo.combine_fits(model,outname=II('$image_prefix$i-model.fits') if i else model_image,
+                       ctype='FREQ',keep_old=False)
 
                 residual = eval_list(['$image_prefix-%s$i-residual.fits'%d for d in labels])
-                argo.combine_fits(residual,outname=II('$image_prefix$i-residual.fits') if i else residual_image,ctype='FREQ',keep_old=False)
+                argo.combine_fits(residual,outname=II('$image_prefix$i-residual.fits') if i else residual_image,
+                       ctype='FREQ',keep_old=False)
 
                 restored = eval_list(['$image_prefix-%s$i-image.fits'%d for d in labels])
-                argo.combine_fits(restored,outname=II('$image_prefix$i-image.fits') if i else restored_image ,ctype='FREQ',keep_old=False)
+                argo.combine_fits(restored,outname=II('$image_prefix$i-image.fits') if i else restored_image ,
+                       ctype='FREQ',keep_old=False)
                 if len(pol)==1:
                     for old,new in zip([image_prefix+'-MFS-%s.fits'%img for img in 'model residual image'.split()],
-                                       [model_image.replace('.model.fits','-MFS.model.fits'),residual_image.replace('.residual.fits','-MFS.residual.fits'),restored_image.replace('.restored.fits','-MFS.restored.fits')]):
-                        if mfs:
-                            x.mv('$old $new')
-                        else: 
-                            rm_fr(old)
+                                       [model_image.replace('.model.fits','-MFS.model.fits'),
+                                        residual_image.replace('.residual.fits','-MFS.residual.fits'),
+                                        restored_image.replace('.restored.fits','-MFS.restored.fits')]):
+                        #TODO(sphe) Should we always keep wsclean MFS images?
+                        #if mfs:
+                        x.mv('$old $new')
+                        #else: 
+                        #    rm_fr(old)
 
         if len(pol)>1:
             combine_pol(pol,image_prefix,mfs=True)
@@ -331,10 +352,14 @@ model is $model_image, residual is $residual_image)")
         moresane.deconv(dirty_image,psf_image,model_image=model_image,
                            residual_image=residual_image,
                            restored_image=restored_image,**kw0)
+
     if restore or do_moresane:
         if lsm and restore_lsm:
             info("Restoring LSM into FULLREST_IMAGE=$fullrest_image");
             opts = restore_lsm if isinstance(restore_lsm,dict) else {};
-            tigger_restore(restoring_options,"-f",restored_image,lsm,fullrest_image,kwopt_to_command_line(**opts));
+            tigger_restore(restoring_options,"-f",
+                           restored_image,lsm,
+                           fullrest_image,
+                           kwopt_to_command_line(**opts));
 
 document_globals(make_image,"im.*_IMAGE COLUMN im.IMAGE_CHANNELIZE MS im.RESTORING_OPTIONS im.CLEAN_ALGORITHM ms.IFRS ms.DDID ms.FIELD ms.CHANRANGE")
