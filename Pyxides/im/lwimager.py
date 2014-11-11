@@ -166,9 +166,10 @@ def make_image (msname="$MS",column="${im.COLUMN}",imager='$IMAGER',
   im.IMAGER = II(imager)
   # retain lwimager label for dirty maps and psf_maps
   dirty_image,psf_image = interpolate_locals('dirty_image psf_image') 
-
-  if algorithm.lower() in ['moresane','pymoresane']: 
-      im.IMAGER = 'moresane'
+  do_moresane = False
+  if algorithm.lower() in ['moresane','pymoresane']:
+      from im import moresane
+      do_moresane = True
 
   imager,msname,column,lsm,restored_image,residual_image,model_image,algorithm,\
      fullrest_image,restoring_options = \
@@ -211,12 +212,16 @@ def make_image (msname="$MS",column="${im.COLUMN}",imager='$IMAGER',
     _run(image=psf_image,**kw);
   if psf: make_psf()
 
-  if algorithm=='moresane' and restore:
+  if do_moresane and restore:
     if not psf: make_psf()
     if not dirty: make_dirty()  
+    restored_image = restored_image.replace('-lwimager','-moresane')
+    residual_image = residual_image.replace('-lwimager','-moresane')
+    model_image = model_image.replace('-lwimager','-moresane')
+    fullrest_image = fullrest_image.replace('-lwimager','-moresane')
     opts = restore if isinstance(restore,dict) else {}
-    im.moresane.deconv(dirty_image,psf_image,model=model_image,
-                       residual=residual_image,restored=restored_image,**opts)
+    moresane.deconv(dirty_image,psf_image,model_image=model_image,
+                       residual_image=residual_image,restored_image=restored_image,**opts)
   elif restore:
     info("im.lwimager.make_image: making restored image $restored_image");
     info("                   (model is $model_image, residual is $residual_image)");

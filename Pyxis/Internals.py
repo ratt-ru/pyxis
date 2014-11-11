@@ -52,7 +52,7 @@ PERSIST: if False, then per() commands (such as per_ms) will abort processing on
 per commands will carry on with other items in the list, and will only report the error afterwards.
 """
 
-# set of protected variables -- assignments to these via templates or asign() will be ignored
+# set of protected variables -- assignments to these via templates or assign() will be ignored
 _protected_variables = set();
 
 # printed to verbose() after startup
@@ -470,6 +470,9 @@ def assign (name,value,namespace=None,default_namespace=None,interpolate=True,fr
   if not namespace:
     namespace,name = _resolve_namespace(name,frame,default_namespace,autoimport=autoimport);
   modname = namespace.get('__name__',"???") if namespace is not Pyxis.Context else "v";
+    # skip protected variables in global context
+  if name in namespace.setdefault('__pyxis_protected_variables',set()):
+    _verbose(verbose_level,"ignoring assign('%s.%s',...): protected variable"%(modname,name));
   # interpolate if asked to, unless this is a template, which are never interpolated
   if interpolate and not name.endswith("_Template"):
     value1 = Pyxis.Internals.interpolate(value,frame);
@@ -492,15 +495,11 @@ def assign (name,value,namespace=None,default_namespace=None,interpolate=True,fr
   # now assign
   for ns in namespaces:
     nsname = ns['__name__'] if ns is not Pyxis.Context else "v";
-    # skip protected variables in global context
-    if name in ns.setdefault('__pyxis_protected_variables',set()):
-      _verbose(verbose_level,"ignoring assign('%s.%s',...): protected variable"%(nsname,name));
-    else:
-      _verbose(verbose_level,"setting %s.%s=%s"%(nsname,name,value1));
-      ns[name] = value1;
-      # if assigning a template, make sure the template is re-enabled
-      if name.endswith("_Template"):
-        ns.get('__pyxis_template_ids',{}).pop(name[:-len("_Template")],None);
+    _verbose(verbose_level,"setting %s.%s=%s"%(nsname,name,value1));
+    ns[name] = value1;
+    # if assigning a template, make sure the template is re-enabled
+    if name.endswith("_Template"):
+      ns.get('__pyxis_template_ids',{}).pop(name[:-len("_Template")],None);
   # reprocess templates
   assign_templates();
 

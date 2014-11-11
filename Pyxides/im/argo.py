@@ -13,7 +13,7 @@ import im
 from Pyxis.ModSupport import *
 
 # register ourselves with Pyxis and define the superglobals
-register_pyxis_module(superglobals="MS LSM OUTDIR DESTDIR")
+register_pyxis_module(superglobals="MS LSM")
 
 rm_fr = x.rm.args("-fr")
 
@@ -50,7 +50,14 @@ def make_empty_image (msname="$MS",image="${COPY_IMAGE_TO}",channelize=None,**kw
 define("COPY_IMAGE_TO_Template", "${MS:BASE}.imagecopy.fits","container for image copy")
 
 def combine_fits(fitslist,outname='combined.fits',axis=0,ctype=None,keep_old=False):
-    """ Combine a list of fits files along a given axiis"""
+    """ Combine a list of fits files along a given axiis.
+       
+       fitslist: list of fits file to combine
+       outname: output file name
+       axis: axis along which to combine the files (numpy index. not FITS index)
+       ctype: Axis label in the fits header (if given, axis will be ignored)
+       keep_old: Keep component files after combining?
+    """
 
     hdu = pyfits.open(fitslist[0])[0]
     hdr = hdu.header
@@ -122,6 +129,15 @@ def addcol(msname,colname,shape=None,valuetype=None,init_with=0):
         print 'Column added successfuly.'
     tab.close()
 
+def toJy(val):
+    _convert = dict(m=1e-3,u=1e-6,n=1e-9)
+    unit = val.lower().split('jy')[0][-1]
+    if str.isalpha(unit) :
+        val= val.lower().split(unit+'jy')[0]
+        return float(val)*_convert[unit]
+    else:
+        return float(val.lower().split('jy')[0])
+
 def toDeg(val):
     """Convert angle to Deg. returns a float. val must be in form: 2arcsec, 2arcmin, or 2rad"""
     import math
@@ -156,16 +172,16 @@ def findImager(path,imager_name=None):
     stdout = check_path.stdout.read().strip()
     if stdout : 
         return path
-    # Check aliases
-    ##TODO: [@sphe] Potential issues with looking in aliases. Might need to review this
-    stdout = subprocess.Popen(['grep',path,'$HOME/.bash_aliases'],stderr=subprocess.PIPE,stdout=subprocess.PIPE)
-    err,out = stdout.stderr.read(),stdout.stdout.read()
-    if err:
-        return False
-    elif out: 
-        path = out.split('=')[-1].strip("'")
-        path = path.split('#')[0] # Incase there is a comment im the line
-        return path
+#   # Check aliases
+#   ##TODO: [@sphe] Potential issues with looking in aliases. Might need to review this
+#   stdout = subprocess.Popen(['grep',path,'$HOME/.bash_aliases'],stderr=subprocess.PIPE,stdout=subprocess.PIPE)
+#   err,out = stdout.stderr.read(),stdout.stdout.read()
+#   if err:
+#       return False
+#   elif out: 
+#       path = out.split('=')[-1].strip("'")
+#       path = path.split('#')[0] # Incase there is a comment im the line
+#       return path
     else:
         return False # Exhausted all sensible options, give up. 
 

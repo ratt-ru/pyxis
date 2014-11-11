@@ -54,6 +54,8 @@ def deconv(dirty_image,psf_image,
     # Check if PyMORESANE is where it is said to be
     model_image,residual_image,restored_image,path = interpolate_locals('model_image residual_image restored_image path')
     path = argo.findImager(path,imager_name='PyMORESANE') 
+    if path is False:
+        abort('could not find PyMORESANE')
    
     kw['model-image'] = model_image
     kw['residual-image'] = residual_image
@@ -68,4 +70,4 @@ def deconv(dirty_image,psf_image,
 
     x.sh(argo.gen_run_cmd(path,args,suf='--',assign='=',pos_args=[dirty_image,psf_image]))
 
-document_globals(deconv,'im*_IMAGE MORESANE_PATH')
+document_globals(deconv,'im*_IMAGE MORESANE_PATH im.MORESANE_PATH')

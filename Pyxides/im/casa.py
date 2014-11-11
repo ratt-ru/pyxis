@@ -30,7 +30,7 @@ def STANDARD_IMAGING_OPTS_Template():
     global npix,cellsize,mode,stokes,weight,robust,niter,gain,threshold,algorithm
     npix = im.npix
     cellsize = im.cellsize
-    mode = 'mfs' #im.mode
+    mode = im.mode
     stokes = im.stokes
     weight = im.weight
     robust = im.robust
@@ -136,7 +136,8 @@ def _run(path='${im.CASA_PATH}',clean=False,makepsf=False,**kw):
     info('running clean($casa_clean) in casapy.')
     x.sh('casapy --nogui --nologfile -c $casa_script')
     # remove ipython logfile
-    xo.sh('rm -f ipython-*.log clean.last exportfits.last')
+    casa_log_time_stamp = "%d%02d%02d-%02d%02d"%(time.gmtime()[:5])
+    xo.sh('rm -f ipython-%s*.log clean.last exportfits.last'%casa_log_time_stamp)
     # delete casa images
     for image in ['$imagename.%s'%s for s in 'model residual image flux psf'.split()]:
         rm_fr(image)
@@ -154,9 +155,10 @@ def make_image (msname="$MS",column="${im.COLUMN}",imager='$IMAGER',
                 channelize=None,lsm="$LSM",**kw0):
     """ run casa imager """
     im.IMAGER = II(imager)
+    do_moresane=False
     if algorithm.lower() in ['moresane','pymoresane']: 
-        im.IMAGER = 'moresane'
-
+        do_moresane = True
+        from im import moresane
     imager,msname,column,lsm,dirty_image,psf_image,restored_image,residual_image,\
 model_image,algorithm,fullrest_image,restoring_options = \
 interpolate_locals("imager msname column lsm dirty_image psf_image restored_image "
@@ -185,13 +187,18 @@ interpolate_locals("imager msname column lsm dirty_image psf_image restored_imag
     if dirty:
         make_dirty()
 
-    if algorithm=='moresane' and restore:
+    if do_moresane and restore:
         if np.logical_or(not dirty,not psf): 
             psf = True
             make_dirty()
         opts = restore if isinstance(restore,dict) else {}
-        im.moresane.deconv(dirty_image,psf_image,model=model_image,
-                           residual=residual_image,restored=restored_image,**opts)
+        restored_image = restored_image.replace('-casa','-moresane')
+        residual_image = residual_image.replace('-casa','-moresane')
+        model_image = model_image.replace('-casa','-moresane')
+        fullrest_image = fullrest_image.replace('-casa','-moresane')
+
+        moresane.deconv(dirty_image,psf_image,model_image=model_image,
+                           residual_image=residual_image,restored_image=restored_image,**opts)
     elif restore:
         kw = kw0.copy()
         kw['psfmode'] = algorithm if algorithm in 'clark clarkstokes hogbom' else 'clark'
