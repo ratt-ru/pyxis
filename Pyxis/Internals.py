@@ -55,6 +55,9 @@ per commands will carry on with other items in the list, and will only report th
 # set of protected variables -- assignments to these via templates or asign() will be ignored
 _protected_variables = set();
 
+# printed to verbose() after startup
+_verbose_startup_message = None; 
+
 def init (context):
   """init internals, attach to the given context""";
   global _debug
@@ -87,10 +90,11 @@ def init (context):
   _namespaces['v'] = context;
   _superglobals[id(context)] = context;
   # report verbosity
+  global _verbose_startup_message;
   if preset_verbosity is None and context['VERBOSE'] == 1:
-    _verbose(1,"VERBOSE=1 by default");
+    _verbose_startup_message = 1,"VERBOSE=1 by default";
   else:
-    _verbose(1,"VERBOSE=%d"%context['VERBOSE']);
+    _verbose_startup_message = 1,"VERBOSE=%d"%context['VERBOSE'];
   # import matplotlib in fork, disable output if fails
   try:
     import matplotlib
@@ -727,28 +731,32 @@ def set_logfile (filename,quiet=False):
 _initconf_done = False;  
 _config_files = [];
 
-def initconf (force=False,*files):
-  """Loads configuration from specified files, or from default file""";
+def initconf (force=False,files=[],directory="."):
+  """Loads configuration from specified files, and/or from default files (in directory, if directory is not None)""";
 #  print "initconf",force,Pyxis.Context.get("PYXIS_LOAD_CONFIG",True);
   if not force and not Pyxis.Context.get("PYXIS_LOAD_CONFIG",True):
     return;
   global _initconf_done;
   if not _initconf_done:
     _initconf_done = True;
-  if not files:
-    files = glob.glob("pyxis*.py") + glob.glob("pyxis*.conf");
+  if files:
+    _verbose(1,"loading config files and scripts:",*files)
+  if directory:
+    autofiles = glob.glob("%s/pyxis*.py"%directory) + glob.glob("%s/pyxis*.conf"%directory);
+    if autofiles:
+      _verbose(1,"auto-loading from %s:"%directory,*[ f.rsplit("/",1)[-1] for f in autofiles ]);
+      files = list(files) + autofiles;
   global _config_files;
   _config_files = files;
   # remember current set of globals
   oldsyms = frozenset(Pyxis.Context.iterkeys());
   # load config files -- all variable assignments go into the Pyxis.Context scope
-  if files:
-    if force:
-      _verbose(1,"auto-loading config files and scripts from 'pyxis*.{py,conf}'");
-    else:
-      _verbose(1,"auto-loading config files and scripts from 'pyxis*.{py,conf}'. Preset PYXIS_LOAD_CONFIG=False to disable.");
-  for filename in files:
-    Pyxis.Commands.loadconf(filename,inspect.currentframe().f_back);
+  cwd = os.getcwd();
+  try:
+    for filename in files:
+      Pyxis.Commands.loadconf(filename,inspect.currentframe().f_back,chdir=True);
+  finally:
+    os.chdir(cwd);
   assign_templates();
   # report on global symbols
   report_symbols("global",[],
@@ -761,11 +769,11 @@ def initconf (force=False,*files):
     for mod in toplevel:
       Pyxis.Context[mod] = sys.modules.get(mod,sys.modules.get("Pyxides."+m));
   
-def loadconf (filename,frame=None):
+def loadconf (filename,frame=None,chdir=True):
   """Loads config file""";
   filename = interpolate(filename,frame or inspect.currentframe().f_back);
-  _verbose(1,"loading %s"%filename);
-  load_package(os.path.splitext(os.path.basename(filename))[0],filename);
+  _verbose(2,"loading %s"%filename);
+  load_package(os.path.splitext(os.path.basename(filename))[0],filename,chdir=chdir);
   
   
 def saveconf ():
@@ -786,11 +794,18 @@ def saveconf ():
         shutil.copyfile(ff,dest);
   
 
-def load_package (pkgname,filename,report=True):
+def load_package (pkgname,filename,chdir=True,report=True):
   """Loads 'package' file into the Context namespace and reports on new global symbols"""
 #  oldstuff = Pyxis.Context.copy();
   try:
-    exec(file(filename),Pyxis.Context);
+    oldpath = list(sys.path);
+    dirname = os.path.dirname(filename);
+    if dirname not in oldpath:
+      sys.path.append(dirname);
+    try:
+      exec(file(filename),Pyxis.Context);
+    finally:
+      sys.path = oldpath;
   except SystemExit:
     raise;
   except KeyboardInterrupt:

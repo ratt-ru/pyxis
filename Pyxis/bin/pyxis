@@ -51,7 +51,7 @@ if __name__ == "__main__":
   # setup some standard command-line option parsing
   #
   from optparse import OptionParser
-  parser = OptionParser(usage="""%prog: [options] a=value command1 b=value c=value command2 ...""",
+  parser = OptionParser(usage="""%prog: [options] [receipes and config files] a=value command1 b=value c=value command2 ...""",
     description="Runs a sequence of reduction commands",add_help_option=True);
   parser.add_option("-v","--verbose",type="int",default=None,metavar="LEVEL",
                     help="verbosity level, default is 1. Equivalent to VERBOSE=LEVEL");
@@ -70,6 +70,12 @@ if __name__ == "__main__":
   parser.add_option("-f","--flush-log",dest="flush_log",action="store_true",
                     help="flush old logfiles. Default is to append to existing logs.\n"
                     "Equivalent to LOG_FLUSH=True.");
+  parser.add_option("-s","--scripts-dir",type="string",metavar="SCRIPTS_DIR",default='.',
+                    help="Loads Pyxis recipes & configs from alternate directory, default is current directory.");
+  parser.add_option("-A","--no-auto-load",action="store_true",
+                    help="Disables automatic loading of recipes and configs from SCRIPTS_DIR.");
+  parser.add_option("-P","--path",type="string",action="append",
+                    help="Add PATH to PYTHONPATH when loading scripts.");
   parser.add_option("-j","--jobs",type="int",metavar="N",default=1,
                     help="run up to N jobs in parallel. Equivalent to JOBS=N.");
   parser.add_option("-p","--persist",action="store_true",
@@ -101,6 +107,9 @@ if __name__ == "__main__":
 #    Pyxis.assign("LOG",options.log);
     elif options.default_log:
       LOG = os.path.join(OUTDIR,"default.log") if OUTDIR else "default.log";
+
+  if options.path:
+    sys.path += options.path;
   
   in_screen = os.environ.get("STY") and not options.x11;
   
@@ -115,11 +124,29 @@ if __name__ == "__main__":
       VERBOSE = -1;
   else:
     VERBOSE = options.verbose;
-      
+
   import Pyxis
   import Pyxis.Internals
   import Pyxis.Commands
 
+  # sort remaining arguments into recipes, configs, commands and MSs
+  mslist = []
+  commands = []
+  recipes = []
+  
+  for arg in args:
+    if Pyxis.Internals._re_assign.match(arg):
+      commands.append(arg);
+    elif re.match(".*\\.(MS|ms)/?$",arg):
+      if arg.endswith("/"):
+        arg = arg[:-1];
+#      assign("MS",arg);
+      mslist.append(arg);
+    elif re.match(".*\\.(py|conf)$",arg):
+      recipes.append(arg);
+    else:
+      commands.append(arg);
+      
   if options.no_log:
     verbose(-99,"running with --no-log: assignments to LOG will be disabled and all output will go to the console");
   if in_screen and not options.no_x11:
@@ -132,9 +159,9 @@ if __name__ == "__main__":
   presets = set([varname for varname in 'OUTDIR','LOG' if varname in globals() ])
   __pyxis_protected_variables = set(presets);
 
-  # init configuration. This preloads pyxis-*.
+  # init configuration. This preloads pyxis-* fro SCRIPTS_DIR, and any files specified on the command line
   PYXIS_LOAD_CONFIG = True
-  Pyxis.Internals.initconf();
+  Pyxis.Internals.initconf(files=recipes,directory=options.scripts_dir if not options.no_auto_load else None);
 
   # unprotect variables
   __pyxis_protected_variables -= presets;
@@ -155,20 +182,6 @@ if __name__ == "__main__":
 
   Pyxis.Internals.saveconf();
  
-  # sort arguments into commands and MSs
-  mslist = []
-  commands = []
-  
-  # add other commands
-  for arg in args:
-    if not Pyxis.Internals._re_assign.match(arg) and re.match(".*\\.(MS|ms)/?$",arg):
-      if arg.endswith("/"):
-        arg = arg[:-1];
-#      assign("MS",arg);
-      mslist.append(arg);
-    else:
-      commands.append(arg);
-      
   # MS list from command line overrides defaults
   if mslist:
     info("setting MS list to",*mslist);
