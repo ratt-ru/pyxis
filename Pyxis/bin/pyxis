@@ -90,7 +90,11 @@ if __name__ == "__main__":
                     "to open needless X11 connections, then crash if the X server becomes\n"
                     "unavailable. This is the default when running under a 'screen' session.");
   parser.add_option("-X","--x11",action="store_true",
-                    help="do not disable X11 connections when running under a 'screen' session.");
+                    help="do not disable X11 connections when running under a screen or tmux session.");
+  parser.add_option("-S","--screen",action="store_true",
+                    help="automatically spawn a screen session to run the commands. Equivalent to SPAWN_SCREEN=True.");
+  parser.add_option("--pause-on-exit",action="store_true",
+                    help="pauses before exiting. Equivalent to PAUSE_ON_EXIT=True. Useful when automatically spawning a screen session.");
                     
 
   (options,args) = parser.parse_args();
@@ -111,14 +115,16 @@ if __name__ == "__main__":
   if options.path:
     sys.path += options.path;
   
-  in_screen = os.environ.get("STY") and not options.x11;
-  
-  NO_X11 = options.no_x11 or in_screen;
+  in_screen = os.environ.get("STY") or os.environ.get("TMUX");
+
+  NO_X11 = not options.x11 and ( options.no_x11 or in_screen );
   if NO_X11:
     os.environ.pop('DISPLAY',None);
   JOBS = options.jobs
   QUIET = options.quiet; 
   PERSIST = options.persist;
+  SPAWN_SCREEN = options.screen;
+  PAUSE_ON_EXIT = options.pause_on_exit;
   if options.verbose is None:
     if options.quiet:
       VERBOSE = -1;
@@ -150,7 +156,7 @@ if __name__ == "__main__":
   if options.no_log:
     verbose(-99,"running with --no-log: assignments to LOG will be disabled and all output will go to the console");
   if in_screen and not options.no_x11:
-    verbose(-99,"screen session detected: auto-disabling X11 connections. Run with the -X option to reenable.")
+    verbose(-99,"screen/tmux session detected: auto-disabling X11 connections. Run with the -X option to reenable.")
 
   LOG_HEADER = cmdline = time.strftime("## %c:\n")+" ".join(sys.argv);  
   LOG_FLUSH = options.flush_log;
@@ -170,6 +176,25 @@ if __name__ == "__main__":
   if options.doc:
     Pyxis.Internals.print_doc(options.doc);
     sys.exit(0);
+
+  # respawn in screen, if asked to
+  if commands and SPAWN_SCREEN:
+    if in_screen:
+      verbose(-99,"screen/tmux session detected: ignoring -S (SPAWN_SCREEN) setting.")
+    else:
+      import distutils.spawn
+      if isinstance(SPAWN_SCREEN,str):
+        verbose(-99,"using explcitily set $SPAWN_SCREEN to run a screen session.");
+        screenpath = SPAWN_SCREEN;
+      else:
+        screenpath = distutils.spawn.find_executable("screen")
+        if not screenpath:
+          verbose(-99,"screen binary not found in system path. Install screen, or set SPAWN_SCREEN to an explicit path.");
+      verbose(-99,"re-launching in screen");
+      args = [ "screen" ] + sys.argv;
+      if PAUSE_ON_EXIT:
+        args.append("--pause-on-exit");
+      os.execv(screenpath,args);
   
   # make output directory
   if OUTDIR:
@@ -259,6 +284,9 @@ if __name__ == "__main__":
     
     report_elapsed(ts0);
   
+  if PAUSE_ON_EXIT:
+    verbose(-99,"--pause-on-exit or PAUSE_ON_EXIT set. Press ENTER to exit.")
+    sys.stdin.readline();
   sys.exit(retcode);
       
       
