@@ -244,6 +244,7 @@ if __name__ == "__main__":
       retcode = 130;
  
   wrapfail = None;
+  # check that we're not in a subprocess -- exit quietly if so, else go wrap things up
   if Pyxis.Commands._subprocess_id is None:
     # execute wrapup commands
     if options.wrapup:
@@ -284,9 +285,11 @@ if __name__ == "__main__":
     
     report_elapsed(ts0);
   
-  if PAUSE_ON_EXIT:
-    verbose(-99,"--pause-on-exit or PAUSE_ON_EXIT set. Press ENTER to exit.")
-    sys.stdin.readline();
+    # pause on exit?
+    if PAUSE_ON_EXIT:
+      verbose(-99,"--pause-on-exit or PAUSE_ON_EXIT set. Press ENTER to exit.")
+      sys.stdin.readline();
+
   sys.exit(retcode);
       
       
