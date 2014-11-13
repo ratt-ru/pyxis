@@ -93,6 +93,8 @@ if __name__ == "__main__":
                     help="do not disable X11 connections when running under a screen or tmux session.");
   parser.add_option("-S","--screen",action="store_true",
                     help="automatically spawn a screen session to run the commands. Equivalent to SPAWN_SCREEN=True.");
+  parser.add_option("--no-screen-log",action="store_true",
+                    help="disable logging of screen sessions (normally screen is run with -L to enable logging). Equivalent to SPAWN_SCREEN_LOG=False.");
   parser.add_option("--pause-on-exit",action="store_true",
                     help="pauses before exiting. Equivalent to PAUSE_ON_EXIT=True. Useful when automatically spawning a screen session.");
                     
@@ -124,6 +126,7 @@ if __name__ == "__main__":
   QUIET = options.quiet; 
   PERSIST = options.persist;
   SPAWN_SCREEN = options.screen;
+  SPAWN_SCREEN_LOG = not options.no_screen_log;
   PAUSE_ON_EXIT = options.pause_on_exit;
   if options.verbose is None:
     if options.quiet:
@@ -184,17 +187,25 @@ if __name__ == "__main__":
     else:
       import distutils.spawn
       if isinstance(SPAWN_SCREEN,str):
-        verbose(-99,"using explcitily set $SPAWN_SCREEN to run a screen session.");
-        screenpath = SPAWN_SCREEN;
+        if os.path.isfile(screenpath) and os.access(screenpath,os.X_OK):
+          screenpath = SPAWN_SCREEN;
+          verbose(-99,"using explicitily set $SPAWN_SCREEN to run a screen session.");
+        else:
+          screenpath = None;
+          verbose(-99,"SPAWN_SCREEN=$SPAWN_SCREEN does not refer to a valid executable, running without screen.");
       else:
         screenpath = distutils.spawn.find_executable("screen")
         if not screenpath:
           verbose(-99,"screen binary not found in system path. Install screen, or set SPAWN_SCREEN to an explicit path.");
-      verbose(-99,"re-launching in screen");
-      args = [ "screen" ] + sys.argv;
-      if PAUSE_ON_EXIT:
-        args.append("--pause-on-exit");
-      os.execv(screenpath,args);
+      if screenpath:
+        verbose(-99,"re-launching in screen");
+        args = [ "screen" ];
+        if SPAWN_SCREEN_LOG:
+          args.append("-L");
+        args += sys.argv;
+        if PAUSE_ON_EXIT:
+          args.append("--pause-on-exit");
+        os.execv(screenpath,args);
   
   # make output directory
   if OUTDIR:
