@@ -3,6 +3,7 @@ from Pyxis.ModSupport import *
 import ms
 import im
 import subprocess
+import tempfile
 
 # register ourselves with Pyxis and define the superglobals
 register_pyxis_module(superglobals="MS LSM OUTDIR DESTDIR")
@@ -110,11 +111,10 @@ def _run(path='${im.CASA_PATH}',clean=False,makepsf=False,**kw):
             args[item] = str(args[item])
 
     # Generate script to run in casapy
-    casa_script = '%s/casa_pyxis_wrap.py'%OUTDIR
-    casa_std = open(casa_script,'w')
-    casa_std.write('# auto gen casapy srcipt. From Pyxis:im.casa._run\n')
+    casa_tf = tempfile.NamedTemporaryFile(suffix=".py")
+    casa_tf.write('# auto gen casapy srcipt. From Pyxis:im.casa._run\n')
     casa_clean = im.argo.gen_run_cmd('',args,'','=',lv_str=True).strip().replace(' ',',')
-    casa_std.write('clean(%s)\n'%casa_clean)
+    casa_tf.write('clean(%s)\n'%casa_clean)
     imagename = kw['imagename']
     # convert casa images to fits files.
     if clean:
@@ -123,18 +123,18 @@ def _run(path='${im.CASA_PATH}',clean=False,makepsf=False,**kw):
         restored = kw['restored']
         tmp_str = II('for img,fits in zip("model residual image".split(),"$model $residual $restored".split()):\n'
                      '    exportfits("${imagename}."+img,fits,overwrite=True)\n')
-        casa_std.write(tmp_str)
+        casa_tf.write(tmp_str)
     else:
         dirty = kw['dirty']
-        casa_std.write('exportfits("%s.image","%s")\n'%(imagename,dirty))
+        casa_tf.write('exportfits("%s.image","%s")\n'%(imagename,dirty))
     if makepsf: 
-        casa_std.write('exportfits("%s.psf","%s")'%(imagename,kw['psf']))
-    casa_std.close()
+        casa_tf.write('exportfits("%s.psf","%s")'%(imagename,kw['psf']))
 
     # run casapy
-    #    abort('casapy --nogui -c casa_pyxis_wrap.py')
     info('running clean($casa_clean) in casapy.')
-    x.sh('casapy --nogui --nologfile -c $casa_script')
+    casa_tf.flush()
+    x.sh('casapy --nologger --log2term --nologfile -c %s'%(casa_tf.name))
+    casa_tf.close()
     # remove ipython logfile
     casa_log_time_stamp = "%d%02d%02d-%02d%02d"%(time.gmtime()[:5])
     xo.sh('rm -f ipython-%s*.log clean.last exportfits.last'%casa_log_time_stamp)

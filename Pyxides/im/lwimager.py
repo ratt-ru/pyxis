@@ -150,7 +150,8 @@ def make_image (msname="$MS",column="${im.COLUMN}",imager='$IMAGER',
                 fullrest_image="${im.FULLREST_IMAGE}",
                 restoring_options="${im.RESTORING_OPTIONS}",
                 algorithm="${im.CLEAN_ALGORITHM}",
-                channelize=None,lsm="$LSM",**kw0):
+                channelize=None,lsm="$LSM",
+                double_psf=None,**kw0):
   """Makes image(s) from MS. Set dirty and restore to True or False to make the appropriate images. You can also
   set either to a dict of options to be passed to the imager. If restore=True and restore_lsm is True and 'lsm' is set, 
   it will also make a full-restored image (i.e. will restore the LSM into the image) with tigger-restore. Use this when 
@@ -172,9 +173,9 @@ def make_image (msname="$MS",column="${im.COLUMN}",imager='$IMAGER',
       do_moresane = True
 
   imager,msname,column,lsm,restored_image,residual_image,model_image,algorithm,\
-     fullrest_image,restoring_options = \
+     fullrest_image,restoring_options,double_psf = \
      interpolate_locals("imager msname column lsm restored_image "
-                        "residual_image model_image algorithm fullrest_image restoring_options");
+                        "residual_image model_image algorithm fullrest_image restoring_options double_psf");
   makedir('$DESTDIR');
   if restore and column != "CORRECTED_DATA":
     abort("Due to imager limitations, restored images can only be made from the CORRECTED_DATA column.");
@@ -191,17 +192,18 @@ def make_image (msname="$MS",column="${im.COLUMN}",imager='$IMAGER',
   
   kw0.update(ms=msname,data=column);
 
-  def make_dirty():
+  def make_dirty(**kw1):
     info("im.lwimager.make_image: making dirty image $dirty_image");
     kw = kw0.copy();
     if type(dirty) is dict:
       kw.update(dirty);
+    kw.update(kw1)
     kw['operation'] = 'image';
     _run(image=dirty_image,**kw);
 
   if dirty: make_dirty()
 
-  def make_psf():
+  def make_psf(**kw1):
     info("im.lwimager.make_image: making PSF image $psf_image");
     kw = kw0.copy();
     if type(psf) is dict:
@@ -209,11 +211,18 @@ def make_image (msname="$MS",column="${im.COLUMN}",imager='$IMAGER',
     kw['operation'] = 'image';
     kw['data'] = 'psf';
     kw['stokes'] = "I";
+    kw.update(kw1)
     _run(image=psf_image,**kw);
   if psf: make_psf()
 
   if do_moresane and restore:
-    if not psf: make_psf()
+    # Moresane does better with a double sized PSF
+    double_psf = double_psf or im.DOUBLE_PSF
+    if double_psf: 
+        _npix = int(npix)*2 if 'npix' not in kw0.keys() else (kw0['npix'])*2
+        make_psf(npix=_npix)
+    elif not psf: 
+         make_psf()
     if not dirty: make_dirty()  
     restored_image = restored_image.replace('-lwimager','-moresane')
     residual_image = residual_image.replace('-lwimager','-moresane')

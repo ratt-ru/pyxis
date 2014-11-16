@@ -12,7 +12,7 @@ import im
 gain = 0.1
 sigmalevel = 3.0
 
-define('MORESANE_PATH_Template','moresane','Path to PyMORESANE')
+define('MORESANE_PATH','${im.MORESANE_PATH}','Path to PyMORESANE')
 _moresane_args = {'outputname': None,
                   'model-image': None,
                   'residual-image': None,
@@ -48,14 +48,14 @@ def deconv(dirty_image,psf_image,
                  residual_image='${im.RESIDUAL_IMAGE}',
                  restored_image='${im.RESTORED_IMAGE}',
                  image_prefix=None,
-                 path='${im.MORESANE_PATH}',**kw):
+                 path='$MORESANE_PATH',**kw):
     """ Runs PyMORESANE """
 
     # Check if PyMORESANE is where it is said to be
     model_image,residual_image,restored_image,path = interpolate_locals('model_image residual_image restored_image path')
-    path = argo.findImager(path,imager_name='PyMORESANE') 
-    if path is False:
-        abort('could not find PyMORESANE')
+    found_path = argo.findImager(path,imager_name='PyMORESANE') 
+    if not found_path:
+        abort('could not find PyMORESANE at $path')
    
     kw['model-image'] = model_image
     kw['residual-image'] = residual_image

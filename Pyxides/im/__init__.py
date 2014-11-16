@@ -8,9 +8,9 @@ register_pyxis_module('im')
 # external tools  
 define('IMAGER','lwimager','imager to use. Default is lwimager.')
 define('LWIMAGER_PATH','lwimager','path to lwimager binary. Default is to look in the system PATH.')
-define('WSCLEAN_PATH_Template','wsclean','path to wsclean binary.')
-define('MORESANE_PATH_Template','moresane','path to PyMORESANE')
-define('CASA_PATH_Template','casapy','path to casapy')
+define('WSCLEAN_PATH','wsclean','path to wsclean binary.')
+define('MORESANE_PATH','moresane','path to PyMORESANE')
+define('CASA_PATH','casapy','path to casapy')
 
 # default clean algorithm
 define("CLEAN_ALGORITHM","clark","CLEAN algorithm (clark, hogbom, csclean, etc.)")
@@ -34,6 +34,7 @@ define("IMAGE_CHANNELIZE",0,"image channels selection: 0 for all, 1 for per-chan
 define("RESTORING_OPTIONS","","extra options to tigger-restore for LSM-restoring")
 
 # Standard imaging options
+DOUBLE_PSF = True
 ifrs = ""
 npix = 1024
 cellsize = "2arcsec"

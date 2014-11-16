@@ -113,7 +113,7 @@ def _run(msname='$MS',clean=False,path='${im.WSCLEAN_PATH}',**kw):
     scale = cellsize if isinstance(cellsize,(int,float)) else argo.toDeg(cellsize)
 
     size = '%d %d'%(npix,npix)
-    if weight is 'briggs':
+    if weight == 'briggs':
         weight = '%s %.2f'%(weight,robust)
     if isinstance(threshold,str):
         threshold = im.argo.toJy(threshold)
