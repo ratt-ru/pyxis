@@ -181,6 +181,7 @@ interpolate_locals("imager msname column lsm dirty_image psf_image restored_imag
 
     kw0.update(vis=msname,imagename=im.BASENAME_IMAGE)
     def make_dirty():
+        info("im.wsclean.make_image: making dirty image $dirty_image")
         kw = kw0.copy()
         kw['niter'] = 0
         _run(dirty=dirty_image,makepsf=psf,psf=psf_image,**kw)
@@ -191,15 +192,20 @@ interpolate_locals("imager msname column lsm dirty_image psf_image restored_imag
         if np.logical_or(not dirty,not psf): 
             psf = True
             make_dirty()
+
         opts = restore if isinstance(restore,dict) else {}
         restored_image = restored_image.replace('-casa','-moresane')
         residual_image = residual_image.replace('-casa','-moresane')
         model_image = model_image.replace('-casa','-moresane')
         fullrest_image = fullrest_image.replace('-casa','-moresane')
+        info(" making restored image $restored_image\
+                    (model is $model_image, residual is $residual_image)")
 
         moresane.deconv(dirty_image,psf_image,model_image=model_image,
                            residual_image=residual_image,restored_image=restored_image,**opts)
     elif restore:
+        info(" making restored image $restored_image\
+              (model is $model_image, residual is $residual_image)")
         kw = kw0.copy()
         kw['psfmode'] = algorithm if algorithm in 'clark clarkstokes hogbom' else 'clark'
         if isinstance(restore,dict):

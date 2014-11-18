@@ -44,7 +44,8 @@ def make_empty_image (msname="$MS",image="${COPY_IMAGE_TO}",channelize=None,**kw
     # setup imager options
     kw0.update(dict(ms=msname,channelize=channelize,dirty=True,dirty_image=image,restore=False,
                    select="ANTENNA1==0 && ANTENNA2==1"))
-    make_image(**kw0);
+    import im.lwimager
+    im.lwimager.make_image(**kw0);
     info("created empty image $image")
 
 define("COPY_IMAGE_TO_Template", "${MS:BASE}.imagecopy.fits","container for image copy")

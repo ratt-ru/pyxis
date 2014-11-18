@@ -195,10 +195,12 @@ def make_image(msname='$MS',image_prefix='${im.BASENAME_IMAGE}',column='${im.COL
     if channelize:
         nr = ms.NUMCHANS//channelize
         kw['channelsout'] = nr
+    if nr ==1:
+        channelize=False
    
     if dirty: info("im.wsclean.make_image: making dirty image $dirty_image")
-    if restore: info("                   (restored image is $restored_image \
-model is $model_image, residual is $residual_image)")
+    if restore: info(" making restored image $restored_image\
+                    (model is $model_image, residual is $residual_image)")
     
     if psf and not restore:
         kw['makepsf'] = True
