@@ -4,6 +4,7 @@ import ms
 import im
 import subprocess
 import tempfile
+import im.argo
 
 # register ourselves with Pyxis and define the superglobals
 register_pyxis_module(superglobals="MS LSM OUTDIR DESTDIR")
@@ -110,37 +111,26 @@ def _run(path='${im.CASA_PATH}',clean=False,makepsf=False,**kw):
         if not isinstance(args[item],str):
             args[item] = str(args[item])
 
-    # Generate script to run in casapy
-    casa_tf = tempfile.NamedTemporaryFile(suffix=".py")
-    casa_tf.write('# auto gen casapy srcipt. From Pyxis:im.casa._run\n')
-    casa_clean = im.argo.gen_run_cmd('',args,'','=',lv_str=True).strip().replace(' ',',')
-    casa_tf.write('clean(%s)\n'%casa_clean)
+    im.argo.icasa('clean',**args)
     imagename = kw['imagename']
     # convert casa images to fits files.
+    mult = []
     if clean:
         model = kw['model']
         residual = kw['residual']
         restored = kw['restored']
-        tmp_str = II('for img,fits in zip("model residual image".split(),"$model $residual $restored".split()):\n'
-                     '    exportfits("${imagename}."+img,fits,overwrite=True)\n')
-        casa_tf.write(tmp_str)
+        for img,fitsim in zip('model residual image'.split(),[model,residual,restored]):
+            mult.append({'imagename':'%s.%s'%(imagename,img),'fitsimage':fitsim})
     else:
-        dirty = kw['dirty']
-        casa_tf.write('exportfits("%s.image","%s")\n'%(imagename,dirty))
+        mult.append({'imagename':'%s.%s'%(imagename,'image'),'fitsimage':kw['dirty']})
     if makepsf: 
-        casa_tf.write('exportfits("%s.psf","%s")'%(imagename,kw['psf']))
-
-    # run casapy
-    info('running clean($casa_clean) in casapy.')
-    casa_tf.flush()
-    x.sh('casapy --nologger --log2term --nologfile -c %s'%(casa_tf.name))
-    casa_tf.close()
-    # remove ipython logfile
-    casa_log_time_stamp = "%d%02d%02d-%02d%02d"%(time.gmtime()[:5])
-    xo.sh('rm -f ipython-%s*.log clean.last exportfits.last'%casa_log_time_stamp)
+        mult.append({'imagename':'%s.%s'%(imagename,'psf'),'fitsimage':kw['psf']})
+    if mult:
+        im.argo.icasa('exportfits',mult=mult,overwrite=True)
     # delete casa images
     for image in ['$imagename.%s'%s for s in 'model residual image flux psf'.split()]:
-        rm_fr(image)
+        if os.path.exists(II(image)):
+            rm_fr(image)
 
 def make_image (msname="$MS",column="${im.COLUMN}",imager='$IMAGER',
                 dirty=True,restore=False,restore_lsm=True,psf=False,
@@ -194,6 +184,8 @@ interpolate_locals("imager msname column lsm dirty_image psf_image restored_imag
             make_dirty()
 
         opts = restore if isinstance(restore,dict) else {}
+        #TODO(sphe): This is not the best way to this. Do we even 
+        # need automatically add a moresane label?
         restored_image = restored_image.replace('-casa','-moresane')
         residual_image = residual_image.replace('-casa','-moresane')
         model_image = model_image.replace('-casa','-moresane')

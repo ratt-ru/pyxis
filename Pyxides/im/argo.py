@@ -8,6 +8,7 @@ import math
 import pyrap.tables
 import subprocess
 import im
+import tempfile
 
 # borrow some Pyxis functionality
 from Pyxis.ModSupport import *
@@ -262,3 +263,46 @@ def gen_run_cmd(path,options,suf='',assign='=',lv_str=False,pos_args=None):
     for arg in pos_args:
         run_cmd += '%s '%arg
     return run_cmd
+
+def icasa(taskname,mult=None,**kw0):
+    """ runs a CASA task given a list of options.
+      A given task can be run multiple times with a different options, 
+      in this case the options must be parsed as list/tuple of dictionaries via
+      mult, e.g icasa('exportfits',mult=[{'imagename':'img.image'},{'fitsimage':'image.fits}]). 
+      Options you want be common between the multiple commands should be specified as key word args.
+    """
+
+    if mult:
+        if isinstance(mult,(tuple,list)):
+            for opts in mult:
+                opts.update(kw0)
+        else:
+            mult.upadte(kw0)
+            mult = [mult]
+    else:
+        mult = [kw0]
+
+    run_cmd = """ """
+    for kw in mult:
+    #    info('runnning CASA $taskname with options:\n $kw \n')
+        task_cmds = ''
+        for key,val in kw.iteritems():
+            if isinstance(val,str):
+                 val = '"%s"'%val
+            task_cmds += '\n%s=%s'%(key,val)
+        run_cmd += """
+taskname = '%s'
+%s
+go()
+
+"""%(taskname,task_cmds)
+
+    tf = tempfile.NamedTemporaryFile(suffix='.py')
+    tf.write(run_cmd)
+    tf.flush()
+    #TODO(sphe) There must be a better way to avoid ipython log files  
+    casa_log_time_stamp = "%d%02d%02d-%02d%02d"%(time.gmtime()[:5])
+    x.sh('casapy --nologger --log2term --nologfile -c %s'%(tf.name))
+    # remove CASA's ipython logfile
+    xo.sh('rm -f ipython-%s*.log ${taskname}.last'%casa_log_time_stamp)
+    tf.close()
