@@ -74,7 +74,7 @@ def prep (msname="$MS"):
   """Prepares MS for use with MeqTrees: adds imaging columns, adds BITFLAG columns, copies current flags
   to 'legacy' flagset"""
   msname = interpolate_locals("msname");
-  verify_antpos(msname);
+  verify_antpos(msname,fix=True);
   info("adding imaging columns to $MS");
   pyrap.tables.addImagingColumns(v.MS);
   info("adding bitflag column");
@@ -260,7 +260,7 @@ def from_uvfits (fitsfile,msname="$MS"):
   if not msname:
     msname = fitsfile+".MS";
   std.runcasapy("""ms.fromfits(msfile='$msname',fitsfile='$fitsfile')""");
-  verify_antpos(msname);
+  verify_antpos(msname,fix=True);
 
 ##
 ## RESAMPLING FUNCTIONS
