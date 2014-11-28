@@ -134,9 +134,7 @@ def verify_antpos (msname="$MS",fix=False,hemisphere=None):
   if nw:
     if not fix:
       abort("$msname/ANTENNA has $nw incorrect Y antenna positions. Check your coordinate conversions (from UVFITS?), or run pyxis ms.verify_antpos[fix=True]")
-    print pos;
     pos[wrong,1] *= -1;
-    print pos;
     anttab.putcol("POSITION",pos);
     info("$msname/ANTENNA: $nw incorrect antenna positions were adjusted (Y sign flipped)");
   else:
