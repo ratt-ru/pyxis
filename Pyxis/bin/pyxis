@@ -114,7 +114,9 @@ if __name__ == "__main__":
       LOG = options.log;
 #    Pyxis.assign("LOG",options.log);
     elif options.default_log:
-      LOG = os.path.join(OUTDIR,"default.log") if OUTDIR else "default.log";
+      LOG = os.path.join(globals().get("OUTDIR","."),"default.log");
+  # protect these variables down below from being reassigned, if set from command line
+  presets = set([varname for varname in 'OUTDIR','LOG' if varname in globals() ])
 
   if options.path:
     sys.path += options.path;
@@ -167,7 +169,6 @@ if __name__ == "__main__":
   LOG_FLUSH = options.flush_log;
 
   # protect preset variables while config is being loaded
-  presets = set([varname for varname in 'OUTDIR','LOG' if varname in globals() ])
   __pyxis_protected_variables = set(presets);
 
   # init configuration. This preloads pyxis-* fro SCRIPTS_DIR, and any files specified on the command line
