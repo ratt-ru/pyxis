@@ -1,5 +1,5 @@
 # A set of useful functions to help navigate the murky waters of radio 
-# inteferometry packages
+# interferometry packages
 import os
 import sys
 import pyfits
@@ -10,7 +10,7 @@ import subprocess
 import im
 import tempfile
 
-# borrow some Pyxis functionality
+# Load some Pyxis functionality
 from Pyxis.ModSupport import *
 
 # register ourselves with Pyxis and define the superglobals
@@ -39,17 +39,19 @@ def make_threshold_mask (input="${im.RESTORED_IMAGE}",threshold=0,output="$im.MA
 
 document_globals(make_threshold_mask,"im.RESTORED_IMAGE im.MASK_IMAGE");
 
+define("COPY_IMAGE_TO_Template", "${MS:BASE}.imagecopy.fits","container for image copy")
 def make_empty_image (msname="$MS",image="${COPY_IMAGE_TO}",channelize=None,**kw0):
     msname,image = interpolate_locals("msname image")
-
     # setup imager options
     kw0.update(dict(ms=msname,channelize=channelize,dirty=True,dirty_image=image,restore=False,
                    select="ANTENNA1==0 && ANTENNA2==1"))
     import im.lwimager
     im.lwimager.make_image(**kw0);
+    # sometime this behaves funny, so leave nothing to chance
+    hdu = pyfits.open(image)
+    hdu[0].data[...] = 0
+    hdu.writeto(image,clobber=True)
     info("created empty image $image")
-
-define("COPY_IMAGE_TO_Template", "${MS:BASE}.imagecopy.fits","container for image copy")
 
 def combine_fits(fitslist,outname='combined.fits',axis=0,ctype=None,keep_old=False):
     """ Combine a list of fits files along a given axiis.
@@ -100,16 +102,22 @@ def combine_fits(fitslist,outname='combined.fits',axis=0,ctype=None,keep_old=Fal
         for fits in fitslist:
             os.system('rm -f %s'%fits)
 
-def addcol(msname,colname,shape=None,valuetype=None,init_with=0):
-    """ add column to MS """
-
+def addcol(msname='$MS',colname=None,shape=None,valuetype=None,init_with=0):
+    """ add column to MS 
+        msanme : MS to add colmn to
+        colname : column name
+        shape : shape
+        valuetype : data type 
+        init_with : value to initialise 
+    """
+    msname = interpolate_locals('msname')
     tab = pyrap.tables.table(msname,readonly=False)
 
     try: 
         tab.getcol(colname)
-        print 'Coulmn already exists'
+        info('Column already exists')
     except RuntimeError:
-        print 'Attempting to add %s column to %s'%(colname,msname)
+        info('Attempting to add %s column to %s'%(colname,msname))
         from pyrap.tables import maketabdesc
         from pyrap.tables import makearrcoldesc
         coldmi = tab.getdminfo('DATA')
@@ -117,8 +125,7 @@ def addcol(msname,colname,shape=None,valuetype=None,init_with=0):
         coldmi['NAME'] = colname.lower()
         if shape is None: 
             shape = dshape[1:]
-        else:
-            valuetype = valuetype or 'complex'
+        valuetype = valuetype or 'complex'
         tab.addcols(maketabdesc(makearrcoldesc(colname,init_with,shape=shape,valuetype=valuetype)),coldmi)
         data = numpy.zeros(dshape,dtype=valuetype)
         if init_with is not 0:
@@ -128,7 +135,7 @@ def addcol(msname,colname,shape=None,valuetype=None,init_with=0):
                 nr = min(rowchunk,nrows-row0)
                 data[row0:(row0+nr)] = init_with
                 tab.putcol(colname,data[row0:(row0+nr)],row0,nr)
-        print 'Column added successfuly.'
+        info('Column added successfuly.')
     tab.close()
 
 def toJy(val):
