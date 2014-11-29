@@ -149,6 +149,14 @@ def make_image(msname='$MS',image_prefix='${im.BASENAME_IMAGE}',column='${im.COL
 
     makedir('$DESTDIR')
     im.IMAGER = II(imager)
+    #Add algorithm label if required
+    if im.DECONV_LABEL and restore:
+        if isinstance(im.DECONV_LABEL,bool):
+            if im.DECONV_LABEL:
+                im.DECONV_LABEL = algorithm
+    elif im.DECONV_LABEL is False:
+        im.DECONV_LABEL = None
+
     path,msname,image_prefix,column,dirty_image,model_image,residual_image,restored_image,psf_image,channelize,\
       fullrest_image,restoring_optins = \
       interpolate_locals('path msname image_prefix column dirty_image model_image residual_image '
@@ -343,14 +351,8 @@ def make_image(msname='$MS',image_prefix='${im.BASENAME_IMAGE}',column='${im.COL
             combine_pol(pol,image_prefix,mfs=True)
 
     if do_moresane:
-        restored_image = restored_image.replace('-wsclean','-moresane')
-        residual_image = residual_image.replace('-wsclean','-moresane')
-        model_image = model_image.replace('-wsclean','-moresane')
-        fullrest_image = fullrest_image.replace('-wsclean','-moresane')
-
         info(" im.moresane.deconv: making estored image $restored_image \
               model is $model_image, residual is $residual_image)")
-
         moresane.deconv(dirty_image,psf_image,model_image=model_image,
                            residual_image=residual_image,
                            restored_image=restored_image,**kw0)

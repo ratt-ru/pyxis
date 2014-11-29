@@ -144,7 +144,16 @@ def make_image (msname="$MS",column="${im.COLUMN}",imager='$IMAGER',
                 restoring_options="${im.RESTORING_OPTIONS}",
                 channelize=None,lsm="$LSM",**kw0):
     """ run casa imager """
+
     im.IMAGER = II(imager)
+    #Add algorithm label if required
+    if im.DECONV_LABEL and restore: 
+        if isinstance(im.DECONV_LABEL,bool):
+            if im.DECONV_LABEL:
+                im.DECONV_LABEL = algorithm
+    elif im.DECONV_LABEL is False:
+        im.DECONV_LABEL = None
+     
     do_moresane=False
     if algorithm.lower() in ['moresane','pymoresane']: 
         do_moresane = True
@@ -184,12 +193,6 @@ interpolate_locals("imager msname column lsm dirty_image psf_image restored_imag
             make_dirty()
 
         opts = restore if isinstance(restore,dict) else {}
-        #TODO(sphe): This is not the best way to this. Do we even 
-        # need automatically add a moresane label?
-        restored_image = restored_image.replace('-casa','-moresane')
-        residual_image = residual_image.replace('-casa','-moresane')
-        model_image = model_image.replace('-casa','-moresane')
-        fullrest_image = fullrest_image.replace('-casa','-moresane')
         info(" making restored image $restored_image\
                     (model is $model_image, residual is $residual_image)")
 

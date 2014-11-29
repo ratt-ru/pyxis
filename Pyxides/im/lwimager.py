@@ -166,15 +166,22 @@ def make_image (msname="$MS",column="${im.COLUMN}",imager='$IMAGER',
   
   im.IMAGER = II(imager)
   # retain lwimager label for dirty maps and psf_maps
-  dirty_image,psf_image = interpolate_locals('dirty_image psf_image') 
+  #Add algorithm label if required
+  if im.DECONV_LABEL and restore:
+    if isinstance(im.DECONV_LABEL,bool):
+      if im.DECONV_LABEL:
+        im.DECONV_LABEL = algorithm
+  elif im.DECONV_LABEL is False:
+    im.DECONV_LABEL = None
+
   do_moresane = False
   if algorithm.lower() in ['moresane','pymoresane']:
       from im import moresane
       do_moresane = True
 
-  imager,msname,column,lsm,restored_image,residual_image,model_image,algorithm,\
+  imager,msname,column,lsm,dirty_image,psf_image,restored_image,residual_image,model_image,algorithm,\
      fullrest_image,restoring_options,double_psf = \
-     interpolate_locals("imager msname column lsm restored_image "
+     interpolate_locals("imager msname column lsm dirty_image psf_image restored_image "
                         "residual_image model_image algorithm fullrest_image restoring_options double_psf");
   makedir('$DESTDIR');
   if restore and column != "CORRECTED_DATA":
@@ -224,10 +231,6 @@ def make_image (msname="$MS",column="${im.COLUMN}",imager='$IMAGER',
     elif not psf: 
          make_psf()
     if not dirty: make_dirty()  
-    restored_image = restored_image.replace('-lwimager','-moresane')
-    residual_image = residual_image.replace('-lwimager','-moresane')
-    model_image = model_image.replace('-lwimager','-moresane')
-    fullrest_image = fullrest_image.replace('-lwimager','-moresane')
     opts = restore if isinstance(restore,dict) else {}
     moresane.deconv(dirty_image,psf_image,model_image=model_image,
                        residual_image=residual_image,restored_image=restored_image,**opts)
