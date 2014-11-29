@@ -473,6 +473,7 @@ def assign (name,value,namespace=None,default_namespace=None,interpolate=True,fr
     # skip protected variables in global context
   if name in namespace.setdefault('__pyxis_protected_variables',set()):
     _verbose(verbose_level,"ignoring assign('%s.%s',...): protected variable"%(modname,name));
+    return;
   # interpolate if asked to, unless this is a template, which are never interpolated
   if interpolate and not name.endswith("_Template"):
     value1 = Pyxis.Internals.interpolate(value,frame);

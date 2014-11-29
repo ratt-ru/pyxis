@@ -93,6 +93,8 @@ if __name__ == "__main__":
                     help="do not disable X11 connections when running under a screen or tmux session.");
   parser.add_option("-S","--screen",action="store_true",
                     help="automatically spawn a screen session to run the commands. Equivalent to SPAWN_SCREEN=True.");
+  parser.add_option("-N","--no-screen",action="store_true",
+                    help="disable spawning of screen sessions even if SPAWN_SCREEN=True.");
   parser.add_option("--no-screen-log",action="store_true",
                     help="disable logging of screen sessions (normally screen is run with -L to enable logging). Equivalent to SPAWN_SCREEN_LOG=False.");
   parser.add_option("--pause-on-exit",action="store_true",
@@ -112,7 +114,9 @@ if __name__ == "__main__":
       LOG = options.log;
 #    Pyxis.assign("LOG",options.log);
     elif options.default_log:
-      LOG = os.path.join(OUTDIR,"default.log") if OUTDIR else "default.log";
+      LOG = os.path.join(globals().get("OUTDIR","."),"default.log");
+  # protect these variables down below from being reassigned, if set from command line
+  presets = set([varname for varname in 'OUTDIR','LOG' if varname in globals() ])
 
   if options.path:
     sys.path += options.path;
@@ -165,7 +169,6 @@ if __name__ == "__main__":
   LOG_FLUSH = options.flush_log;
 
   # protect preset variables while config is being loaded
-  presets = set([varname for varname in 'OUTDIR','LOG' if varname in globals() ])
   __pyxis_protected_variables = set(presets);
 
   # init configuration. This preloads pyxis-* fro SCRIPTS_DIR, and any files specified on the command line
@@ -184,6 +187,8 @@ if __name__ == "__main__":
   if commands and SPAWN_SCREEN:
     if in_screen:
       verbose(-99,"screen/tmux session detected: ignoring -S (SPAWN_SCREEN) setting.")
+    elif options.no_screen:
+      verbose(-99,"-N/--no-screen specified, ignoring SPAWN_SCREEN setting.")
     else:
       import distutils.spawn
       if isinstance(SPAWN_SCREEN,str):

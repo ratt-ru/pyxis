@@ -70,11 +70,11 @@ def _filename (base,newext):
     base = base[:-1];
   return os.path.splitext(base)[0]+"."+newext;
 
-def prep (msname=None):
+def prep (msname="$MS"):
   """Prepares MS for use with MeqTrees: adds imaging columns, adds BITFLAG columns, copies current flags
   to 'legacy' flagset"""
-  if msname:
-    v.MS = msname;
+  msname = interpolate_locals("msname");
+  verify_antpos(msname,fix=True);
   info("adding imaging columns to $MS");
   pyrap.tables.addImagingColumns(v.MS);
   info("adding bitflag column");
@@ -98,7 +98,6 @@ def zerocol (column,ddid="$DDID",field="$FIELD",msname="$MS"):
   subtable.putcol(column,col);
   subtable.close();
 document_globals(zerocol,"MS DDID FIELD");
-
   
 def copycol (fromcol="DATA",tocol="CORRECTED_DATA",rowchunk=500000,msname="$MS"):
   """Copies data from one column of MS to another.
@@ -114,7 +113,33 @@ def copycol (fromcol="DATA",tocol="CORRECTED_DATA",rowchunk=500000,msname="$MS")
   tab.close()
 document_globals(copycol,"MS");
 
-  
+def verify_antpos (msname="$MS",fix=False,hemisphere=None):
+  """Verifies antenna Y positions in MS. If Y coordinate convention is wrong, either fixes the positions (fix=True) or
+  raises an error. hemisphere=-1 makes it assume that the observatory is in the Western hemisphere, hemisphere=1
+  in the Eastern, or else tries to find observatory name using MS and pyrap.measure."""
+  msname = interpolate_locals("msname");
+  if not hemisphere:
+    obs = ms(msname,"OBSERVATION").getcol("TELESCOPE_NAME")[0];
+    info("observatory is $obs");
+    try:
+      hemisphere = 1 if pyrap.measures.measures().observatory(obs)['m0']['value'] > 0 else -1;
+    except:
+      traceback.print_exc();
+      warn("$obs is unknown, or pyrap.measures is missing. Will not verify antenna positions.")
+  info("antenna Y positions should be of sign %+d"%hemisphere);
+  anttab = msw(msname,"ANTENNA");
+  pos = anttab.getcol("POSITION");
+  wrong = pos[:,1]<0 if hemisphere>0 else pos[:,1]>0;
+  nw = sum(wrong);
+  if nw:
+    if not fix:
+      abort("$msname/ANTENNA has $nw incorrect Y antenna positions. Check your coordinate conversions (from UVFITS?), or run pyxis ms.verify_antpos[fix=True]")
+    pos[wrong,1] *= -1;
+    anttab.putcol("POSITION",pos);
+    info("$msname/ANTENNA: $nw incorrect antenna positions were adjusted (Y sign flipped)");
+  else:
+    info("$msname/ANTENNA: all antenna positions appear to have correct Y sign")
+
 define('FIGURE_WIDTH',8,'width of plots, in inches');
 define('FIGURE_HEIGHT',6,'height of plots, in inches');
 define('FIGURE_DPI',100,'resolution of plots, in DPI');
@@ -235,6 +260,7 @@ def from_uvfits (fitsfile,msname="$MS"):
   if not msname:
     msname = fitsfile+".MS";
   std.runcasapy("""ms.fromfits(msfile='$msname',fitsfile='$fitsfile')""");
+  verify_antpos(msname,fix=True);
 
 ##
 ## RESAMPLING FUNCTIONS
