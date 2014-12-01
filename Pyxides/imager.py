@@ -140,6 +140,11 @@ def predict_vis (msname="$MS",image="$MODEL_IMAGE",column="MODEL_DATA",channeliz
 
 document_globals(predict_vis,"MS MODEL_IMAGE COPY_IMAGE_TO ms.IFRS ms.DDID ms.FIELD ms.CHANRANGE");
 
+define("COPY_IMAGE_TO_Template", "${MS:BASE}.imagecopy.fits","container for image copy")
+def make_empty_image (msname="$MS",image="${COPY_IMAGE_TO}",channelize=None,**kw0):
+    msname,image = interpolate_locals("msname image")
+    im.argo.make_empty_image(msname=msname,imagename=image,channelize=channelize,**kw0)
+
 def make_psf (msname="$MS",**kw):
     """Makes an image of the PSF. All other arguments as per make_image()."""
 
