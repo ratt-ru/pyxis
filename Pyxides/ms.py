@@ -122,11 +122,14 @@ def verify_antpos (msname="$MS",fix=False,hemisphere=None):
     obs = ms(msname,"OBSERVATION").getcol("TELESCOPE_NAME")[0];
     info("observatory is $obs");
     try:
+      import pyrap.measures
       hemisphere = 1 if pyrap.measures.measures().observatory(obs)['m0']['value'] > 0 else -1;
     except:
       traceback.print_exc();
       warn("$obs is unknown, or pyrap.measures is missing. Will not verify antenna positions.")
+      return 
   info("antenna Y positions should be of sign %+d"%hemisphere);
+  
   anttab = msw(msname,"ANTENNA");
   pos = anttab.getcol("POSITION");
   wrong = pos[:,1]<0 if hemisphere>0 else pos[:,1]>0;
