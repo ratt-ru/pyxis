@@ -76,7 +76,7 @@ if __name__ == "__main__":
                     help="Disables automatic loading of recipes and configs from SCRIPTS_DIR.");
   parser.add_option("-P","--path",type="string",action="append",
                     help="Add PATH to PYTHONPATH when loading scripts.");
-  parser.add_option("-j","--jobs",type="int",metavar="N",default=1,
+  parser.add_option("-j","--jobs",type="int",metavar="N",
                     help="run up to N jobs in parallel. Equivalent to JOBS=N.");
   parser.add_option("-p","--persist",action="store_true",
                     help="Persist with per-lists as far as possible on error. Equivalent to PERSIST=1.");
@@ -97,6 +97,8 @@ if __name__ == "__main__":
                     help="disable spawning of screen sessions even if SPAWN_SCREEN=True.");
   parser.add_option("--no-screen-log",action="store_true",
                     help="disable logging of screen sessions (normally screen is run with -L to enable logging). Equivalent to SPAWN_SCREEN_LOG=False.");
+  parser.add_option("-T","--screen-title",type="string",metavar="TITLE",
+                    help="title of screen session. Equivalent to SCREEN_TITLE=TITLE. Default is formed from current directory name.");                    
   parser.add_option("--pause-on-exit",action="store_true",
                     help="pauses before exiting. Equivalent to PAUSE_ON_EXIT=True. Useful when automatically spawning a screen session.");
                     
@@ -115,8 +117,8 @@ if __name__ == "__main__":
 #    Pyxis.assign("LOG",options.log);
     elif options.default_log:
       LOG = os.path.join(globals().get("OUTDIR","."),"default.log");
-  # protect these variables down below from being reassigned, if set from command line
-  presets = set([varname for varname in 'OUTDIR','LOG' if varname in globals() ])
+  if options.screen_title:
+    SCREEN_TITLE = options.screen_title;
 
   if options.path:
     sys.path += options.path;
@@ -126,7 +128,7 @@ if __name__ == "__main__":
   NO_X11 = not options.x11 and ( options.no_x11 or in_screen );
   if NO_X11:
     os.environ.pop('DISPLAY',None);
-  JOBS = options.jobs
+  JOBS = options.jobs or 1;
   QUIET = options.quiet; 
   PERSIST = options.persist;
   SPAWN_SCREEN = options.screen;
@@ -137,6 +139,11 @@ if __name__ == "__main__":
       VERBOSE = -1;
   else:
     VERBOSE = options.verbose;
+    
+  # protect these variables down below from being reassigned in configs, if set from command line
+  presets = set([varname for varname in 
+    'OUTDIR','LOG','SCREEN_TITLE',
+    if varname in globals() ])
 
   import Pyxis
   import Pyxis.Internals
@@ -182,13 +189,28 @@ if __name__ == "__main__":
   if options.doc:
     Pyxis.Internals.print_doc(options.doc);
     sys.exit(0);
+  
+  # re-apply command-line options that take priority over config default
+  if options.persist:
+    PERSIST = True;
+  if options.screen:
+    SPAWN_SCREEN = True;
+  if options.no_screen:
+    SPAWN_SCREEN and verbose(-99,"-N/--no-screen specified, ignoring SPAWN_SCREEN setting.")
+    SPAWN_SCREEN = False;
+  if options.no_screen_log:
+    SPAWN_SCREEN_LOG = False;
+  if options.pause_on_exit:
+    PAUSE_ON_EXIT = True;
+  if options.verbose is not None:
+    VERBOSE = options.verbose;
+  elif options.quiet:
+    VERBOSE = -1;
 
   # respawn in screen, if asked to
   if commands and SPAWN_SCREEN:
     if in_screen:
       verbose(-99,"screen/tmux session detected: ignoring -S (SPAWN_SCREEN) setting.")
-    elif options.no_screen:
-      verbose(-99,"-N/--no-screen specified, ignoring SPAWN_SCREEN setting.")
     else:
       import distutils.spawn
       if isinstance(SPAWN_SCREEN,str):
@@ -204,11 +226,16 @@ if __name__ == "__main__":
           verbose(-99,"screen binary not found in system path. Install screen, or set SPAWN_SCREEN to an explicit path.");
       if screenpath:
         verbose(-99,"re-launching in screen");
-        args = [ "screen" ];
+        
+        cwd = os.getcwd();
+        homedir = os.path.expanduser("~");
+        if cwd.startswith(homedir):
+          cwd = cwd[len(homedir):];
+        args = [ "screen","-S","pyxis"+cwd.replace("/","-") ];
         if SPAWN_SCREEN_LOG:
           args.append("-L");
         args += sys.argv;
-        if PAUSE_ON_EXIT:
+        if PAUSE_ON_EXIT and "--pause-on-exit" not in args:
           args.append("--pause-on-exit");
         os.execv(screenpath,args);
   
