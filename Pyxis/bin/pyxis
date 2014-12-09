@@ -70,8 +70,9 @@ if __name__ == "__main__":
   parser.add_option("-f","--flush-log",dest="flush_log",action="store_true",
                     help="flush old logfiles. Default is to append to existing logs.\n"
                     "Equivalent to LOG_FLUSH=True.");
-  parser.add_option("-s","--scripts-dir",type="string",metavar="SCRIPTS_DIR",default='.',
-                    help="Loads Pyxis recipes & configs from alternate directory, default is current directory.");
+  parser.add_option("-s","--scripts-dir",metavar="SCRIPTS_DIR",action="append",
+                    help="Loads Pyxis recipes & configs from alternate directory. Multiple script-dir options may be given"+
+                    ", default is current directory.");
   parser.add_option("-A","--no-auto-load",action="store_true",
                     help="Disables automatic loading of recipes and configs from SCRIPTS_DIR.");
   parser.add_option("-P","--path",type="string",action="append",
@@ -104,7 +105,6 @@ if __name__ == "__main__":
                     
 
   (options,args) = parser.parse_args();
-
   # set up variables from options before import
   if options.doc:
     options.quiet = True;
@@ -180,7 +180,13 @@ if __name__ == "__main__":
 
   # init configuration. This preloads pyxis-* fro SCRIPTS_DIR, and any files specified on the command line
   PYXIS_LOAD_CONFIG = True
-  Pyxis.Internals.initconf(files=recipes,directory=options.scripts_dir if not options.no_auto_load else None);
+  # Allow loading of recipes from different directories
+  if options.no_auto_load:
+    Pyxis.Internals.initconf(files=recipes,directory=None);
+  else:
+    scripts_dirs = options.scripts_dir or ['.']
+    for scripts_dir in scripts_dirs:
+       Pyxis.Internals.initconf(files=recipes,directory=scripts_dir);
 
   # unprotect variables
   __pyxis_protected_variables -= presets;
