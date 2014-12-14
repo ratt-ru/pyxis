@@ -168,6 +168,9 @@ def make_image(msname='$MS',image_prefix='${im.BASENAME_IMAGE}',column='${im.COL
     # wsclean requires a WEIGHT_SPECTRUM column in the MS
     argo.addcol(msname,colname='WEIGHT_SPECTRUM',valuetype='float',init_with=1) 
     
+    if 'datacolumn' not in kw.keys():
+        kw['datacolumn'] = column
+     
     # Cater for moresane
     do_moresane = False
     if restore and algorithm.lower() in ['moresane','pymoresane']:
