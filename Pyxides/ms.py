@@ -75,18 +75,60 @@ def prep (msname="$MS"):
   to 'legacy' flagset"""
   msname = interpolate_locals("msname");
   verify_antpos(msname,fix=True);
-  info("adding imaging columns to $MS");
-  pyrap.tables.addImagingColumns(v.MS);
+  add_imaging_columns(msname);
   info("adding bitflag column");
   addbitflagcol();
   info("copying FLAG to bitflag 'legacy'");
   flagms("-Y +L -f legacy -c");
   
+def add_imaging_columns (msname="$MS"):
+  msname = interpolate_locals("msname");
+  info("adding imaging columns to $msname");
+  pyrap.tables.addImagingColumns(msname);
+  # if DATA column is not fixed shape, the MODEL_DATA and CORRECTED_DATA columns need to be initialized
+  try:
+    tab = ms(v.MS);
+    x1 = tab.getcol("MODEL_DATA",0,1);
+    x2 = tab.getcol("CORRECTED_DATA",0,1);
+    info("MODEL_DATA shape",x1.shape[1:],"CORRECTED_DATA shape",x2.shape[1:]);
+    return;
+  except:
+    info("will try to init MODEL_DATA and CORRECTED_DATA from DATA");
+  copycol("DATA","MODEL_DATA",msname=msname);
+  copycol("DATA","CORRECTED_DATA",msname=msname);
+  
+  
 def delcols (*columns):  
   """Deletes the given columns in the MS""";
-  msw(v.MS).removecols(columns);
-
+  tab = msw(v.MS);
+  columns = [ col for col in columns if col in tab.colnames() ];
+  info("deleting columns $columns");
+  tab.removecols(columns);
+  
+def listcols (*columns):
+  """With no arguments, lists all columns of the MS. With column names as arguments, lists shapes of specified columns""";
+  tab = ms(v.MS);
+  if not columns:
+    info("columns are",*(tab.colnames()));
+  else:
+    for col in columns:
+      coldata = tab.getcol(col);
+      info("column $col shape",coldata.shape);
+    info("MS has %d rows"%tab.nrows());
+    
+def verifycol (column):
+  """Verifies that a column has data by reading it""";
+  nddid = ms(v.MS,subtable="DATA_DESCRIPTION").nrows();
+  info("$MS has $nddid DDIDs");
+  tab0 = ms(v.MS);
+  for ddid in range(nddid):
+    tab = tab0.query("DATA_DESC_ID == %d"%ddid);
+    coldata = tab.getcol(column);
+    info("DDID $ddid column $column shape",coldata.shape);
+  tab0.close()
+      
 document_globals(delcols,"MS");
+document_globals(listcols,"MS");
 
 def zerocol (column,ddid="$DDID",field="$FIELD",msname="$MS"):  
   """Fills the given column in the MS with zeroes""";
@@ -99,18 +141,37 @@ def zerocol (column,ddid="$DDID",field="$FIELD",msname="$MS"):
   subtable.close();
 document_globals(zerocol,"MS DDID FIELD");
   
-def copycol (fromcol="DATA",tocol="CORRECTED_DATA",rowchunk=500000,msname="$MS"):
+def copycol (fromcol="DATA",tocol="CORRECTED_DATA",rowchunk=500000,msname="$MS",to_ms="$msname",ddid=None,to_ddid=None):
   """Copies data from one column of MS to another.
   Copies 'rowchunk' rows at a time; decrease the default if you have low RAM.
   """;
-  msname,fromcol,tocol = interpolate_locals("msname fromcol tocol");
-  tab = msw(msname)
-  nrows = tab.nrows();
-  for row0 in range(0,nrows,rowchunk):
-    nr = min(rowchunk,nrows-row0);
-    info("Copying $msname $fromcol to $tocol (rows $row0 to %d)"%(row0+nr-1));
-    tab.putcol(tocol,tab.getcol(fromcol,row0,nr),row0,nr)
-  tab.close()
+  msname,destms,fromcol,tocol = interpolate_locals("msname to_ms fromcol tocol");
+  if ddid is None:
+    ddids = range(ms(msname,subtable="DATA_DESCRIPTION").nrows());
+    info("copying $msname $fromcol to $destms $tocol");
+    info("$msname has %d DDIDs"%len(ddids));
+    to_ddid = None;
+  else:
+    ddids = [ddid];
+    if to_ddid is None:
+      to_ddid = ddid;
+    info("copying from $msname DDID $ddid $fromcol to $destms DDID $to_ddid $tocol");
+  maintab0 = ms(msname);
+  maintab1 = msw(destms);
+  for ddid in ddids:
+    tab0 = maintab0.query("DATA_DESC_ID == %d"%ddid);
+    tab1 = maintab1.query("DATA_DESC_ID == %d"%(to_ddid if to_ddid is not None else ddid));
+    nrows = tab0.nrows();
+    info("DDID $ddid has $nrows rows");
+    if tab1.nrows() != nrows:
+      abort("table size mismatch: destination has %d rows"%tab1.nrows());
+    for row0 in range(0,nrows,rowchunk):
+      nr = min(rowchunk,nrows-row0);
+      info("copying rows $row0 to %d"%(row0+nr-1));
+      tab1.putcol(tocol,tab0.getcol(fromcol,row0,nr),row0,nr)
+  for t in tab0,tab1,maintab0,maintab1:
+    tab0.close()
+    
 document_globals(copycol,"MS");
 
 def verify_antpos (msname="$MS",fix=False,hemisphere=None):
@@ -122,6 +183,7 @@ def verify_antpos (msname="$MS",fix=False,hemisphere=None):
     obs = ms(msname,"OBSERVATION").getcol("TELESCOPE_NAME")[0];
     info("observatory is $obs");
     try:
+      import pyrap.measures
       hemisphere = 1 if pyrap.measures.measures().observatory(obs)['m0']['value'] > 0 else -1;
     except:
       traceback.print_exc();
@@ -248,6 +310,24 @@ ms.close();
 """%'","'.join(v.MS_List); 
   std.runcasapy(cmd);
   info("virtually concatenated %d inputs MSs into $output"%len(v.MS_List));
+
+document_globals(virtconcat,"MS_List");
+
+def concat (output="concat.MS",thorough=False,subtables=False,freqtol='1MHz',dirtol='1arcsec'):
+  """Concatenates the MSs given by MS_List into an output MS."""
+  output,freqtol,dirtol = interpolate_locals("output freqtol dirtol");
+  info("concatenating",v.MS_List,"into $output");
+  if not v.MS_List:
+    abort("MS_List must be set before calling ms.concat()");
+  if len(v.MS_List) != len(set([os.path.basename(name) for name in v.MS_List])):
+    abort("ms.virtconcat: MSs to be concatenated need to have unique basenames. Please rename your MSs accordingly.");
+  x.sh("cp -a "+v.MS_List[0]+" "+output);
+  cmd = """ms.open("%s", nomodify=False)\n"""%output;
+  for msl in v.MS_List[1:]:
+    cmd += II("""ms.concatenate("$msl",freqtol='$freqtol',dirtol='$dirtol')\n""");  
+  cmd += II("""ms.close()\n""");
+  std.runcasapy(cmd);
+  info("concatenated %d inputs MSs into $output"%len(v.MS_List));
 
 document_globals(virtconcat,"MS_List");
 
