@@ -106,7 +106,6 @@ if __name__ == "__main__":
                     
 
   (options,args) = parser.parse_args();
-
   # set up variables from options before import
   if options.doc:
     options.quiet = True;
@@ -183,7 +182,13 @@ if __name__ == "__main__":
 
   # init configuration. This preloads pyxis-* fro SCRIPTS_DIR, and any files specified on the command line
   PYXIS_LOAD_CONFIG = True
-  Pyxis.Internals.initconf(files=recipes,directory=options.scripts_dir if not options.no_auto_load else None);
+  # Allow loading of recipes from different directories
+  if options.no_auto_load:
+    Pyxis.Internals.initconf(files=recipes,directory=None);
+  else:
+    scripts_dirs = options.scripts_dir or ['.']
+    for scripts_dir in scripts_dirs:
+       Pyxis.Internals.initconf(files=recipes,directory=scripts_dir);
 
   # unprotect variables
   __pyxis_protected_variables -= presets;

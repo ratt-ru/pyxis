@@ -8,12 +8,13 @@ register_pyxis_module('im')
 # external tools  
 define('IMAGER','lwimager','imager to use. Default is lwimager.')
 define('LWIMAGER_PATH','lwimager','path to lwimager binary. Default is to look in the system PATH.')
-define('WSCLEAN_PATH_Template','wsclean','path to wsclean binary.')
-define('MORESANE_PATH_Template','moresane','path to PyMORESANE')
-define('CASA_PATH_Template','casapy','path to casapy')
+define('WSCLEAN_PATH','wsclean','path to wsclean binary.')
+define('MORESANE_PATH','moresane','path to PyMORESANE')
+define('CASA_PATH','casapy','path to casapy')
 
 # default clean algorithm
 define("CLEAN_ALGORITHM","clark","CLEAN algorithm (clark, hogbom, csclean, etc.)")
+define('DECONV_LABEL',None,'Label to identify images from different donvolution algorithms. If set to True, name of algorithm will be used.')
 # Default imaging colun
 define('COLUMN','CORRECTED_DATA','default column to image')
 
@@ -21,10 +22,10 @@ define('COLUMN','CORRECTED_DATA','default column to image')
 define("BASENAME_IMAGE_Template","${OUTFILE}${-<IMAGER}","default base name for all image filenames below")
 define("DIRTY_IMAGE_Template", "${BASENAME_IMAGE}.dirty.fits","output filename for dirty image")
 define("PSF_IMAGE_Template", "${BASENAME_IMAGE}.psf.fits","output filename for psf image")
-define("RESTORED_IMAGE_Template", "${BASENAME_IMAGE}.restored.fits","output filename for restored image")
-define("RESIDUAL_IMAGE_Template", "${BASENAME_IMAGE}.residual.fits","output filename for deconvolution residuals")
-define("MODEL_IMAGE_Template", "${BASENAME_IMAGE}.model.fits","output filename for deconvolution model")
-define("FULLREST_IMAGE_Template", "${BASENAME_IMAGE}.fullrest.fits","output filename for LSM-restored image")
+define("RESTORED_IMAGE_Template", "${BASENAME_IMAGE}${-<DECONV_LABEL}.restored.fits","output filename for restored image")
+define("RESIDUAL_IMAGE_Template", "${BASENAME_IMAGE}${-<DECONV_LABEL}.residual.fits","output filename for deconvolution residuals")
+define("MODEL_IMAGE_Template", "${BASENAME_IMAGE}${-<DECONV_LABEL}.model.fits","output filename for deconvolution model")
+define("FULLREST_IMAGE_Template", "${BASENAME_IMAGE}${-<DECONV_LABEL}.fullrest.fits","output filename for LSM-restored image")
 define("MASK_IMAGE_Template", "${BASENAME_IMAGE}.mask.fits","output filename for CLEAN mask")
 
 # How to channelize the output image. 0 for average all, 1 to include all, 2 to average with a step of 2, etc.
@@ -34,6 +35,7 @@ define("IMAGE_CHANNELIZE",0,"image channels selection: 0 for all, 1 for per-chan
 define("RESTORING_OPTIONS","","extra options to tigger-restore for LSM-restoring")
 
 # Standard imaging options
+DOUBLE_PSF = True
 ifrs = ""
 npix = 1024
 cellsize = "2arcsec"

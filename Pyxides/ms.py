@@ -188,7 +188,9 @@ def verify_antpos (msname="$MS",fix=False,hemisphere=None):
     except:
       traceback.print_exc();
       warn("$obs is unknown, or pyrap.measures is missing. Will not verify antenna positions.")
+      return 
   info("antenna Y positions should be of sign %+d"%hemisphere);
+  
   anttab = msw(msname,"ANTENNA");
   pos = anttab.getcol("POSITION");
   wrong = pos[:,1]<0 if hemisphere>0 else pos[:,1]>0;

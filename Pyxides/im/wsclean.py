@@ -113,7 +113,7 @@ def _run(msname='$MS',clean=False,path='${im.WSCLEAN_PATH}',**kw):
     scale = cellsize if isinstance(cellsize,(int,float)) else argo.toDeg(cellsize)
 
     size = '%d %d'%(npix,npix)
-    if weight is 'briggs':
+    if weight == 'briggs':
         weight = '%s %.2f'%(weight,robust)
     if isinstance(threshold,str):
         threshold = im.argo.toJy(threshold)
@@ -149,6 +149,14 @@ def make_image(msname='$MS',image_prefix='${im.BASENAME_IMAGE}',column='${im.COL
 
     makedir('$DESTDIR')
     im.IMAGER = II(imager)
+    #Add algorithm label if required
+    if im.DECONV_LABEL and restore:
+        if isinstance(im.DECONV_LABEL,bool):
+            if im.DECONV_LABEL:
+                im.DECONV_LABEL = algorithm
+    elif im.DECONV_LABEL is False:
+        im.DECONV_LABEL = None
+
     path,msname,image_prefix,column,dirty_image,model_image,residual_image,restored_image,psf_image,channelize,\
       fullrest_image,restoring_optins = \
       interpolate_locals('path msname image_prefix column dirty_image model_image residual_image '
@@ -195,10 +203,12 @@ def make_image(msname='$MS',image_prefix='${im.BASENAME_IMAGE}',column='${im.COL
     if channelize:
         nr = ms.NUMCHANS//channelize
         kw['channelsout'] = nr
+    if nr ==1:
+        channelize=False
    
     if dirty: info("im.wsclean.make_image: making dirty image $dirty_image")
-    if restore: info("                   (restored image is $restored_image \
-model is $model_image, residual is $residual_image)")
+    if restore: info(" making restored image $restored_image\
+                    (model is $model_image, residual is $residual_image)")
     
     if psf and not restore:
         kw['makepsf'] = True
@@ -341,14 +351,8 @@ model is $model_image, residual is $residual_image)")
             combine_pol(pol,image_prefix,mfs=True)
 
     if do_moresane:
-        restored_image = restored_image.replace('-wsclean','-moresane')
-        residual_image = residual_image.replace('-wsclean','-moresane')
-        model_image = model_image.replace('-wsclean','-moresane')
-        fullrest_image = fullrest_image.replace('-wsclean','-moresane')
-
         info(" im.moresane.deconv: making estored image $restored_image \
               model is $model_image, residual is $residual_image)")
-
         moresane.deconv(dirty_image,psf_image,model_image=model_image,
                            residual_image=residual_image,
                            restored_image=restored_image,**kw0)
