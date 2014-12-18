@@ -102,13 +102,15 @@ def combine_fits(fitslist,outname='combined.fits',axis=0,ctype=None,keep_old=Fal
         for fits in fitslist:
             os.system('rm -f %s'%fits)
 
-def addcol(msname='$MS',colname=None,shape=None,valuetype=None,init_with=0):
+def addcol(msname='$MS',colname=None,shape=None,
+           data_desc_type='array',valuetype=None,init_with=0,**kw):
     """ add column to MS 
         msanme : MS to add colmn to
         colname : column name
         shape : shape
         valuetype : data type 
-        init_with : value to initialise 
+        data_desc_type : 'scalar' for scalar elements and array for 'array' elements
+        init_with : value to initialise the column with 
     """
     msname = interpolate_locals('msname')
     tab = pyrap.tables.table(msname,readonly=False)
@@ -119,22 +121,20 @@ def addcol(msname='$MS',colname=None,shape=None,valuetype=None,init_with=0):
     except RuntimeError:
         info('Attempting to add %s column to %s'%(colname,msname))
         from pyrap.tables import maketabdesc
-        from pyrap.tables import makearrcoldesc
-        coldmi = tab.getdminfo('DATA')
-        dshape = list(tab.getcol('DATA').shape)
-        coldmi['NAME'] = colname.lower()
-        if shape is None: 
-            shape = dshape[1:]
         valuetype = valuetype or 'complex'
-        tab.addcols(maketabdesc(makearrcoldesc(colname,init_with,shape=shape,valuetype=valuetype)),coldmi)
-        data = numpy.zeros(dshape,dtype=valuetype)
-        if init_with is not 0:
-            nrows = dshape[0]
-            rowchunk = nrows/10
-            for row0 in range(0,nrows,rowchunk):
-                nr = min(rowchunk,nrows-row0)
-                data[row0:(row0+nr)] = init_with
-                tab.putcol(colname,data[row0:(row0+nr)],row0,nr)
+        if shape is None: 
+            dshape = list(tab.getcol('DATA').shape)
+            shape = dshape[1:]
+        if data_desc_type=='array':
+            from pyrap.tables import makearrcoldesc
+            coldmi = tab.getdminfo('DATA') # God forbid this (or the TIME) column doesn't exist
+            coldmi['NAME'] = colname.lower()
+            tab.addcols(maketabdesc(makearrcoldesc(colname,init_with,shape=shape,valuetype=valuetype)),coldmi)
+        elif data_desc_type=='scalar':
+            from pyrap.tables import makescacoldesc
+            coldmi = tab.getdminfo('TIME')
+            coldmi['NAME'] = colname.lower()
+            tab.addcols(maketabdesc(makescacoldesc(colname,init_with,valuetype=valuetype)),coldmi)
         info('Column added successfuly.')
     tab.close()
 
