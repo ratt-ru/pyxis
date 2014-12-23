@@ -61,8 +61,8 @@ def ms (msname="$MS",subtable=None,write=False):
   if not msname:
     raise ValueError("'msname' or global MS variable must be set");
   if subtable:
-    msname = table(msname).getkeyword(subtable);
-  tab = table(msname,readonly=not write);
+    msname = table(msname,ack=False).getkeyword(subtable);
+  tab = table(msname,readonly=not write,ack=False);
   return tab;
 
 def _filename (base,newext):
@@ -83,19 +83,25 @@ def prep (msname="$MS"):
   
 def add_imaging_columns (msname="$MS"):
   msname = interpolate_locals("msname");
-  info("adding imaging columns to $msname");
-  pyrap.tables.addImagingColumns(msname);
-  # if DATA column is not fixed shape, the MODEL_DATA and CORRECTED_DATA columns need to be initialized
-  try:
-    tab = ms(v.MS);
-    x1 = tab.getcol("MODEL_DATA",0,1);
-    x2 = tab.getcol("CORRECTED_DATA",0,1);
-    info("MODEL_DATA shape",x1.shape[1:],"CORRECTED_DATA shape",x2.shape[1:]);
-    return;
-  except:
-    info("will try to init MODEL_DATA and CORRECTED_DATA from DATA");
-  copycol("DATA","MODEL_DATA",msname=msname);
-  copycol("DATA","CORRECTED_DATA",msname=msname);
+  tab = msw(msname);
+  if "CHANNEL_SELECTION" in tab.getcolkeywords("MODEL_DATA"):
+    tab.removecolkeyword('MODEL_DATA','CHANNEL_SELECTION');
+  tab.close();
+  import im.lwimager;
+  if not im.lwimager.add_imaging_columns(msname):
+    warn("Using pyrap to add imaging columns to $msname. Beware of https://github.com/ska-sa/lwimager/issues/3")
+    pyrap.tables.addImagingColumns(msname);
+    # if DATA column is not fixed shape, the MODEL_DATA and CORRECTED_DATA columns need to be initialized
+    try:
+      tab = ms(v.MS);
+      x1 = tab.getcol("MODEL_DATA",0,1);
+      x2 = tab.getcol("CORRECTED_DATA",0,1);
+      info("MODEL_DATA shape",x1.shape[1:],"CORRECTED_DATA shape",x2.shape[1:]);
+      return;
+    except:
+      info("will try to init MODEL_DATA and CORRECTED_DATA from DATA");
+    copycol("DATA","MODEL_DATA",msname=msname);
+    copycol("DATA","CORRECTED_DATA",msname=msname);
   
   
 def delcols (*columns):  
@@ -402,24 +408,33 @@ document_globals(flag_channels,"FLAG_TIMESLOTS_*");
 
 
 ## current spwid and number of channels. Note that these are set automatically from the MS by the _msddid_Template below
-SPWID = 0
-TOTAL_CHANNELS = 0
+define('SPWID',0,'currently selected spectral window, set automatically from DDID');
+define('TOTAL_CHANNELS',0,'total number of channels in current spectral window');
+define('SPW_CENTRE_MHZ',0,"centre frequency of current spectral window, MHz");
+define('SPW_BANDWIDTH_MHZ',0,"bandwidth of current spectral window, MHz");
 
 ## whenever the MS or DDID changes, look up the corresponding info on channels and spectral windows 
 _msddid = None;
 def _msddid_Template ():
-  global SPWID,TOTAL_CHANNELS,_ms_ddid;
-  if II("$MS:$DDID") != _msddid and II("$MS") and DDID is not None:
+  global SPWID,TOTAL_CHANNELS,SPW_CENTRE_MHZ,SPW_BANDWIDTH_MHZ,_msddid;
+  msddid = II("$MS:$DDID");
+  if msddid != _msddid and II("$MS") and DDID is not None:
+    _msddid = msddid;
     try:
       ddtab = ms(MS,"DATA_DESCRIPTION");
       if ddtab.nrows() < DDID+1:
         warn("No DDID $DDID in $MS");
         return None;
-      SPWID = ms(MS,"DATA_DESCRIPTION").getcol("SPECTRAL_WINDOW_ID",DDID,1)[0];
-      TOTAL_CHANNELS = ms(MS,"SPECTRAL_WINDOW").getcol("NUM_CHAN",SPWID,1)[0];
+      SPWID = ddtab.getcol("SPECTRAL_WINDOW_ID",DDID,1)[0];
+      spwtab = ms(MS,"SPECTRAL_WINDOW");
+      TOTAL_CHANNELS = spwtab.getcol("NUM_CHAN",SPWID,1)[0];
+#      SPW_CENTRE_MHZ = spwtab.getcol("REF_FREQUENCY",SPWID,1)[0]*1e-6;
+      chans = spwtab.getcol("CHAN_FREQ",SPWID,1)[0];
+      SPW_CENTRE_MHZ = (chans[0]+chans[-1])/2;
+      SPW_BANDWIDTH_MHZ = spwtab.getcol("TOTAL_BANDWIDTH",SPWID,1)[0]*1e-6;
       # make sure this is reevaluated
       _chanspec_Template();
-      info("$MS ddid $DDID is spwid $SPWID with $TOTAL_CHANNELS channels"); 
+      info("$MS ddid $DDID is spwid $SPWID, $TOTAL_CHANNELS channels, centred on $SPW_CENTRE_MHZ MHz, bandwidth %SPW_BANDWIDTH_MHZ MHz"); 
     except:
       if v.VERBOSE > 2:
         warn("Error accessing $MS");

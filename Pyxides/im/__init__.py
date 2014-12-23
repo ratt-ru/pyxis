@@ -14,7 +14,7 @@ define('CASA_PATH','casapy','path to casapy')
 
 # default clean algorithm
 define("CLEAN_ALGORITHM","clark","CLEAN algorithm (clark, hogbom, csclean, etc.)")
-define('DECONV_LABEL',None,'Label to identify images from different donvolution algorithms. If set to True, name of algorithm will be used.')
+define('DECONV_LABEL',None,'Label to identify images from different deconvolution algorithms. If set to True, name of algorithm will be used.')
 # Default imaging colun
 define('COLUMN','CORRECTED_DATA','default column to image')
 

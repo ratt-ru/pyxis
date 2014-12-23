@@ -45,7 +45,7 @@ def pybdsm_search (image="${imager.RESTORED_IMAGE}",output="$PYBDSM_OUTPUT",pol=
   image,output,pol = interpolate_locals("image output pol");
   makedir(v.DESTDIR);
   # setup parameters
-  gaul = II("${output:FILE}.gaul");
+  gaul = II("${output:BASEPATH}.gaul");
   # start with default PYBDSM options
   opts = PYBDSM_OPTIONS.copy();
   opts.update(kw);
@@ -63,7 +63,7 @@ def pybdsm_search (image="${imager.RESTORED_IMAGE}",output="$PYBDSM_OUTPUT",pol=
   info("writing PyBDSM gaul catalog");
   img.write_catalog(outfile=gaul,format='ascii',catalog_type='gaul',clobber=True);
   # add log to output
-  logfile = II("${output:FILE}.pybdsm.log");
+  logfile = II("${output:BASEPATH}.pybdsm.log");
   if exists(logfile):
     info("PyBDSM log output follows:");
     for line in file(logfile):
