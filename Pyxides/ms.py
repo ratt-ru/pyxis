@@ -415,7 +415,7 @@ define('SPW_BANDWIDTH_MHZ',0,"bandwidth of current spectral window, MHz");
 
 ## whenever the MS or DDID changes, look up the corresponding info on channels and spectral windows 
 _msddid = None;
-def _msddid_Template ():
+def _msddid_accessed_Template ():
   global SPWID,TOTAL_CHANNELS,SPW_CENTRE_MHZ,SPW_BANDWIDTH_MHZ,_msddid;
   msddid = II("$MS:$DDID");
   if msddid != _msddid and II("$MS") and DDID is not None:
@@ -430,15 +430,14 @@ def _msddid_Template ():
       TOTAL_CHANNELS = spwtab.getcol("NUM_CHAN",SPWID,1)[0];
 #      SPW_CENTRE_MHZ = spwtab.getcol("REF_FREQUENCY",SPWID,1)[0]*1e-6;
       chans = spwtab.getcol("CHAN_FREQ",SPWID,1)[0];
-      SPW_CENTRE_MHZ = (chans[0]+chans[-1])/2;
+      SPW_CENTRE_MHZ = (chans[0]+chans[-1])*1e-6/2;
       SPW_BANDWIDTH_MHZ = spwtab.getcol("TOTAL_BANDWIDTH",SPWID,1)[0]*1e-6;
       # make sure this is reevaluated
       _chanspec_Template();
-      info("$MS ddid $DDID is spwid $SPWID, $TOTAL_CHANNELS channels, centred on $SPW_CENTRE_MHZ MHz, bandwidth %SPW_BANDWIDTH_MHZ MHz"); 
+      info("$MS ddid $DDID is spwid $SPWID, $TOTAL_CHANNELS channels, centred on $SPW_CENTRE_MHZ MHz, bandwidth $SPW_BANDWIDTH_MHZ MHz"); 
     except:
-      if v.VERBOSE > 2:
-        warn("Error accessing $MS");
-        traceback.print_exc();
+      warn("Error accessing $MS");
+      traceback.print_exc();
       return None;
   return II("$MS:$DDID");
 
