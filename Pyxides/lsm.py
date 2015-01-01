@@ -4,6 +4,7 @@ import imager,std
 
 import pyfits
 import Tigger
+import im.argo
 
 register_pyxis_module(superglobals="OUTFILE");
 
@@ -205,5 +206,78 @@ def pointify (lsm="$LSM",output="$LSM",name=""):
 
 document_globals(add_ccs,"MODEL_CC_*");  
 
-  
-  
+
+define('SOFIA_CFG','${OUTFILE}_sofia_conf.txt','Name of auto generated sofia config file')
+define('SOFIA_PATH','sofia_pipeline.py','SoFia pipeline path (sofia_pipeline.py)')
+define('SOFIA_OUTDIR','${v.DESTDIR}','SoFiA output directory')
+define('SOFIA_OUT_PREFIX','${OUTFILE:BASE}sofia','Prefix for sofia outputs')
+define('_SOFIA_DEFAULTS',{},'Dictionary of default SoFiA options')
+
+_SOFIA_DEFAULTS = {'writeCat': {'writeASCII': 'true', 'parameters': "['*']", 'compress': 'false', 'basename': '', 'writeXML': 'false', 'writeSQL': 'false', 'outputDir': ''}, 'parameters': {'dilateThreshold': '0.02', 'optimiseMask': 'false', 'fitBusyFunction': 'false', 'dilatePixMax': '10', 'dilateChan': '1', 'dilateMask': 'false'}, 'smooth': {'kernelZ': '3.0', 'kernel': 'gaussian', 'kernelX': '3.0', 'kernelY': '3.0', 'edgeMode': 'constant'}, 'merge': {'radiusY': '3', 'radiusX': '3', 'radiusZ': '3', 'minSizeY': '3', 'minSizeX': '3', 'minSizeZ': '2'}, 'flag': {'regions': '[]'}, 'optical': {'storeMultiCat': 'false', 'sourceCatalogue': '', 'specSize': '1e+5', 'spatSize': '0.01'}, 'steps': {'doReliability': 'false', 'doWriteFilteredCube': 'false', 'doMom1': 'false', 'doParameterise': 'true', 'doFlag': 'false', 'doSmooth': 'false', 'doDebug': 'false', 'doCNHI': 'false', 'doWavelet': 'false', 'doCubelets': 'false', 'doWriteMask': 'false', 'doOptical': 'false', 'doSubcube': 'false', 'doMerge': 'true', 'doMom0': 'false', 'doScaleNoise': 'false', 'doSCfind': 'true', 'doWriteCat': 'true', 'doThreshold': 'false'}, 'wavelet': {'threshold': '5.0', 'scaleXY': '-1', 'positivity': 'false', 'iterations': '3', 'scaleZ': '-1'}, 'threshold': {'threshold': '4.0', 'rmsMode': 'std', 'clipMethod': 'relative', 'verbose': 'false'}, 'import': {'weightsFunction': '', 'subcubeMode': 'pixel', 'subcube': '[]', 'maskFile': '', 'inFile': '', 'weightsFile': ''}, 'CNHI': {'verbose': '1', 'qReq': '3.8', 'maxScale': '-1', 'medianTest': 'true', 'minScale': '5', 'pReq': '1e-5'}, 'reliability': {'threshold': '0.9', 'kernel': '[0.15,0.05,0.1]', 'parSpace': "['SNRsum','SNRmax','NRvox']", 'fMin': '0.0', 'makePlot': 'false'}, 'scaleNoise': {'scaleX': 'false', 'scaleY': 'false', 'scaleZ': 'true', 'statistic': 'mad', 'edgeX': '0', 'edgeY': '0', 'edgeZ': '0'}, 'SCfind': {'kernels': "[[ 0, 0, 0,'b'],[ 0, 0, 3,'b'],[ 0, 0, 7,'b'],[ 0, 0, 15,'b'],[ 3, 3, 0,'b'],[ 3, 3, 3,'b'],[ 3, 3, 7,'b'],[ 3, 3, 15,'b'],[ 6, 6, 0,'b'],[ 6, 6, 3,'b'],[ 6, 6, 7,'b'],[ 6, 6, 15,'b']]", 'maskScaleXY': '2.0', 'verbose': 'true', 'rmsMode': 'negative', 'edgeMode': 'constant', 'kernelUnit': 'pixel', 'threshold': '4.0', 'maskScaleZ': '2.0', 'sizeFilter': '0.0'}}
+
+def sofia_search(fitsname='${im.RESTORED_IMAGE}',sofia_conf=None,
+                 threshold=4,do_reliability=True,reliability=0.9,
+                 merge=3,basename='$SOFIA_OUT_PREFIX',makeplot=True,
+                 outdir='$SOFIA_OUTDIR',options={}):
+    """ Runs SoFiA source finding pipeline. Only a few options are provided here. 
+        For more eleborate settings, add options (as you would in a SoFiA configuarion file) 
+        via the [options] dictionary or provide a SoFiA configuration file via [sofia_conf]
+       -------
+       fitsname : Name of fits map on which to run the source finder
+       sofia_conf : SoFiA configuration file
+       threshold : Peak threshold for source finder [in units of sigma above noise rms]
+       do_reliability : Do reliability caltulations
+       reliability : Reliability threshold. (0,1]
+       merge : merge 
+       options : extra options which will directly to sofia configuration file.
+    """
+
+    fitsname,basename,outdir = interpolate_locals('fitsname basename outdir')
+    makedir(v.DESTDIR);
+
+    # swap freq and stokes in fits hdr
+    im.argo.swap_stokes_freq(fitsname,freq2stokes=True)
+
+    # use default SoFiA config if not specified
+    if not sofia_conf:
+
+        sofia_conf = II(SOFIA_CFG)
+        _SOFIA_DEFAULTS['import']['inFile'] = fitsname
+        _SOFIA_DEFAULTS['writeCat']['outputDir'] = outdir
+        _SOFIA_DEFAULTS['writeCat']['basename'] = basename
+
+        if os.path.exists(sofia_conf):
+            x.sh(II('mv $sofia_conf ${sofia_conf}.old'))
+        sofia_std = open(sofia_conf,'w')
+
+        if threshold!=4 and isinstance(threshold,(int,float)):
+            _SOFIA_DEFAULTS['threshold']['threshold'] = threshold
+        if do_reliability and isinstance(do_reliability,bool):
+            _SOFIA_DEFAULTS['steps']['doReliability'] = 'true'
+            if isinstance(reliability,(int,float)):
+                _SOFIA_DEFAULTS['reliability']['threshold'] = reliability
+                _SOFIA_DEFAULTS['reliability']['makePlot'] = makeplot
+        if merge!=3 and isinstance(merge,int):
+            _SOFIA_DEFAULTS['merge']['mergeX'] = merge
+            _SOFIA_DEFAULTS['merge']['mergeY'] = merge
+            _SOFIA_DEFAULTS['merge']['mergeZ'] = merge
+
+      # Update default SoFia configuration dictionary with user options
+        for key,val in options.iteritems():
+            a,b = key.split('.')
+            if a not in _SOFIA_DEFAULTS.keys():
+                abort('Option ${a}.${b} is not recognisable.')
+            _SOFIA_DEFAULTS[a][b] = val
+
+      # Generate sofia configuration file
+        sofia_std.write('#Sofia autogen configuration file [pyxis]')
+        for a,b in  _SOFIA_DEFAULTS.iteritems():
+            for key,val in b.iteritems():
+                sofia_std.write('\n%s.%s = %s'%(a,key,val))
+        sofia_std.close()
+
+    x.sh('$SOFIA_PATH $sofia_conf')
+
+document_globals(sofia_search," im.RESTORED_IMAGE _SOFIA_DEFAULTS SOFIA_CFG SOFIA_OUTDIR SOFIA_PATH SOFIA_OUT_PREFIX")
+
+
