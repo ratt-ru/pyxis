@@ -180,7 +180,7 @@ interpolate_locals("imager msname column lsm dirty_image psf_image restored_imag
 
     kw0.update(vis=msname,imagename=im.BASENAME_IMAGE)
     def make_dirty():
-        info("im.wsclean.make_image: making dirty image $dirty_image")
+        info("im.casa.make_image: making dirty image $dirty_image")
         kw = kw0.copy()
         kw['niter'] = 0
         _run(dirty=dirty_image,makepsf=psf,psf=psf_image,**kw)

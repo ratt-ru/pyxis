@@ -272,10 +272,11 @@ def gen_run_cmd(path,options,suf='',assign='=',lv_str=False,pos_args=None):
     return run_cmd
 
 def icasa(taskname,mult=None,**kw0):
-    """ runs a CASA task given a list of options.
+    """ 
+      runs a CASA task given a list of options.
       A given task can be run multiple times with a different options, 
-      in this case the options must be parsed as list/tuple of dictionaries via
-      mult, e.g icasa('exportfits',mult=[{'imagename':'img.image'},{'fitsimage':'image.fits}]). 
+      in this case the options must be parsed as list/tuple of dictionaries via mult, e.g 
+      icasa('exportfits',mult=[{'imagename':'img1.image','fitsimage':'image1.fits},{'imagename':'img2.image','fitsimage':'image2.fits}]). 
       Options you want be common between the multiple commands should be specified as key word args.
     """
 
