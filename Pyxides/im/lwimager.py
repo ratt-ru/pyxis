@@ -73,6 +73,17 @@ def STANDARD_IMAGING_OPTS_Template():
 # known lwimager args -- these will be passed from keywords
 _fileargs = set("image model restored residual".split(" ")); 
 
+def add_imaging_columns (msname="$MS"):
+  """Uses lwimager to insrt MODEL_DATA and CORRECTED_DATA columns""";
+  msname = interpolate_locals("msname");
+  if LWIMAGER_VERSION[0] >= 1003002:
+    info("using $LWIMAGER_PATH to add imaging columns to $msname");
+    x.sh("$LWIMAGER_PATH ms=$msname operation=empty fillmodel=1 image=$msname-dummy-pyxis.img");
+    x.sh("rm -fr $msname-dummy-pyxis.img")
+    return True;
+  else:
+    warn("lwimager >= 1.3.2 needed to add imaging columns to an MS");
+    return None;
 
 def _run (convert_output_to_fits=True,lwimager_path="$LWIMAGER_PATH",**kw):
   # look up lwimager

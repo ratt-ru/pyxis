@@ -61,8 +61,8 @@ def ms (msname="$MS",subtable=None,write=False):
   if not msname:
     raise ValueError("'msname' or global MS variable must be set");
   if subtable:
-    msname = table(msname).getkeyword(subtable);
-  tab = table(msname,readonly=not write);
+    msname = table(msname,ack=False).getkeyword(subtable);
+  tab = table(msname,readonly=not write,ack=False);
   return tab;
 
 def _filename (base,newext):
@@ -75,18 +75,66 @@ def prep (msname="$MS"):
   to 'legacy' flagset"""
   msname = interpolate_locals("msname");
   verify_antpos(msname,fix=True);
-  info("adding imaging columns to $MS");
-  pyrap.tables.addImagingColumns(v.MS);
+  add_imaging_columns(msname);
   info("adding bitflag column");
   addbitflagcol();
   info("copying FLAG to bitflag 'legacy'");
   flagms("-Y +L -f legacy -c");
   
+def add_imaging_columns (msname="$MS"):
+  msname = interpolate_locals("msname");
+  tab = msw(msname);
+  if "CHANNEL_SELECTION" in tab.getcolkeywords("MODEL_DATA"):
+    tab.removecolkeyword('MODEL_DATA','CHANNEL_SELECTION');
+  tab.close();
+  import im.lwimager;
+  if not im.lwimager.add_imaging_columns(msname):
+    warn("Using pyrap to add imaging columns to $msname. Beware of https://github.com/ska-sa/lwimager/issues/3")
+    pyrap.tables.addImagingColumns(msname);
+    # if DATA column is not fixed shape, the MODEL_DATA and CORRECTED_DATA columns need to be initialized
+    try:
+      tab = ms(v.MS);
+      x1 = tab.getcol("MODEL_DATA",0,1);
+      x2 = tab.getcol("CORRECTED_DATA",0,1);
+      info("MODEL_DATA shape",x1.shape[1:],"CORRECTED_DATA shape",x2.shape[1:]);
+      return;
+    except:
+      info("will try to init MODEL_DATA and CORRECTED_DATA from DATA");
+    copycol("DATA","MODEL_DATA",msname=msname);
+    copycol("DATA","CORRECTED_DATA",msname=msname);
+  
+  
 def delcols (*columns):  
   """Deletes the given columns in the MS""";
-  msw(v.MS).removecols(columns);
-
+  tab = msw(v.MS);
+  columns = [ col for col in columns if col in tab.colnames() ];
+  info("deleting columns $columns");
+  tab.removecols(columns);
+  
+def listcols (*columns):
+  """With no arguments, lists all columns of the MS. With column names as arguments, lists shapes of specified columns""";
+  tab = ms(v.MS);
+  if not columns:
+    info("columns are",*(tab.colnames()));
+  else:
+    for col in columns:
+      coldata = tab.getcol(col);
+      info("column $col shape",coldata.shape);
+    info("MS has %d rows"%tab.nrows());
+    
+def verifycol (column):
+  """Verifies that a column has data by reading it""";
+  nddid = ms(v.MS,subtable="DATA_DESCRIPTION").nrows();
+  info("$MS has $nddid DDIDs");
+  tab0 = ms(v.MS);
+  for ddid in range(nddid):
+    tab = tab0.query("DATA_DESC_ID == %d"%ddid);
+    coldata = tab.getcol(column);
+    info("DDID $ddid column $column shape",coldata.shape);
+  tab0.close()
+      
 document_globals(delcols,"MS");
+document_globals(listcols,"MS");
 
 def zerocol (column,ddid="$DDID",field="$FIELD",msname="$MS"):  
   """Fills the given column in the MS with zeroes""";
@@ -99,18 +147,37 @@ def zerocol (column,ddid="$DDID",field="$FIELD",msname="$MS"):
   subtable.close();
 document_globals(zerocol,"MS DDID FIELD");
   
-def copycol (fromcol="DATA",tocol="CORRECTED_DATA",rowchunk=500000,msname="$MS"):
+def copycol (fromcol="DATA",tocol="CORRECTED_DATA",rowchunk=500000,msname="$MS",to_ms="$msname",ddid=None,to_ddid=None):
   """Copies data from one column of MS to another.
   Copies 'rowchunk' rows at a time; decrease the default if you have low RAM.
   """;
-  msname,fromcol,tocol = interpolate_locals("msname fromcol tocol");
-  tab = msw(msname)
-  nrows = tab.nrows();
-  for row0 in range(0,nrows,rowchunk):
-    nr = min(rowchunk,nrows-row0);
-    info("Copying $msname $fromcol to $tocol (rows $row0 to %d)"%(row0+nr-1));
-    tab.putcol(tocol,tab.getcol(fromcol,row0,nr),row0,nr)
-  tab.close()
+  msname,destms,fromcol,tocol = interpolate_locals("msname to_ms fromcol tocol");
+  if ddid is None:
+    ddids = range(ms(msname,subtable="DATA_DESCRIPTION").nrows());
+    info("copying $msname $fromcol to $destms $tocol");
+    info("$msname has %d DDIDs"%len(ddids));
+    to_ddid = None;
+  else:
+    ddids = [ddid];
+    if to_ddid is None:
+      to_ddid = ddid;
+    info("copying from $msname DDID $ddid $fromcol to $destms DDID $to_ddid $tocol");
+  maintab0 = ms(msname);
+  maintab1 = msw(destms);
+  for ddid in ddids:
+    tab0 = maintab0.query("DATA_DESC_ID == %d"%ddid);
+    tab1 = maintab1.query("DATA_DESC_ID == %d"%(to_ddid if to_ddid is not None else ddid));
+    nrows = tab0.nrows();
+    info("DDID $ddid has $nrows rows");
+    if tab1.nrows() != nrows:
+      abort("table size mismatch: destination has %d rows"%tab1.nrows());
+    for row0 in range(0,nrows,rowchunk):
+      nr = min(rowchunk,nrows-row0);
+      info("copying rows $row0 to %d"%(row0+nr-1));
+      tab1.putcol(tocol,tab0.getcol(fromcol,row0,nr),row0,nr)
+  for t in tab0,tab1,maintab0,maintab1:
+    tab0.close()
+    
 document_globals(copycol,"MS");
 
 def verify_antpos (msname="$MS",fix=False,hemisphere=None):
@@ -254,6 +321,24 @@ ms.close();
 
 document_globals(virtconcat,"MS_List");
 
+def concat (output="concat.MS",thorough=False,subtables=False,freqtol='1MHz',dirtol='1arcsec'):
+  """Concatenates the MSs given by MS_List into an output MS."""
+  output,freqtol,dirtol = interpolate_locals("output freqtol dirtol");
+  info("concatenating",v.MS_List,"into $output");
+  if not v.MS_List:
+    abort("MS_List must be set before calling ms.concat()");
+  if len(v.MS_List) != len(set([os.path.basename(name) for name in v.MS_List])):
+    abort("ms.virtconcat: MSs to be concatenated need to have unique basenames. Please rename your MSs accordingly.");
+  x.sh("cp -a "+v.MS_List[0]+" "+output);
+  cmd = """ms.open("%s", nomodify=False)\n"""%output;
+  for msl in v.MS_List[1:]:
+    cmd += II("""ms.concatenate("$msl",freqtol='$freqtol',dirtol='$dirtol')\n""");  
+  cmd += II("""ms.close()\n""");
+  std.runcasapy(cmd);
+  info("concatenated %d inputs MSs into $output"%len(v.MS_List));
+
+document_globals(virtconcat,"MS_List");
+
 
 ##
 ## CONVERSION
@@ -323,28 +408,36 @@ document_globals(flag_channels,"FLAG_TIMESLOTS_*");
 
 
 ## current spwid and number of channels. Note that these are set automatically from the MS by the _msddid_Template below
-SPWID = 0
-TOTAL_CHANNELS = 0
+define('SPWID',0,'currently selected spectral window, set automatically from DDID');
+define('TOTAL_CHANNELS',0,'total number of channels in current spectral window');
+define('SPW_CENTRE_MHZ',0,"centre frequency of current spectral window, MHz");
+define('SPW_BANDWIDTH_MHZ',0,"bandwidth of current spectral window, MHz");
 
 ## whenever the MS or DDID changes, look up the corresponding info on channels and spectral windows 
 _msddid = None;
-def _msddid_Template ():
-  global SPWID,TOTAL_CHANNELS,_ms_ddid;
-  if II("$MS:$DDID") != _msddid and II("$MS") and DDID is not None:
+def _msddid_accessed_Template ():
+  global SPWID,TOTAL_CHANNELS,SPW_CENTRE_MHZ,SPW_BANDWIDTH_MHZ,_msddid;
+  msddid = II("$MS:$DDID");
+  if msddid != _msddid and II("$MS") and DDID is not None:
+    _msddid = msddid;
     try:
       ddtab = ms(MS,"DATA_DESCRIPTION");
       if ddtab.nrows() < DDID+1:
         warn("No DDID $DDID in $MS");
         return None;
-      SPWID = ms(MS,"DATA_DESCRIPTION").getcol("SPECTRAL_WINDOW_ID",DDID,1)[0];
-      TOTAL_CHANNELS = ms(MS,"SPECTRAL_WINDOW").getcol("NUM_CHAN",SPWID,1)[0];
+      SPWID = ddtab.getcol("SPECTRAL_WINDOW_ID",DDID,1)[0];
+      spwtab = ms(MS,"SPECTRAL_WINDOW");
+      TOTAL_CHANNELS = spwtab.getcol("NUM_CHAN",SPWID,1)[0];
+#      SPW_CENTRE_MHZ = spwtab.getcol("REF_FREQUENCY",SPWID,1)[0]*1e-6;
+      chans = spwtab.getcol("CHAN_FREQ",SPWID,1)[0];
+      SPW_CENTRE_MHZ = (chans[0]+chans[-1])*1e-6/2;
+      SPW_BANDWIDTH_MHZ = spwtab.getcol("TOTAL_BANDWIDTH",SPWID,1)[0]*1e-6;
       # make sure this is reevaluated
       _chanspec_Template();
-      info("$MS ddid $DDID is spwid $SPWID with $TOTAL_CHANNELS channels"); 
+      info("$MS ddid $DDID is spwid $SPWID, $TOTAL_CHANNELS channels, centred on $SPW_CENTRE_MHZ MHz, bandwidth $SPW_BANDWIDTH_MHZ MHz"); 
     except:
-      if v.VERBOSE > 2:
-        warn("Error accessing $MS");
-        traceback.print_exc();
+      warn("Error accessing $MS");
+      traceback.print_exc();
       return None;
   return II("$MS:$DDID");
 

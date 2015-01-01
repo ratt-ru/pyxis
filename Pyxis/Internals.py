@@ -401,9 +401,9 @@ def interpolate (arg,frame,depth=1,ignore=set(),skip=set(),convert_lists=False):
   else:
     return arg;
 
-# RE pattern matching the [PREFIX<][NAMESPACES.]NAME[?DEFAULT][:BASE|DIR][>SUFFIX] syntax
+# RE pattern matching the [PREFIX<][NAMESPACES.]NAME[?DEFAULT][:BASE|DIR|FILE|BASEPATH][>SUFFIX] syntax
 _substpattern = \
-  "(?i)((?P<prefix>[^{}]+)<)?(?P<name>[._a-z][._a-z0-9]*)(\\?(?P<defval>[^}\\$]*?))?(:(?P<command>BASE|DIR|FILE))?(>(?P<suffix>[^{}]+))?"
+  "(?i)((?P<prefix>[^{}]+)<)?(?P<name>[._a-z][._a-z0-9]*)(\\?(?P<defval>[^}\\$]*?))?(:(?P<command>BASE|DIR|FILE|BASEPATH))?(>(?P<suffix>[^{}]+))?"
     
 class SmartTemplate (string.Template):
   pattern = "(?P<escaped>\\$\\$)|(\\$(?P<named>[_a-z][_a-z0-9]*))|(\\${(?P<braced>%s)})|(?P<invalid>\\$)"%_substpattern;
@@ -439,11 +439,17 @@ class DictProxy (object):
       value = defval;
     # check for commands
     if isinstance(value,str) and command:
+      # for dir/file.ext, returns "file"
       if command.upper() == "BASE":
         value = value and os.path.basename(value);
         value = value and os.path.splitext(value)[0];
+      # for dir/file.ext, returns "dir/file"
+      elif command.upper() == "BASEPATH":
+        value = value and os.path.splitext(value)[0];
+      # for dir/file.ext, returns "dir"
       elif command.upper() == "DIR":
         value = (value and os.path.dirname(value)) or ".";
+      # for dir/file.ext, returns "file.ext"
       elif command.upper() == "FILE":
         value = value and os.path.basename(value);
     return (prefix or "")+str(value)+(suffix or "") if value not in ('',None) else "";
