@@ -25,7 +25,7 @@ fitstool        = x("fitstool.py");
 
 casapy = x.casapy.args("--nologger --log2term -c");
 
-def runcasapy (command):
+def runcasapy (command,content=None):
   command = interpolate_locals("command");
   # write command to script file
   tf = tempfile.NamedTemporaryFile(suffix=".py");
@@ -33,7 +33,11 @@ def runcasapy (command):
   tf.flush();
   tfname = tf.name;
   # run casapy
-  info("Running casapy $tfname. Content:\n$command\n");
+  if content:
+    content = II(" ($content)");
+  else:
+    content = II(". Content:\n$command\n")
+  info("Running casapy $tfname$content");
   retcode = casapy(tfname);
   tf.close();
   if retcode:

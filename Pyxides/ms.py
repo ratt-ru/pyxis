@@ -8,6 +8,7 @@ import pyfits
 from Pyxis.ModSupport import *
 
 import std
+import _utils.casa_scripts
 
 # register ourselves with Pyxis, and define the superglobals
 register_pyxis_module();
@@ -84,7 +85,7 @@ def prep (msname="$MS"):
 def add_imaging_columns (msname="$MS"):
   msname = interpolate_locals("msname");
   tab = msw(msname);
-  if "CHANNEL_SELECTION" in tab.getcolkeywords("MODEL_DATA"):
+  if "MODEL_DATA" in tab.colnames() and "CHANNEL_SELECTION" in tab.getcolkeywords("MODEL_DATA"):
     tab.removecolkeyword('MODEL_DATA','CHANNEL_SELECTION');
   tab.close();
   import im.lwimager;
@@ -344,11 +345,25 @@ document_globals(virtconcat,"MS_List");
 ## CONVERSION
 ##
 def from_uvfits (fitsfile,msname="$MS"):
+  """Converts UVFITS file into MS""";
   fitsfile,msname = interpolate_locals("fitsfile msname");
   if not msname:
     msname = fitsfile+".MS";
   std.runcasapy("""ms.fromfits(msfile='$msname',fitsfile='$fitsfile')""");
   verify_antpos(msname,fix=True);
+  
+def fixuvw (msname="$MS",fix=True,rowstep=100000):
+  """Fixes the UVW column of an MS by recomputing it from scratch. If fix=False, only prints differences with current 
+  UVW column at every rowstep-th row"""
+  # these are parameters for the CASA script given by 
+  msname = interpolate_locals("msname");
+  write_uvw = fix;
+  std.runcasapy(_utils.casa_scripts.fixuvw_casa,content="_utils.casa_scripts.fixuvw_casa");
+  if fix:
+    info("updated UVWs have been written to $msname");
+  else:
+    info("fix=False, updated UVWs not written out");
+
 
 ##
 ## RESAMPLING FUNCTIONS
@@ -403,7 +418,7 @@ document_globals(flag_channels,"FLAG_TIMESLOTS_*");
   
 
 ###
-### Various MS-related settings
+### Various MS-related settings, setup automatically from MS variable
 ###
 
 
@@ -421,12 +436,12 @@ def _msddid_accessed_Template ():
   if msddid != _msddid and II("$MS") and DDID is not None:
     _msddid = msddid;
     try:
-      ddtab = ms(MS,"DATA_DESCRIPTION");
+      ddtab = ms(subtable="DATA_DESCRIPTION");
       if ddtab.nrows() < DDID+1:
         warn("No DDID $DDID in $MS");
         return None;
       SPWID = ddtab.getcol("SPECTRAL_WINDOW_ID",DDID,1)[0];
-      spwtab = ms(MS,"SPECTRAL_WINDOW");
+      spwtab = ms(subtable="SPECTRAL_WINDOW");
       TOTAL_CHANNELS = spwtab.getcol("NUM_CHAN",SPWID,1)[0];
 #      SPW_CENTRE_MHZ = spwtab.getcol("REF_FREQUENCY",SPWID,1)[0]*1e-6;
       chans = spwtab.getcol("CHAN_FREQ",SPWID,1)[0];
