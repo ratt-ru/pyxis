@@ -78,9 +78,9 @@ def prep (msname="$MS"):
   verify_antpos(msname,fix=True);
   add_imaging_columns(msname);
   info("adding bitflag column");
-  addbitflagcol();
+  x.addbitflagcol("$msname");
   info("copying FLAG to bitflag 'legacy'");
-  flagms("-Y +L -f legacy -c");
+  _flagms("$msname -Y +L -f legacy -c");
   
 def add_imaging_columns (msname="$MS"):
   msname = interpolate_locals("msname");
