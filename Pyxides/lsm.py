@@ -46,6 +46,7 @@ def pybdsm_search (image="${imager.RESTORED_IMAGE}",output="$PYBDSM_OUTPUT",pol=
   makedir(v.DESTDIR);
   # setup parameters
   gaul = II("${output:BASEPATH}.gaul");
+  # info("PyBDSM filenames are $output $gaul");
   # start with default PYBDSM options
   opts = PYBDSM_OPTIONS.copy();
   opts.update(kw);
