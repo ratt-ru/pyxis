@@ -9,7 +9,7 @@ import pyrap.tables
 import subprocess
 import im
 import tempfile
-
+import ms
 # Load some Pyxis functionality
 from Pyxis.ModSupport import *
 
