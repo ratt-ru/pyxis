@@ -153,7 +153,7 @@ def transfer_tags (fromlsm="$LSMREF",lsm="$LSM",output="$LSM",tags="dE",toleranc
   fromlsm,lsm,output,tags = interpolate_locals("fromlsm lsm output tags");
   # now, set dE tags on sources
   tagset = frozenset(tags.split());
-  info("Transferring tags %s from %s to %s"%(",".join(tagset),fromlsm,lsm));
+  info("Transferring tags %s from %s to %s (%.2f\" tolerance)"%(",".join(tagset),fromlsm,lsm,tolerance/ARCSEC));
   import Tigger
   refmodel = Tigger.load(fromlsm);
   model = Tigger.load(lsm);
