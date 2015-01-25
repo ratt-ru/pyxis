@@ -52,5 +52,5 @@ for row,(t,f,a1,a2) in enumerate(zip(time,field,ant1,ant2)):
 
 if write_uvw:
   print "Writing new UVW column";
-  tb.putcol("UVW",uvw);
+  tb.putcol("UVW",uvw.transpose());
 """;

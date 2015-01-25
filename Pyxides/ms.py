@@ -78,9 +78,12 @@ def prep (msname="$MS"):
   verify_antpos(msname,fix=True);
   add_imaging_columns(msname);
   info("adding bitflag column");
-  addbitflagcol();
+  x.addbitflagcol("$msname");
   info("copying FLAG to bitflag 'legacy'");
-  flagms("-Y +L -f legacy -c");
+  _flagms("$msname -Y +L -f legacy -c");
+  info("flagging INFs/NANs in data");
+  _flagms("$msname --nan -f legacy --data-column DATA -x");
+  
   
 def add_imaging_columns (msname="$MS"):
   msname = interpolate_locals("msname");
@@ -368,13 +371,33 @@ def fixuvw (msname="$MS",fix=True,rowstep=100000):
 ##
 ## RESAMPLING FUNCTIONS
 ##
-def rebin_freq (msname="$MS",output="$MSOUT",step=1):
-  """Resamples MS in frequency with the given step size""";
+def split_rebin (msname="$MS",output="$MSOUT",chan=None,time=None,field=None,spw=None,column="DATA"):
+  """Splits and/or resamples MS in frequency with the given channel stepping size, and/or in time
+  with the give time bin size (e.g. '5s'), and/or breaks out the specified fields and spws""";
   msname,output = interpolate_locals("msname output");
-  std.runcasapy("""ms.open("$msname"); ms.split(outputms='$output',step=$step);""");
+  args = ""
+  def list2str (arg):
+    return ",".join(map(str,stg)) if isinstance(arg,(list,tuple)) else str(arg);
+  if chan:
+    args += II(",width=[$chan]");
+  if time:
+    args += II(",timebin='$time'");
+  if field:
+    args += II(",field='%s'"%list2str(field));
+  if spw:
+    args += II(",spw='%s'"%list2str(spw));
+  column = column.lower();
+  std.runcasapy("""split(vis='$msname',outputvis='$output',datacolumn='$column'$args);""");
   
 
 
+##
+## INFO FUNCTIONS
+##
+
+def summary (msname="$MS"):
+  msname = interpolate_locals("msname");
+  std.runcasapy("listobs('$msname')");
 
 ##
 ## FLAGGING FUNCTIONS

@@ -132,6 +132,8 @@ document_globals(make_threshold_mask,"RESTORED_IMAGE MASK_IMAGE")
 def predict_vis (msname="$MS",image="$MODEL_IMAGE",column="MODEL_DATA",channelize=None,
   copy=False,copyto="$COPY_IMAGE_TO",**kw0):
     """Converts image into predicted visibilities"""
+    
+    import im.lwimager
 
     msname,image,column,copyto = interpolate_locals("msname image column copyto")
 
