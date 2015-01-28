@@ -458,7 +458,7 @@ def _msddid_accessed_Template ():
   msddid = II("$MS:$DDID");
   if msddid != _msddid and II("$MS") and DDID is not None:
     _msddid = msddid;
-    if not exists(MS):
+    if not exists('$MS'):
       warn("$MS doesn't exist"); 
       return None;
     try:
