@@ -4,6 +4,7 @@ import imager,std
 
 import pyfits
 import Tigger
+import im.argo
 
 register_pyxis_module(superglobals="OUTFILE");
 
@@ -45,7 +46,8 @@ def pybdsm_search (image="${imager.RESTORED_IMAGE}",output="$PYBDSM_OUTPUT",pol=
   image,output,pol = interpolate_locals("image output pol");
   makedir(v.DESTDIR);
   # setup parameters
-  gaul = II("${output:FILE}.gaul");
+  gaul = II("${output:BASEPATH}.gaul");
+  # info("PyBDSM filenames are $output $gaul");
   # start with default PYBDSM options
   opts = PYBDSM_OPTIONS.copy();
   opts.update(kw);
@@ -63,7 +65,7 @@ def pybdsm_search (image="${imager.RESTORED_IMAGE}",output="$PYBDSM_OUTPUT",pol=
   info("writing PyBDSM gaul catalog");
   img.write_catalog(outfile=gaul,format='ascii',catalog_type='gaul',clobber=True);
   # add log to output
-  logfile = II("${output:FILE}.pybdsm.log");
+  logfile = II("${output:BASEPATH}.pybdsm.log");
   if exists(logfile):
     info("PyBDSM log output follows:");
     for line in file(logfile):
@@ -84,13 +86,35 @@ def pybdsm_search (image="${imager.RESTORED_IMAGE}",output="$PYBDSM_OUTPUT",pol=
   if select:
     args += [ "--select",select ];
   verifyGaulModel(gaul)
-  tigger_convert(gaul,output,"-t","ASCII","--format",
-      "name Isl_id Source_id Wave_id ra_d E_RA dec_d E_DEC i E_Total_flux Peak_flux E_Peak_flux Xposn E_Xposn Yposn E_Yposn Maj E_Maj Min E_Min PA E_PA " +
-      "emaj_d E_DC_Maj emin_d E_DC_Min pa_d E_DC_PA Isl_Total_flux E_Isl_Total_flux Isl_rms Isl_mean Resid_Isl_rms Resid_Isl_mean S_Code "
-     +
-    ("q E_Total_Q u E_Total_U v E_Total_V Linear_Pol_frac Elow_Linear_Pol_frac Ehigh_Linear_Pol_frac "+
-     "Circ_Pol_Frac Elow_Circ_Pol_Frac Ehigh_Circ_Pol_Frac Total_Pol_Frac Elow_Total_Pol_Frac Ehigh_Total_Pol_Frac Linear_Pol_Ang E_Linear_Pol_Ang"
-    if pol else ""),
+  
+  #Dictionary for establishing correspondence between parameter names in gaul files produced by pybdsm, and pyxis parameter names
+  dict_gaul2lsm = {'Gaus_id':'name', 'Isl_id':'Isl_id', 'Source_id':'Source_id', 'Wave_id':'Wave_id', 'RA':'ra_d', 'E_RA':'E_RA', 'DEC':'dec_d', 'E_DEC':'E_DEC', 'Total_flux':'i', 'E_Total_flux':'E_Total_flux', 'Peak_flux':'Peak_flux', 'E_Peak_flux':'E_Peak_flux', 'Xposn':'Xposn', 'E_Xposn':'E_Xposn', 'Yposn':'Yposn', 'E_Yposn':'E_Yposn', 'Maj':'Maj', 'E_Maj':'E_Maj', 'Min':'Min', 'E_Min':'E_Min', 'PA':'PA', 'E_PA':'E_PA', 'Maj_img_plane':'Maj_img_plane', 'E_Maj_img_plane':'E_Maj_img_plane', 'Min_img_plane':'Min_img_plane', 'E_Min_img_plane':'E_Min_img_plane', 'PA_img_plane':'PA_img_plane', 'E_PA_img_plane':'E_PA_img_plane', 'DC_Maj':'emaj_d', 'E_DC_Maj':'E_DC_Maj', 'DC_Min':'emin_d', 'E_DC_Min':'E_DC_Min', 'DC_PA':'pa_d', 'E_DC_PA':'E_DC_PA', 'DC_Maj_img_plane':'DC_Maj_img_plane', 'E_DC_Maj_img_plane':'E_DC_Maj_img_plane', 'DC_Min_img_plane':'DC_Min_img_plane', 'E_DC_Min_img_plane':'E_DC_Min_img_plane', 'DC_PA_img_plane':'DC_PA_img_plane', 'E_DC_PA_img_plane':'E_DC_PA_img_plane', 'Isl_Total_flux':'Isl_Total_flux', 'E_Isl_Total_flux':'E_Isl_Total_flux', 'Isl_rms':'Isl_rms', 'Isl_mean':'Isl_mean', 'Resid_Isl_rms':'Resid_Isl_rms', 'Resid_Isl_mean':'Resid_Isl_mean', 'S_Code':'S_Code', 'Total_Q':'q', 'E_Total_Q':'E_Total_Q', 'Total_U':'u', 'E_Total_U':'E_Total_U', 'Total_V':'v', 'E_Total_V':'E_Total_V', 'Linear_Pol_frac':'Linear_Pol_frac', 'Elow_Linear_Pol_frac':'Elow_Linear_Pol_frac', 'Ehigh_Linear_Pol_frac':'Ehigh_Linear_Pol_frac', 'Circ_Pol_Frac':'Circ_Pol_Frac', 'Elow_Circ_Pol_Frac':'Elow_Circ_Pol_Frac', 'Ehigh_Circ_Pol_Frac':'Ehigh_Circ_Pol_Frac', 'Total_Pol_Frac':'Total_Pol_Frac', 'Elow_Total_Pol_Frac':'Elow_Total_Pol_Frac', 'Ehigh_Total_Pol_Frac':'Ehigh_Total_Pol_Frac', 'Linear_Pol_Ang':'Linear_Pol_Ang', 'E_Linear_Pol_Ang':'E_Linear_Pol_Ang'}
+
+  #Dictionary for classifying a parameter as a general parameter or a polarization-specific parameter
+  dict_pol_flag = {'Gaus_id':0, 'Isl_id':0, 'Source_id':0, 'Wave_id':0, 'RA':0, 'E_RA':0, 'DEC':0, 'E_DEC':0, 'Total_flux':0, 'E_Total_flux':0, 'Peak_flux':0, 'E_Peak_flux':0, 'Xposn':0, 'E_Xposn':0, 'Yposn':0, 'E_Yposn':0, 'Maj':0, 'E_Maj':0, 'Min':0, 'E_Min':0, 'PA':0, 'E_PA':0, 'Maj_img_plane':0, 'E_Maj_img_plane':0, 'Min_img_plane':0, 'E_Min_img_plane':0, 'PA_img_plane':0, 'E_PA_img_plane':0, 'DC_Maj':0, 'E_DC_Maj':0, 'DC_Min':0, 'E_DC_Min':0, 'DC_PA':0, 'E_DC_PA':0, 'DC_Maj_img_plane':0, 'E_DC_Maj_img_plane':0, 'DC_Min_img_plane':0, 'E_DC_Min_img_plane':0, 'DC_PA_img_plane':0, 'E_DC_PA_img_plane':0, 'Isl_Total_flux':0, 'E_Isl_Total_flux':0, 'Isl_rms':0, 'Isl_mean':0, 'Resid_Isl_rms':0, 'Resid_Isl_mean':0, 'S_Code':0, 'Total_Q':1, 'E_Total_Q':1, 'Total_U':1, 'E_Total_U':1, 'Total_V':1, 'E_Total_V':1, 'Linear_Pol_frac':1, 'Elow_Linear_Pol_frac':1, 'Ehigh_Linear_Pol_frac':1, 'Circ_Pol_Frac':1, 'Elow_Circ_Pol_Frac':1, 'Ehigh_Circ_Pol_Frac':1, 'Total_Pol_Frac':1, 'Elow_Total_Pol_Frac':1, 'Ehigh_Total_Pol_Frac':1, 'Linear_Pol_Ang':1, 'E_Linear_Pol_Ang':1}
+
+  lines = [line.strip() for line in open(gaul)]
+  
+  for line in range(len(lines)):
+    if lines[line]:
+      if lines[line].split()[0] is not '#': 
+        gaul_params = lines[line-1].split()[1:] #Parameter list is last line in gaul file that begins with a '#'
+        break
+  
+  # Initialize lists for general and polarization parameters 
+  lsm_params_general = []
+  lsm_params_polarization = []
+
+  for param in gaul_params:
+    if dict_pol_flag[param] is 0:
+     lsm_params_general.append(dict_gaul2lsm[param])
+    if dict_pol_flag[param] is 1:
+     lsm_params_polarization.append(dict_gaul2lsm[param])
+  
+  general_params_string = ' '.join(lsm_params_general)
+  pol_params_string = ' '.join(lsm_params_polarization)
+
+  tigger_convert(gaul,output,"-t","ASCII","--format", general_params_string + (pol_params_string if pol else ""),
     "-f","--rename",
     "--cluster-dist",cluster,
     "--min-extent",MIN_EXTENT,
@@ -130,7 +154,7 @@ def transfer_tags (fromlsm="$LSMREF",lsm="$LSM",output="$LSM",tags="dE",toleranc
   fromlsm,lsm,output,tags = interpolate_locals("fromlsm lsm output tags");
   # now, set dE tags on sources
   tagset = frozenset(tags.split());
-  info("Transferring tags %s from %s to %s"%(",".join(tagset),fromlsm,lsm));
+  info("Transferring tags %s from %s to %s (%.2f\" tolerance)"%(",".join(tagset),fromlsm,lsm,tolerance/ARCSEC));
   import Tigger
   refmodel = Tigger.load(fromlsm);
   model = Tigger.load(lsm);
@@ -183,5 +207,78 @@ def pointify (lsm="$LSM",output="$LSM",name=""):
 
 document_globals(add_ccs,"MODEL_CC_*");  
 
-  
-  
+
+define('SOFIA_CFG','${OUTFILE}_sofia_conf.txt','Name of auto generated sofia config file')
+define('SOFIA_PATH','sofia_pipeline.py','SoFia pipeline path (sofia_pipeline.py)')
+define('SOFIA_OUTDIR','${v.DESTDIR}','SoFiA output directory')
+define('SOFIA_OUT_PREFIX','${OUTFILE:BASE}sofia','Prefix for sofia outputs')
+define('_SOFIA_DEFAULTS',{},'Dictionary of default SoFiA options')
+
+_SOFIA_DEFAULTS = {'writeCat': {'writeASCII': 'true', 'parameters': "['*']", 'compress': 'false', 'basename': '', 'writeXML': 'false', 'writeSQL': 'false', 'outputDir': ''}, 'parameters': {'dilateThreshold': '0.02', 'optimiseMask': 'false', 'fitBusyFunction': 'false', 'dilatePixMax': '10', 'dilateChan': '1', 'dilateMask': 'false'}, 'smooth': {'kernelZ': '3.0', 'kernel': 'gaussian', 'kernelX': '3.0', 'kernelY': '3.0', 'edgeMode': 'constant'}, 'merge': {'radiusY': '3', 'radiusX': '3', 'radiusZ': '3', 'minSizeY': '3', 'minSizeX': '3', 'minSizeZ': '2'}, 'flag': {'regions': '[]'}, 'optical': {'storeMultiCat': 'false', 'sourceCatalogue': '', 'specSize': '1e+5', 'spatSize': '0.01'}, 'steps': {'doReliability': 'false', 'doWriteFilteredCube': 'false', 'doMom1': 'false', 'doParameterise': 'true', 'doFlag': 'false', 'doSmooth': 'false', 'doDebug': 'false', 'doCNHI': 'false', 'doWavelet': 'false', 'doCubelets': 'false', 'doWriteMask': 'false', 'doOptical': 'false', 'doSubcube': 'false', 'doMerge': 'true', 'doMom0': 'false', 'doScaleNoise': 'false', 'doSCfind': 'true', 'doWriteCat': 'true', 'doThreshold': 'false'}, 'wavelet': {'threshold': '5.0', 'scaleXY': '-1', 'positivity': 'false', 'iterations': '3', 'scaleZ': '-1'}, 'threshold': {'threshold': '4.0', 'rmsMode': 'std', 'clipMethod': 'relative', 'verbose': 'false'}, 'import': {'weightsFunction': '', 'subcubeMode': 'pixel', 'subcube': '[]', 'maskFile': '', 'inFile': '', 'weightsFile': ''}, 'CNHI': {'verbose': '1', 'qReq': '3.8', 'maxScale': '-1', 'medianTest': 'true', 'minScale': '5', 'pReq': '1e-5'}, 'reliability': {'threshold': '0.9', 'kernel': '[0.15,0.05,0.1]', 'parSpace': "['SNRsum','SNRmax','NRvox']", 'fMin': '0.0', 'makePlot': 'false'}, 'scaleNoise': {'scaleX': 'false', 'scaleY': 'false', 'scaleZ': 'true', 'statistic': 'mad', 'edgeX': '0', 'edgeY': '0', 'edgeZ': '0'}, 'SCfind': {'kernels': "[[ 0, 0, 0,'b'],[ 0, 0, 3,'b'],[ 0, 0, 7,'b'],[ 0, 0, 15,'b'],[ 3, 3, 0,'b'],[ 3, 3, 3,'b'],[ 3, 3, 7,'b'],[ 3, 3, 15,'b'],[ 6, 6, 0,'b'],[ 6, 6, 3,'b'],[ 6, 6, 7,'b'],[ 6, 6, 15,'b']]", 'maskScaleXY': '2.0', 'verbose': 'true', 'rmsMode': 'negative', 'edgeMode': 'constant', 'kernelUnit': 'pixel', 'threshold': '4.0', 'maskScaleZ': '2.0', 'sizeFilter': '0.0'}}
+
+def sofia_search(fitsname='${im.RESTORED_IMAGE}',sofia_conf=None,
+                 threshold=4,do_reliability=True,reliability=0.9,
+                 merge=3,basename='$SOFIA_OUT_PREFIX',makeplot=True,
+                 outdir='$SOFIA_OUTDIR',options={}):
+    """ Runs SoFiA source finding pipeline. Only a few options are provided here. 
+        For more eleborate settings, add options (as you would in a SoFiA configuarion file) 
+        via the [options] dictionary or provide a SoFiA configuration file via [sofia_conf]
+       -------
+       fitsname : Name of fits map on which to run the source finder
+       sofia_conf : SoFiA configuration file
+       threshold : Peak threshold for source finder [in units of sigma above noise rms]
+       do_reliability : Do reliability caltulations
+       reliability : Reliability threshold. (0,1]
+       merge : merge 
+       options : extra options which will directly to sofia configuration file.
+    """
+
+    fitsname,basename,outdir = interpolate_locals('fitsname basename outdir')
+    makedir(v.DESTDIR);
+
+    # swap freq and stokes in fits hdr
+    im.argo.swap_stokes_freq(fitsname,freq2stokes=True)
+
+    # use default SoFiA config if not specified
+    if not sofia_conf:
+
+        sofia_conf = II(SOFIA_CFG)
+        _SOFIA_DEFAULTS['import']['inFile'] = fitsname
+        _SOFIA_DEFAULTS['writeCat']['outputDir'] = outdir
+        _SOFIA_DEFAULTS['writeCat']['basename'] = basename
+
+        if os.path.exists(sofia_conf):
+            x.sh(II('mv $sofia_conf ${sofia_conf}.old'))
+        sofia_std = open(sofia_conf,'w')
+
+        if threshold!=4 and isinstance(threshold,(int,float)):
+            _SOFIA_DEFAULTS['threshold']['threshold'] = threshold
+        if do_reliability and isinstance(do_reliability,bool):
+            _SOFIA_DEFAULTS['steps']['doReliability'] = 'true'
+            if isinstance(reliability,(int,float)):
+                _SOFIA_DEFAULTS['reliability']['threshold'] = reliability
+                _SOFIA_DEFAULTS['reliability']['makePlot'] = makeplot
+        if merge!=3 and isinstance(merge,int):
+            _SOFIA_DEFAULTS['merge']['mergeX'] = merge
+            _SOFIA_DEFAULTS['merge']['mergeY'] = merge
+            _SOFIA_DEFAULTS['merge']['mergeZ'] = merge
+
+      # Update default SoFia configuration dictionary with user options
+        for key,val in options.iteritems():
+            a,b = key.split('.')
+            if a not in _SOFIA_DEFAULTS.keys():
+                abort('Option ${a}.${b} is not recognisable.')
+            _SOFIA_DEFAULTS[a][b] = val
+
+      # Generate sofia configuration file
+        sofia_std.write('#Sofia autogen configuration file [pyxis]')
+        for a,b in  _SOFIA_DEFAULTS.iteritems():
+            for key,val in b.iteritems():
+                sofia_std.write('\n%s.%s = %s'%(a,key,val))
+        sofia_std.close()
+
+    x.sh('$SOFIA_PATH $sofia_conf')
+
+document_globals(sofia_search," im.RESTORED_IMAGE _SOFIA_DEFAULTS SOFIA_CFG SOFIA_OUTDIR SOFIA_PATH SOFIA_OUT_PREFIX")
+
+
