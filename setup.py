@@ -4,7 +4,7 @@ import os
 from distutils.core import setup
 
 setup(name='pyxis',
-      version='1.3.0',
+      version='1.4.0',
       description='Python Extensions for Interferometry Scripting',
       author='Oleg Smirnov',
       author_email='Oleg Smirnov <osmirnov@gmail.com>',
