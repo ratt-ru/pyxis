@@ -134,18 +134,15 @@ def splitfits(fitsname,chunks,axis=None,ctype=None,prefix=None):
     crval = crval - (crpix-1)*cdelt
 
     nstacks = hdr['NAXIS%d'%(naxis-axis)]
-    nchunks = int( math.ceil(nstacks/float(chunks)) )
+    nchunks = nstacks//chunks
     info("The FITS file $fitsname has $nstacks stacks along this axis. Breaking it up to $nchunks images")
 
     outfiles = []
     for i in range(0,nchunks):
-        if i == nchunks-1:
-            chunk = max(chunks,nstacks - chunks*nchunks)
-        else : 
-            chunk = chunks
 
         _slice = [slice(None)]*naxis
-        _slice[axis] = range(i*chunks,(i+1)*chunk)
+        _slice[axis] = range(i*chunks,(i+1)*chunks if i+1!=nchunks else nstacks)
+	warn(data.shape,_slice)
         hdu[0].data = data[_slice]
         hdu[0].header['CRVAL%d'%(naxis-axis)] = crval + i*cdelt*chunks
         hdu[0].header['CRPIX%d'%(naxis-axis)] = 1
