@@ -112,7 +112,7 @@ def pybdsm_search (image="${imager.RESTORED_IMAGE}",output="$PYBDSM_OUTPUT",pol=
      lsm_params_polarization.append(dict_gaul2lsm[param])
   
   general_params_string = ' '.join(lsm_params_general)
-  pol_params_string = ' '.join(lsm_params_polarization)
+  pol_params_string = " " + ' '.join(lsm_params_polarization)
 
   tigger_convert(gaul,output,"-t","ASCII","--format", general_params_string + (pol_params_string if pol else ""),
     "-f","--rename",
