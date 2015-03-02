@@ -171,24 +171,39 @@ def addcol(msname='$MS',colname=None,shape=None,
     try: 
         tab.getcol(colname)
         info('Column already exists')
+
     except RuntimeError:
         info('Attempting to add %s column to %s'%(colname,msname))
         from pyrap.tables import maketabdesc
         valuetype = valuetype or 'complex'
+
         if shape is None: 
             dshape = list(tab.getcol('DATA').shape)
             shape = dshape[1:]
+
         if data_desc_type=='array':
             from pyrap.tables import makearrcoldesc
             coldmi = tab.getdminfo('DATA') # God forbid this (or the TIME) column doesn't exist
             coldmi['NAME'] = colname.lower()
             tab.addcols(maketabdesc(makearrcoldesc(colname,init_with,shape=shape,valuetype=valuetype)),coldmi)
+
         elif data_desc_type=='scalar':
             from pyrap.tables import makescacoldesc
             coldmi = tab.getdminfo('TIME')
             coldmi['NAME'] = colname.lower()
             tab.addcols(maketabdesc(makescacoldesc(colname,init_with,valuetype=valuetype)),coldmi)
+
         info('Column added successfuly.')
+
+        if init_with:
+            nrows = dshape[0]
+
+            rowchunk = nrows//10 if nrows > 1000 else nrows
+            for row0 in range(0,nrows,rowchunk):
+                nr = min(rowchunk,nrows-row0)
+                dshape[0] = nr
+                tab.putcol(colname,numpy.ones(dshape,dtype=valuetype)*init_with,row0,nr)
+
     tab.close()
 
 
