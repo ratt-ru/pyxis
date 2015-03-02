@@ -339,6 +339,11 @@ def icasa(taskname,mult=None,**kw0):
       Options you want be common between the multiple commands should be specified as key word args.
     """
 
+    # create temp directory from which to run casapy
+    td = tempfile.mkdtemp(dir='.')
+    # we want get back to the working directory once casapy is launched
+    cdir = os.path.realpath('.')
+
     if mult:
         if isinstance(mult,(tuple,list)):
             for opts in mult:
@@ -357,19 +362,27 @@ def icasa(taskname,mult=None,**kw0):
                  val = '"%s"'%val
             task_cmds += '\n%s=%s'%(key,val)
         run_cmd += """
+import os
+os.chdir('%s')
 taskname = '%s'
 %s
 go()
 
-"""%(taskname,task_cmds)
+"""%(cdir,taskname,task_cmds)
 
     tf = tempfile.NamedTemporaryFile(suffix='.py')
     tf.write(run_cmd)
     tf.flush()
     t0 = time.time()
-    x.sh('casapy --nologger --log2term --nologfile -c %s'%(tf.name))
-    # remove CASA's ipython logfile
-    for log in glob.glob('ipython-*.log'):
-        if os.path.getmtime(log):
-            xo.sh('rm -f $log')
+    # all logging information will be in the pyxis log files 
+    x.sh('cd $td && casapy --nologger --log2term --nologfile -c %s'%(tf.name))
+
+    # log taskname.last 
+    task_last = '%s.last'%taskname
+    if exists(task_last):
+        with open(task_last,'r') as last:
+            info('${taskname}.last is: \n %s'%last.read() )
+
+    # remove temp directory. This also gets rid of the casa log files; so long suckers!
+    rm_fr(td,task_last)
     tf.close()
