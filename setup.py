@@ -9,7 +9,7 @@ setup(name='pyxis',
       author='Oleg Smirnov',
       author_email='Oleg Smirnov <osmirnov@gmail.com>',
       url='https://github.com/ska-sa/pyxis',
-      packages=['Pyxis', 'Pyxides'],
+      packages=['Pyxis', 'Pyxides', 'Pyxides._utils', 'Pyxides.im'],
       requires=['pyfits', 'timba', 'matplotlib', 'pyrap', 'numpy'],
       scripts=['Pyxis/bin/' + i for i in os.listdir('Pyxis/bin')],
      )
