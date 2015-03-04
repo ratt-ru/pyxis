@@ -10,6 +10,8 @@ import subprocess
 import im
 import tempfile
 import ms
+import glob
+import time
 # Load some Pyxis functionality
 from Pyxis.ModSupport import *
 
@@ -53,6 +55,7 @@ def make_empty_image (msname="$MS",image="${COPY_IMAGE_TO}",channelize=None,**kw
     hdu.writeto(image,clobber=True)
     info("created empty image $image")
 
+
 def combine_fits(fitslist,outname='combined.fits',axis=0,ctype=None,keep_old=False):
     """ Combine a list of fits files along a given axiis.
        
@@ -73,20 +76,24 @@ def combine_fits(fitslist,outname='combined.fits',axis=0,ctype=None,keep_old=Fal
             if hdr['CTYPE%d'%i].startswith(ctype):
                 axis = naxis - i # fits to numpy convention
 
-    # define structure of new FITS file
-    shape = list(hdu.data.shape)
-    shape[axis] = len(fitslist)
 
     fits_ind = abs(axis-naxis)
     crval = hdr['CRVAL%d'%fits_ind]
-    data = numpy.zeros(shape,dtype=float)
 
     imslice = [slice(None)]*naxis
-    for i,fits in enumerate(fitslist):
-        hdu = pyfits.open(fits)[0]
-        h = hdu.header
-        d = hdu.data
-        imslice[axis] = i
+    _sorted = sorted([pyfits.open(fits) for fits in fitslist],
+                    key=lambda a: a[0].header['CRVAL%d'%(naxis-axis)])
+
+    # define structure of new FITS file
+    nn = [ hd[0].header['NAXIS%d'%(naxis-axis)] for hd in _sorted] 
+    shape = list(hdu.data.shape)
+    shape[axis] = sum(nn)
+    data = numpy.zeros(shape,dtype=float)
+
+    for i,hdu0 in enumerate(_sorted):
+        h = hdu0[0].header
+        d = hdu0[0].data
+        imslice[axis] = range(sum(nn[:i]),sum(nn[:i+1]) )
         data[imslice] = d
         if crval > h['CRVAL%d'%fits_ind]:
             crval =  h['CRVAL%d'%fits_ind]
@@ -102,6 +109,52 @@ def combine_fits(fitslist,outname='combined.fits',axis=0,ctype=None,keep_old=Fal
         for fits in fitslist:
             os.system('rm -f %s'%fits)
 
+
+def splitfits(fitsname,chunks,axis=None,ctype=None,prefix=None):
+    """ split fits data along a given axis in N chunks """
+    
+    prefix = prefix or fitsname[:-5] # take everthing but .FITS/.fits
+    hdu = pyfits.open(fitsname)
+    hdr = hdu[0].header
+    data = hdu[0].data.copy()    
+    naxis = hdr["NAXIS"]
+
+    if axis is None and ctype is None:
+        abort('Please specify either axis or ctype')
+    # find axis via CTYPE key
+    if ctype :
+        for i in range(1,naxis+1):
+            if hdr['CTYPE%d'%i].startswith(ctype):
+                axis = naxis - i # fits to numpy indexing
+
+    crval = hdr['CRVAL%d'%(naxis-axis)]
+    cdelt = hdr['CDELT%d'%(naxis-axis)]
+    crpix = hdr['CRPIX%d'%(naxis-axis)]
+    # shift crval to crpix=1
+    crval = crval - (crpix-1)*cdelt
+
+    nstacks = hdr['NAXIS%d'%(naxis-axis)]
+    nchunks = nstacks//chunks
+    info("The FITS file $fitsname has $nstacks stacks along this axis. Breaking it up to $nchunks images")
+
+    outfiles = []
+    for i in range(0,nchunks):
+
+        _slice = [slice(None)]*naxis
+        _slice[axis] = range(i*chunks,(i+1)*chunks if i+1!=nchunks else nstacks)
+	warn(data.shape,_slice)
+        hdu[0].data = data[_slice]
+        hdu[0].header['CRVAL%d'%(naxis-axis)] = crval + i*cdelt*chunks
+        hdu[0].header['CRPIX%d'%(naxis-axis)] = 1
+        outfile = '%s-%04d.fits'%(prefix,i)
+        outfiles.append(outfile)
+        info("Making chunk $i : %s. File is $outfile"%repr(_slice[axis]))
+        hdu.writeto(outfile,clobber=True)
+
+    hdu.close()
+    return outfiles
+
+    
 def addcol(msname='$MS',colname=None,shape=None,
            data_desc_type='array',valuetype=None,init_with=0,**kw):
     """ add column to MS 
@@ -118,25 +171,41 @@ def addcol(msname='$MS',colname=None,shape=None,
     try: 
         tab.getcol(colname)
         info('Column already exists')
+
     except RuntimeError:
         info('Attempting to add %s column to %s'%(colname,msname))
         from pyrap.tables import maketabdesc
         valuetype = valuetype or 'complex'
+
         if shape is None: 
             dshape = list(tab.getcol('DATA').shape)
             shape = dshape[1:]
+
         if data_desc_type=='array':
             from pyrap.tables import makearrcoldesc
             coldmi = tab.getdminfo('DATA') # God forbid this (or the TIME) column doesn't exist
             coldmi['NAME'] = colname.lower()
             tab.addcols(maketabdesc(makearrcoldesc(colname,init_with,shape=shape,valuetype=valuetype)),coldmi)
+
         elif data_desc_type=='scalar':
             from pyrap.tables import makescacoldesc
             coldmi = tab.getdminfo('TIME')
             coldmi['NAME'] = colname.lower()
             tab.addcols(maketabdesc(makescacoldesc(colname,init_with,valuetype=valuetype)),coldmi)
+
         info('Column added successfuly.')
+
+        if init_with:
+            nrows = dshape[0]
+
+            rowchunk = nrows//10 if nrows > 1000 else nrows
+            for row0 in range(0,nrows,rowchunk):
+                nr = min(rowchunk,nrows-row0)
+                dshape[0] = nr
+                tab.putcol(colname,numpy.ones(dshape,dtype=valuetype)*init_with,row0,nr)
+
     tab.close()
+
 
 def toJy(val):
     _convert = dict(m=1e-3,u=1e-6,n=1e-9)
@@ -146,6 +215,7 @@ def toJy(val):
         return float(val)*_convert[unit]
     else:
         return float(val.lower().split('jy')[0])
+
 
 def toDeg(val):
     """Convert angle to Deg. returns a float. val must be in form: 2arcsec, 2arcmin, or 2rad"""
@@ -167,6 +237,7 @@ def toDeg(val):
         return float(a)/_convert[b]
     except KeyError: 
         abort('Could not recognise unit [%s]. Please use either arcsec, arcmin, deg or rad'%b)
+
 
 def findImager(path,imager_name=None):
     """ Find imager"""
@@ -193,6 +264,7 @@ def findImager(path,imager_name=None):
 #       return path
     else:
         return False # Exhausted all sensible options, give up. 
+
 
 def swap_stokes_freq(fitsname,freq2stokes=False):
     print 'Checking STOKES and FREQ in FITS file, might need to swap these around.'
@@ -251,6 +323,7 @@ def swap_stokes_freq(fitsname,freq2stokes=False):
         pyfits.writeto(fitsname,np.rollaxis(data,1),hdr,clobber=True)
     return 0
 
+
 def gen_run_cmd(path,options,suf='',assign='=',lv_str=False,pos_args=None):
     """ Generate command line run command """
 
@@ -271,14 +344,20 @@ def gen_run_cmd(path,options,suf='',assign='=',lv_str=False,pos_args=None):
         run_cmd += '%s '%arg
     return run_cmd
 
+
 def icasa(taskname,mult=None,**kw0):
     """ 
       runs a CASA task given a list of options.
       A given task can be run multiple times with a different options, 
-      in this case the options must be parsed as list/tuple of dictionaries via mult, e.g 
+      in this case the options must be parsed as a list/tuple of dictionaries via mult, e.g 
       icasa('exportfits',mult=[{'imagename':'img1.image','fitsimage':'image1.fits},{'imagename':'img2.image','fitsimage':'image2.fits}]). 
       Options you want be common between the multiple commands should be specified as key word args.
     """
+
+    # create temp directory from which to run casapy
+    td = tempfile.mkdtemp(dir='.')
+    # we want get back to the working directory once casapy is launched
+    cdir = os.path.realpath('.')
 
     if mult:
         if isinstance(mult,(tuple,list)):
@@ -292,25 +371,33 @@ def icasa(taskname,mult=None,**kw0):
 
     run_cmd = """ """
     for kw in mult:
-    #    info('runnning CASA $taskname with options:\n $kw \n')
         task_cmds = ''
         for key,val in kw.iteritems():
             if isinstance(val,str):
                  val = '"%s"'%val
             task_cmds += '\n%s=%s'%(key,val)
         run_cmd += """
+import os
+os.chdir('%s')
 taskname = '%s'
 %s
 go()
 
-"""%(taskname,task_cmds)
+"""%(cdir,taskname,task_cmds)
 
     tf = tempfile.NamedTemporaryFile(suffix='.py')
     tf.write(run_cmd)
     tf.flush()
-    #TODO(sphe) There must be a better way to avoid ipython log files  
-    casa_log_time_stamp = "%d%02d%02d-%02d%02d"%(time.gmtime()[:5])
-    x.sh('casapy --nologger --log2term --nologfile -c %s'%(tf.name))
-    # remove CASA's ipython logfile
-    xo.sh('rm -f ipython-%s*.log ${taskname}.last'%casa_log_time_stamp)
+    t0 = time.time()
+    # all logging information will be in the pyxis log files 
+    x.sh('cd $td && casapy --nologger --log2term --nologfile -c %s'%(tf.name))
+
+    # log taskname.last 
+    task_last = '%s.last'%taskname
+    if exists(task_last):
+        with open(task_last,'r') as last:
+            info('${taskname}.last is: \n %s'%last.read() )
+
+    # remove temp directory. This also gets rid of the casa log files; so long suckers!
+    rm_fr(td,task_last)
     tf.close()
