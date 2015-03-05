@@ -13,6 +13,7 @@ import itertools
 import time
 import fnmatch
 import shutil
+import shlex
 
 import Pyxis
 
@@ -51,6 +52,12 @@ PERSIST: if False, then per() commands (such as per_ms) will abort processing on
 per commands will carry on with other items in the list, and will only report the error afterwards.
 """
 
+# set of protected variables -- assignments to these via templates or assign() will be ignored
+_protected_variables = set();
+
+# printed to verbose() after startup
+_verbose_startup_message = None; 
+
 def init (context):
   """init internals, attach to the given context""";
   global _debug
@@ -83,10 +90,11 @@ def init (context):
   _namespaces['v'] = context;
   _superglobals[id(context)] = context;
   # report verbosity
+  global _verbose_startup_message;
   if preset_verbosity is None and context['VERBOSE'] == 1:
-    _verbose(1,"VERBOSE=1 by default");
+    _verbose_startup_message = 1,"VERBOSE=1 by default";
   else:
-    _verbose(1,"VERBOSE=%d"%context['VERBOSE']);
+    _verbose_startup_message = 1,"VERBOSE=%d"%context['VERBOSE'];
   # import matplotlib in fork, disable output if fails
   try:
     import matplotlib
@@ -114,22 +122,22 @@ class ShellExecutor (object):
 used to run that command. The command (and any fixed arguments) are specified in the constructor of 
 the object. ShellExecutors are typically created via the Pyxis x, xo or xz built-ins, e.g. as 
       ls = x.ls 
-      lsl = x.ls("-l")
+      lsl = x.ls.args("-l")
       ls()             # runs "ls"
       dir="./test"
       lsl("$dir")      # runs "ls -l ./test"
       ls(x=1)          # runs "ls x=1"
   """;
   
-  def __init__ (self,name,path,frame,allow_fail=False,get_output=False,bg=False,verbose=1,*args,**kws):
+  def __init__ (self,name,path,frame,allow_fail=False,get_output=False,bg=False,verbose=1,args0=(),kws0={},args1=(),kws1={},doc=False):
     self.name,self.path = name,path;
     self.allow_fail = allow_fail;
     self.bg  = bg;
     self.argframe = frame;
     self.get_output = get_output;
     self.verbose = verbose;
-    doc = kws.pop('doc',None);
-    self._add_args,self._add_kws = list(args),kws;
+    self._pre_args,self._pre_kws = (list(args0),kws0);
+    self._post_args,self._post_kws = (list(args1),kws1);
     self.__doc__ = "(Shell command: %s)"%str(self);
     if doc is not None:
       self.doc(doc);
@@ -143,13 +151,20 @@ the object. ShellExecutors are typically created via the Pyxis x, xo or xz built
     
   def args (self,*args,**kws):
     """Creates instance of executor with additional args. Local variables of caller are interpolated."""
-    args0,kws0 = interpolate_args(self._add_args,self._add_kws,self.argframe);
+    args0,kws0 = interpolate_args(self._pre_args,self._pre_kws,self.argframe);
+    args1,kws1 = interpolate_args(self._post_args,self._post_kws,self.argframe);
+    before = kws.pop("before",None);
+    after = kws.pop("after",None);
     kws0.update(kws);
+    if before is not None:
+      args0 += [ before ] if isinstance(before,str) else list(before);
+    if after is not None:
+      args1 += [ after ] if isinstance(after,str) else list(after);
     return ShellExecutor(self.name,self.path,inspect.currentframe().f_back,self.allow_fail,
-        self.get_output,self.bg,self.verbose,*(args0+list(args)),**kws0);
-    
+        self.get_output,self.bg,self.verbose,(args0+list(args)),kws0,args1,kws1);
+
   def __str__ (self):
-    return " ".join([self.path or ""]+self._add_args+["%s=%s"%(a,b) for a,b in self._add_kws.iteritems()]);
+    return " ".join([self.path or ""]+self._pre_args+["%s=%s"%(a,b) for a,b in self._pre_kws.iteritems()]);
     
   def __repr__ (self):
     return "ShellExecutor: %s"%str(self);
@@ -162,10 +177,12 @@ the object. ShellExecutors are typically created via the Pyxis x, xo or xz built
         _abort("PYXIS: shell command '%s' not found"%self.name);
       _warn("PYXIS: shell command '%s' not found"%self.name);
     else:
-      args0,kws0 = interpolate_args(self._add_args,self._add_kws,self.argframe,convert_lists=True);
+      args0,kws0 = interpolate_args(self._pre_args,self._pre_kws,self.argframe,convert_lists=True);
+      args1,kws1 = interpolate_args(self._post_args,self._post_kws,self.argframe,convert_lists=True);
       args,kws = interpolate_args(args,kws,inspect.currentframe().f_back,convert_lists=True);
       kws0.update(kws);
-      return _call_exec(self.path,get_output=self.get_output,allow_fail=self.allow_fail,bg=self.bg,verbose=self.verbose,*(args0+args),**kws0);
+      return _call_exec(self.path,get_output=self.get_output,allow_fail=self.allow_fail,bg=self.bg,verbose=self.verbose,
+        args=args0+args+args1,kws1=kws1,**kws0);
 
 class ShellExecutorFactory (object):
   """This object can be used to create proxies for shell commands called ShellExecutors."""
@@ -199,10 +216,12 @@ class ShellExecutorFactory (object):
     """An alternative way to make ShellExecutors, e.g. as x("command arg1 arg2").
     Useful when the command contains e.g. dots or slashes, thus making the x.command syntax unsuitable."""
 #    args,kws = interpolate_args(args,kws,inspect.currentframe().f_back);
-    if len(args) == 1:
+    if len(args) < 1:
+      _abort("can't call %s without arguments"%self.__name__);
+    elif len(args) == 1:
       args = args[0].split(" ");
     return ShellExecutor(args[0],args[0],None,allow_fail=self.allow_fail,bg=self.bg,
-                verbose=self.verbose,get_output=self.get_output,*args[1:],**kws);
+                verbose=self.verbose,get_output=self.get_output,args0=args[1:],kws0=kws);
     
   def sh (self,*args,**kws):
     """Directly invokes the shell with a command and arguments"""
@@ -226,11 +245,10 @@ class ShellExecutorFactory (object):
       sys.stderr.write(err_output);
     else:
       po.wait();
-      output = None;
+      output = po.returncode;
     if po.returncode:
       if self.allow_fail:
         _warn("PYXIS: '%s' returns error code %d"%(commands[0],po.returncode));
-        return;
       else:
         _abort("PYXIS: '%s' returns error code %d"%(commands[0],po.returncode));
     else:
@@ -383,9 +401,9 @@ def interpolate (arg,frame,depth=1,ignore=set(),skip=set(),convert_lists=False):
   else:
     return arg;
 
-# RE pattern matching the [PREFIX<][NAMESPACES.]NAME[?DEFAULT][:BASE|DIR][>SUFFIX] syntax
+# RE pattern matching the [PREFIX<][NAMESPACES.]NAME[?DEFAULT][:BASE|DIR|FILE|BASEPATH][>SUFFIX] syntax
 _substpattern = \
-  "(?i)((?P<prefix>[^{}]+)<)?(?P<name>[._a-z][._a-z0-9]*)(\\?(?P<defval>[^}\\$]*?))?(:(?P<command>BASE|DIR|FILE))?(>(?P<suffix>[^{}]+))?"
+  "(?i)((?P<prefix>[^{}]+)<)?(?P<name>[._a-z][._a-z0-9]*)(\\?(?P<defval>[^}\\$]*?))?(:(?P<command>BASE|DIR|FILE|BASEPATH))?(>(?P<suffix>[^{}]+))?"
     
 class SmartTemplate (string.Template):
   pattern = "(?P<escaped>\\$\\$)|(\\$(?P<named>[_a-z][_a-z0-9]*))|(\\${(?P<braced>%s)})|(?P<invalid>\\$)"%_substpattern;
@@ -421,11 +439,17 @@ class DictProxy (object):
       value = defval;
     # check for commands
     if isinstance(value,str) and command:
+      # for dir/file.ext, returns "file"
       if command.upper() == "BASE":
         value = value and os.path.basename(value);
         value = value and os.path.splitext(value)[0];
+      # for dir/file.ext, returns "dir/file"
+      elif command.upper() == "BASEPATH":
+        value = value and os.path.splitext(value)[0];
+      # for dir/file.ext, returns "dir"
       elif command.upper() == "DIR":
         value = (value and os.path.dirname(value)) or ".";
+      # for dir/file.ext, returns "file.ext"
       elif command.upper() == "FILE":
         value = value and os.path.basename(value);
     return (prefix or "")+str(value)+(suffix or "") if value not in ('',None) else "";
@@ -452,6 +476,10 @@ def assign (name,value,namespace=None,default_namespace=None,interpolate=True,fr
   if not namespace:
     namespace,name = _resolve_namespace(name,frame,default_namespace,autoimport=autoimport);
   modname = namespace.get('__name__',"???") if namespace is not Pyxis.Context else "v";
+    # skip protected variables in global context
+  if name in namespace.setdefault('__pyxis_protected_variables',set()):
+    _verbose(verbose_level,"ignoring assign('%s.%s',...): protected variable"%(modname,name));
+    return;
   # interpolate if asked to, unless this is a template, which are never interpolated
   if interpolate and not name.endswith("_Template"):
     value1 = Pyxis.Internals.interpolate(value,frame);
@@ -473,7 +501,8 @@ def assign (name,value,namespace=None,default_namespace=None,interpolate=True,fr
     namespaces += [ ns for ns in _namespaces.itervalues() if name in _superglobals.get(id(ns)) and ns is not namespace ];
   # now assign
   for ns in namespaces:
-    _verbose(verbose_level,"setting %s.%s=%s"%(ns['__name__'] if ns is not Pyxis.Context else "v",name,value1));
+    nsname = ns['__name__'] if ns is not Pyxis.Context else "v";
+    _verbose(verbose_level,"setting %s.%s=%s"%(nsname,name,value1));
     ns[name] = value1;
     # if assigning a template, make sure the template is re-enabled
     if name.endswith("_Template"):
@@ -554,8 +583,12 @@ def assign_templates ():
       # interpolate new values for each variable that has a _Template equivalent
       for var,value in list(context.iteritems()):
         if var.endswith("_Template"):
-          # get old value of variable
           varname = var[:-len("_Template")];
+          # skip protected variables in global context
+          if varname in context.setdefault('__pyxis_protected_variables',set()):
+            _verbose(3,"ignoring template assignment of %s.%s: protected variable"%(modname,varname));
+            continue;
+          # get old value of variable
           oldvalue = varvalue = context.get(varname);
           # check if template is defined in the wrong place, superglobal templates must be defined
           # in the superglobal context
@@ -704,28 +737,32 @@ def set_logfile (filename,quiet=False):
 _initconf_done = False;  
 _config_files = [];
 
-def initconf (force=False,*files):
-  """Loads configuration from specified files, or from default file""";
+def initconf (force=False,files=[],directory="."):
+  """Loads configuration from specified files, and/or from default files (in directory, if directory is not None)""";
 #  print "initconf",force,Pyxis.Context.get("PYXIS_LOAD_CONFIG",True);
   if not force and not Pyxis.Context.get("PYXIS_LOAD_CONFIG",True):
     return;
   global _initconf_done;
   if not _initconf_done:
     _initconf_done = True;
-  if not files:
-    files = glob.glob("pyxis*.py") + glob.glob("pyxis*.conf");
+  if files:
+    _verbose(1,"loading config files and scripts:",*files)
+  if directory:
+    autofiles = glob.glob("%s/pyxis*.py"%directory) + glob.glob("%s/pyxis*.conf"%directory);
+    if autofiles:
+      _verbose(1,"auto-loading from %s:"%directory,*[ f.rsplit("/",1)[-1] for f in autofiles ]);
+      files = list(files) + autofiles;
   global _config_files;
   _config_files = files;
   # remember current set of globals
   oldsyms = frozenset(Pyxis.Context.iterkeys());
   # load config files -- all variable assignments go into the Pyxis.Context scope
-  if files:
-    if force:
-      _verbose(1,"auto-loading config files and scripts from 'pyxis*.{py,conf}'");
-    else:
-      _verbose(1,"auto-loading config files and scripts from 'pyxis*.{py,conf}'. Preset PYXIS_LOAD_CONFIG=False to disable.");
-  for filename in files:
-    Pyxis.Commands.loadconf(filename,inspect.currentframe().f_back);
+  cwd = os.getcwd();
+  try:
+    for filename in files:
+      Pyxis.Commands.loadconf(filename,inspect.currentframe().f_back,chdir=True);
+  finally:
+    os.chdir(cwd);
   assign_templates();
   # report on global symbols
   report_symbols("global",[],
@@ -738,11 +775,11 @@ def initconf (force=False,*files):
     for mod in toplevel:
       Pyxis.Context[mod] = sys.modules.get(mod,sys.modules.get("Pyxides."+m));
   
-def loadconf (filename,frame=None):
+def loadconf (filename,frame=None,chdir=True):
   """Loads config file""";
   filename = interpolate(filename,frame or inspect.currentframe().f_back);
-  _verbose(1,"loading %s"%filename);
-  load_package(os.path.splitext(os.path.basename(filename))[0],filename);
+  _verbose(2,"loading %s"%filename);
+  load_package(os.path.splitext(os.path.basename(filename))[0],filename,chdir=chdir);
   
   
 def saveconf ():
@@ -763,11 +800,18 @@ def saveconf ():
         shutil.copyfile(ff,dest);
   
 
-def load_package (pkgname,filename,report=True):
+def load_package (pkgname,filename,chdir=True,report=True):
   """Loads 'package' file into the Context namespace and reports on new global symbols"""
 #  oldstuff = Pyxis.Context.copy();
   try:
-    exec(file(filename),Pyxis.Context);
+    oldpath = list(sys.path);
+    dirname = os.path.dirname(filename);
+    if dirname not in oldpath:
+      sys.path.append(dirname);
+    try:
+      exec(file(filename),Pyxis.Context);
+    finally:
+      sys.path = oldpath;
   except SystemExit:
     raise;
   except KeyboardInterrupt:
@@ -827,26 +871,27 @@ def find_exec (cmd):
   
 _bg_processes = [];  
   
-def _call_exec (path,*args,**kws):
+def _call_exec (path,args,kws1={},**kws):
   """Helper function: calls external program with the given arguments and keywords
   (each kw dict element is turned into a name=value argument)""";
   allow_fail = kws.pop('allow_fail',False);
   bg = kws.pop('bg',False);
   verbose = kws.pop('verbose',1);
   get_output = kws.pop('get_output',None);
+  quiet = kws.pop('quiet',None);
   # default is to split each argument at whitespace, but split_args=False passes them as-is
   split = kws.pop('split_args',True);
   # build list of arguments
   args1 = [path];
   if split:
     for arg in args:
-      args1 += arg.split(" ") if isinstance(arg,str) else [ str(arg) ];
+      args1 += shlex.split(arg) if isinstance(arg,str) else [ str(arg) ];
     # eliminate empty strings
     args1 = [ x for x in args1 if x ];
   else:
     args1 += map(str,args);
   # eliminate empty strings when splitting
-  args = args1+["%s=%s"%(a,b) for a,b in kws.iteritems()];
+  args = args1 + ["%s=%s"%(a,b) for a,b in kws.iteritems()] + ["%s=%s"%(a,b) for a,b in kws1.iteritems()];
   # if command is 'time', then actual command is second argument
   cmdname = args[1] if args[0] == "time" or args[0] == "/usr/bin/time" else args[0];
   # run command
@@ -860,6 +905,8 @@ def _call_exec (path,*args,**kws):
   else:
     _verbose(verbose,"executing '%s':"%(" ".join(args)));
     stdout,stderr = sys.stdout,sys.stderr;
+    if quiet:
+      stdout = stderr = file('/dev/null','w')
     # if stdout/stderr is not a file (as is the case under ipython notebook, then
     # subprocess.Popen() fails. Therefore, in these cases, or if get_output is true, we
     # pipe the output into here via communicate()
@@ -877,11 +924,11 @@ def _call_exec (path,*args,**kws):
       sys.stderr.write(err_output);
     else:
       po.wait();
-      output = err_output = None;
+      output = po.returncode;
+      err_output = None;
     if po.returncode:
       if allow_fail:
         _warn("%s returned error code %d"%(cmdname,po.returncode));
-        return;
       else:
         _abort("%s returned error code %d"%(cmdname,po.returncode));
     else:
@@ -911,6 +958,7 @@ def _autoimport (modname):
   if modname not in _namespaces:
     _verbose(1,"auto-importing module %s"%modname);
     Pyxis.Context[modname] = __import__(modname,Pyxis.Context);
+    assign_templates();
     
     
 _re_mod_command = re.compile("^(\w[\w.]+)\\.(\w+)$");
@@ -944,7 +992,7 @@ def find_command (comname,frame=None,autoimport=True):
   if path is None:
     _abort("undefined command '%s'"%comname);
   # make callable for this shell command
-  return lambda *args:_call_exec(path,allow_fail=allow_fail,*args);
+  return lambda *args:_call_exec(path,allow_fail=allow_fail,args=args);
 
 _re_assign = re.compile("^(\w[\w.]*)(\\+?=)(.*)$");
 _re_command1 = re.compile("^(\\??\w[\w.]*)\\[(.*)\\]$");
@@ -959,13 +1007,16 @@ def _parse_cmdline_value (value):
   
   Argument:              Corresponding Python code:
   ---------              --------------------------
-  VAR=x                  VAR = "x" if superglobal x is undefined, else VAR=x
+  VAR=x                  VAR = "x"    if superglobal x is undefined, else VAR=x
   "VAR='x'"              VAR = "x"    note that shell will swallow the outer quotes
+  VAR=:x:                VAR = "x"    leading/trailing colon striped -- makes it easier to pass literal strings from the shell
   VAR=1                  VAR = 1
   VAR=complex(1)         VAR = 1+0j
   "VAR=dict(x='y')"      VAR = dict(x='y')
   VAR=x=1                VAR = "x=1"
   """
+  if len(value)>1 and value[0] == ':' and value[-1] == ":":
+    return value[1:-1];
   try:
     return eval(value,Pyxis.Context);
   except:

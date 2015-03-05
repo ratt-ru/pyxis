@@ -44,14 +44,14 @@ def report_elapsed (ts0):
   h = ts0//3600;
   m = (ts0-h*3600)//60;
   s = ts0%60;     
-  info("Elapsed time is %dh%dm%.2fs"%(h,m,s));
+  info("elapsed time is %dh%dm%.2fs"%(h,m,s));
 
 if __name__ == "__main__":
 
   # setup some standard command-line option parsing
   #
-  from optparse import OptionParser
-  parser = OptionParser(usage="""%prog: [options] a=value command1 b=value c=value command2 ...""",
+  import optparse
+  parser = optparse.OptionParser(usage="""%prog: [options] [receipes and config files] a=value command1 b=value c=value command2 ...""",
     description="Runs a sequence of reduction commands",add_help_option=True);
   parser.add_option("-v","--verbose",type="int",default=None,metavar="LEVEL",
                     help="verbosity level, default is 1. Equivalent to VERBOSE=LEVEL");
@@ -60,101 +60,207 @@ if __name__ == "__main__":
                     "when logging to file. Implies --verbose 0 unless explicitly set.");
   parser.add_option("-D","--doc",type="string",metavar="NAME",
                     help="prints documentation on function or module NAME, then exits");
-  parser.add_option("-n","--no-log",action="store_true",
-                    help="disable logging: ignore assignments to LOG and send all output to console.\n"
-                    "Equivalent to LOG_DISABLE=True.");
+  parser.add_option("-i","--interactive",action="store_true",
+                    help="interactive mode: ignore assignments to LOG and send all output to console, disable screen sessions and pausing on exit.\n"
+                    "Equivalent to LOG_DISABLE=True SPAWN_SCREEN=False PAUSE_ON_EXIT=False");
   parser.add_option("--log",type="string",metavar="FILENAME",
-                    help="log output to file. Equivalent to LOG=FILENAME.");
+                    help="log output to file. Equivalent to LOG=FILENAME. Overrides any config file LOG settings.");
   parser.add_option("-l","--default-log",dest="default_log",action="store_true",
-                    help="log output to default log file default.log");
+                    help="log output to default log file default.log. Overrides any config file LOG settings.");
   parser.add_option("-f","--flush-log",dest="flush_log",action="store_true",
                     help="flush old logfiles. Default is to append to existing logs.\n"
                     "Equivalent to LOG_FLUSH=True.");
-  parser.add_option("-j","--jobs",type="int",metavar="N",default=1,
+  parser.add_option("--running-in-screen",action="store_true",
+                    help=optparse.SUPPRESS_HELP);
+  parser.add_option("-s","--scripts-dir",type="string",metavar="SCRIPTS_DIR",default='.',
+                    help="Loads Pyxis recipes & configs from alternate directory, default is current directory.");
+  parser.add_option("-A","--no-auto-load",action="store_true",
+                    help="Disables automatic loading of recipes and configs from SCRIPTS_DIR.");
+  parser.add_option("-P","--path",type="string",action="append",
+                    help="Add PATH to PYTHONPATH when loading scripts.");
+  parser.add_option("-j","--jobs",type="int",metavar="N",
                     help="run up to N jobs in parallel. Equivalent to JOBS=N.");
   parser.add_option("-p","--persist",action="store_true",
                     help="Persist with per-lists as far as possible on error. Equivalent to PERSIST=1.");
   parser.add_option("-o","--outdir",type="string",metavar="DIR",
-                    help="direct outputs to subdirectory. Equivalent to OUTDIR=DIR.");
+                    help="redirect all outputs to subdirectory. Equivalent to OUTDIR=DIR. Overrides any config file OUTDIR settings.");
+  parser.add_option("-w","--wrapup",type="string",metavar="COMMAND",action="append",
+                    help="executes command on exit, regardless of success or failure. Can be specified multiple times for multiple commands.");
   parser.add_option("-x","--no-x11",action="store_true",
                     help="explicitly disable X11 connections. Equivalent to NO_X11=True.\n"
                     "HIGHLY RECOMMENDED for offline jobs, as some tools (e.g. matplolib) like\n"
                     "to open needless X11 connections, then crash if the X server becomes\n"
                     "unavailable. This is the default when running under a 'screen' session.");
   parser.add_option("-X","--x11",action="store_true",
-                    help="do not disable X11 connections when running under a 'screen' session.");
+                    help="do not disable X11 connections when running under a screen or tmux session.");
+  parser.add_option("-S","--screen",action="store_true",
+                    help="automatically spawn a screen session to run the commands. Equivalent to SPAWN_SCREEN=True.");
+  parser.add_option("-T","--screen-title",type="string",metavar="TITLE",
+                    help="title of screen session. Equivalent to SPAWN_SCREEN_TITLE=TITLE. Default is formed from current directory name.");                    
+  parser.add_option("--detach",action="store_true",
+                    help="detach screen session immediately. Equivalent to SPAWN_SCREEN_DETACH=True. Default is to stay attached to the session."); 
+  parser.add_option("--no-screen-log",action="store_true",
+                      help="disable logging of screen sessions (normally screen is run with -L to enable logging). Equivalent to SPAWN_SCREEN_LOG=False.");
+  parser.add_option("--pause-on-exit",action="store_true",
+                    help="pauses before exiting. Equivalent to PAUSE_ON_EXIT=True. Useful when automatically spawning a screen session.");
                     
 
   (options,args) = parser.parse_args();
-
   # set up variables from options before import
   if options.doc:
     options.quiet = True;
-  LOG_DISABLE = options.no_log or options.doc;
+  LOG_DISABLE = options.interactive or options.doc;
   if options.outdir:
     OUTDIR = options.outdir;
-  if not options.doc and not options.no_log:
+  if not options.doc and not options.interactive:
     if options.log:
       LOG = options.log;
 #    Pyxis.assign("LOG",options.log);
     elif options.default_log:
-      LOG = os.path.join(OUTDIR,"default.log") if OUTDIR else "default.log";
+      LOG = os.path.join(globals().get("OUTDIR","."),"default.log");
+  if options.screen_title:
+    SPAWN_SCREEN_TITLE = options.screen_title;
+
+  if options.path:
+    sys.path += options.path;
   
-  in_screen = os.environ.get("STY") and not options.x11;
-  
-  NO_X11 = options.no_x11 or in_screen;
+  in_screen = os.environ.get("STY") or os.environ.get("TMUX");
+
+  NO_X11 = not options.x11 and ( options.no_x11 or in_screen );
   if NO_X11:
     os.environ.pop('DISPLAY',None);
-  JOBS = options.jobs
+  JOBS = options.jobs or 1;
   QUIET = options.quiet; 
   PERSIST = options.persist;
+  SPAWN_SCREEN = options.screen;
+  SPAWN_SCREEN_LOG = not options.no_screen_log;
+  SPAWN_SCREEN_DETACH = options.detach;
+  PAUSE_ON_EXIT = options.pause_on_exit;
   if options.verbose is None:
     if options.quiet:
       VERBOSE = -1;
   else:
     VERBOSE = options.verbose;
-      
+    
+  # protect these variables down below from being reassigned in configs, if set from command line
+  presets = set([varname for varname in 
+    'OUTDIR','LOG','SPAWN_SCREEN_TITLE',
+    if varname in globals() ])
+
   import Pyxis
   import Pyxis.Internals
   import Pyxis.Commands
 
-  if options.no_log:
-    verbose(-99,"running with --no-log: assignments to LOG will be disabled and all output will go to the console");
+  # sort remaining arguments into recipes, configs, commands and MSs
+  mslist = []
+  commands = []
+  recipes = []
+  
+  for arg in args:
+    if Pyxis.Internals._re_assign.match(arg):
+      commands.append(arg);
+    elif re.match(".*\\.(MS|ms)/?$",arg):
+      if arg.endswith("/"):
+        arg = arg[:-1];
+#      assign("MS",arg);
+      mslist.append(arg);
+    elif re.match(".*\\.(py|conf)$",arg):
+      recipes.append(arg);
+    else:
+      commands.append(arg);
+      
+  if options.interactive:
+    verbose(-99,"running with --interactive: assignments to LOG will be disabled and all output will go to the console");
   if in_screen and not options.no_x11:
-    verbose(-99,"screen session detected: auto-disabling X11 connections. Run with the -X option to reenable.")
+    verbose(-99,"screen/tmux session detected: auto-disabling X11 connections. Run with the -X option to reenable.")
 
   LOG_HEADER = cmdline = time.strftime("## %c:\n")+" ".join(sys.argv);  
   LOG_FLUSH = options.flush_log;
 
-  # init configuration. This preloads pyxis-*.
+  # protect preset variables while config is being loaded
+  __pyxis_protected_variables = set(presets);
+
+  # init configuration. This preloads pyxis-* fro SCRIPTS_DIR, and any files specified on the command line
   PYXIS_LOAD_CONFIG = True
-  Pyxis.Internals.initconf();
+  # Allow loading of recipes from different directories
+  if options.no_auto_load:
+    Pyxis.Internals.initconf(files=recipes,directory=None);
+  else:
+    scripts_dirs = options.scripts_dir or ['.']
+    for scripts_dir in scripts_dirs:
+       Pyxis.Internals.initconf(files=recipes,directory=scripts_dir);
+
+  # unprotect variables
+  __pyxis_protected_variables -= presets;
 
   # print docs and exit, if -d option
   if options.doc:
     Pyxis.Internals.print_doc(options.doc);
     sys.exit(0);
   
+  # re-apply command-line options that take priority over config default
+  if options.persist:
+    PERSIST = True;
+  if options.screen:
+    SPAWN_SCREEN = True;
+  if options.interactive:
+    SPAWN_SCREEN and verbose(-99,"--interactive specified, ignoring SPAWN_SCREEN setting.")
+    PAUSE_ON_EXIT and verbose(-99,"--interactive specified, ignoring PAUSE_ON_EXIT setting.")
+    SPAWN_SCREEN = PAUSE_ON_EXIT = False;
+  if options.no_screen_log:
+    SPAWN_SCREEN_LOG = False;
+  if options.pause_on_exit:
+    PAUSE_ON_EXIT = True;
+  if options.verbose is not None:
+    VERBOSE = options.verbose;
+  elif options.quiet:
+    VERBOSE = -1;
+
   # make output directory
   if OUTDIR:
     makedir(OUTDIR,no_interpolate=True);
-  file((OUTDIR or '.')+"/pyxis.log","a").write(cmdline+"\n");
+  if not options.running_in_screen:
+    pyxislog = (OUTDIR or '.')+"/pyxis.log"
+    try:
+      file(pyxislog,'a').write(cmdline+"\n");
+    except:
+      verbose(-99,"error writing to $pyxislog, perhaps no write permissions? Proceeding anyway.")
+    
+  # respawn in screen, if asked to, and not already running under screen
+  if commands and SPAWN_SCREEN and not options.running_in_screen:
+      import distutils.spawn
+      if isinstance(SPAWN_SCREEN,str):
+        if os.path.isfile(screenpath) and os.access(screenpath,os.X_OK):
+          screenpath = SPAWN_SCREEN;
+          verbose(-99,"using explicitily set $SPAWN_SCREEN to run a screen session.");
+        else:
+          screenpath = None;
+          verbose(-99,"SPAWN_SCREEN=$SPAWN_SCREEN does not refer to a valid executable, running without screen.");
+      else:
+        screenpath = distutils.spawn.find_executable("screen")
+        if not screenpath:
+          verbose(-99,"screen binary not found in system path. Install screen, or set SPAWN_SCREEN to an explicit path.");
+      if screenpath:
+        cwd = os.getcwd();
+        homedir = os.path.expanduser("~");
+        if cwd.startswith(homedir):
+          cwd = cwd[len(homedir):];
+        title = globals().get("SPAWN_SCREEN_TITLE","pyxis"+cwd.replace("/","-"));
+        args = [ "screen","-m","-S",title ];
+        verbose(-99,"launching %sscreen session: $title"%("detached " if SPAWN_SCREEN_DETACH else""));
+        if SPAWN_SCREEN_DETACH:
+          verbose(-99,"use screen -r $title to attach to the session");
+          args.append("-d");
+        if SPAWN_SCREEN_LOG:
+          args.append("-L");
+        args += sys.argv;
+        args.append("--running-in-screen");
+        if PAUSE_ON_EXIT and "--pause-on-exit" not in args:
+          args.append("--pause-on-exit");
+        os.execv(screenpath,args);
+
   Pyxis.Internals.saveconf();
  
-  # sort arguments into commands and MSs
-  mslist = []
-  commands = []
-  
-  # add other commands
-  for arg in args:
-    if not Pyxis.Internals._re_assign.match(arg) and re.match(".*\\.(MS|ms)/?$",arg):
-      if arg.endswith("/"):
-        arg = arg[:-1];
-#      assign("MS",arg);
-      mslist.append(arg);
-    else:
-      commands.append(arg);
-      
   # MS list from command line overrides defaults
   if mslist:
     info("setting MS list to",*mslist);
@@ -191,12 +297,41 @@ if __name__ == "__main__":
         error("aborted with Ctrl+C");
       retcode = 130;
  
+  wrapfail = None;
+  # check that we're not in a subprocess -- exit quietly if so, else go wrap things up
   if Pyxis.Commands._subprocess_id is None:
+    # execute wrapup commands
+    if options.wrapup:
+      try:
+        Pyxis.Internals.run(*options.wrapup);
+      except Exception:
+        if sys.stdout is not sys.__stdout__:
+          traceback.print_exc();
+          error("Exception raised during wrapup command");
+          Pyxis.Internals.flush_log();
+        sys.stdout = sys.__stdout__;
+        sys.stderr = sys.__stderr__;
+        traceback.print_exc();
+        error("Exception raised during wrapup command");
+        wrapfail = "failed with an exception";
+      except SystemExit,exc:
+        wrapfail = "exited with code %d"%exc.code;
+      except KeyboardInterrupt:
+        if Pyxis.Commands._subprocess_id is None:
+          error("Wrapup command aborted with Ctrl+C");
+        wrapfail = "been interrupted with Ctrl+C";
+    
+    # print status
     if not retcode:
       info("all commands have executed successfully");
+      if wrapfail:
+        info("  (though wrapup commands have $wrapfail)");
     else:
       error("exiting with error code %d, check the logs for errors"%retcode);
-  
+      if wrapfail:
+        info("  (and wrapup commands have $wrapfail");
+
+    # close log
     logobj,logfile = Pyxis.Internals.get_logfile();
     if logobj:
       Pyxis.Internals.set_logfile(None,quiet=True);
@@ -204,6 +339,11 @@ if __name__ == "__main__":
     
     report_elapsed(ts0);
   
+    # pause on exit?
+    if PAUSE_ON_EXIT:
+      verbose(-99,"--pause-on-exit or PAUSE_ON_EXIT set. Press ENTER to exit.")
+      sys.stdin.readline();
+
   sys.exit(retcode);
       
       

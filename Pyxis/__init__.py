@@ -24,6 +24,8 @@ if not _initialized:
   from Pyxis.Commands import *
  
   verbose(1,"===[ Pyxis: Python eXtensions for Inteferometry Scripting (C) 2013 by Oleg Smirnov <oms@ska.ac.za> ]===");
+  if Pyxis.Internals._verbose_startup_message:
+    verbose(*Pyxis.Internals._verbose_startup_message);
 
   # import basic Pyxis commands into the context
   verbose(1,"loading Pyxis into context '%s'"%_context.get('__name__'));

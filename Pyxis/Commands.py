@@ -317,7 +317,7 @@ def _per (varname,parallel,*commands):
               traceback.print_exc();
               _verbose(2,"job #%d (pid %d: %s=%s) exiting with error code 1"%(_subprocess_id,os.getpid(),varname,value),sync=True);
               _restore();
-              _verbose(2,"log is",Pyxis.Context['LOG'],sync=True);
+              _verbose(2,"logfile is",Pyxis.Context.get('LOG'),sync=True);
               _error("per-loop failed for %s"%value,sync=True);
               sys.exit(1);
             _verbose(2,"job #%d (pid %d) exiting normally"%(_subprocess_id,os.getpid()),sync=True);
