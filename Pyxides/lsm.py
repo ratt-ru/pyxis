@@ -59,7 +59,7 @@ def pybdsm_search (image="${imager.RESTORED_IMAGE}",output="$PYBDSM_OUTPUT",pol=
   # run pybdsm
   info("running PyBDSM process_image($image,%s)"%",".join(sorted([ "%s=%s"%x for x in opts.iteritems() ])));
   from lofar import bdsm
-  img = bdsm.process_image(image,**kw);
+  img = bdsm.process_image(image,**opts);
   info("writing PyBDSM gaul catalog");
   img.write_catalog(outfile=gaul,format='ascii',catalog_type='gaul',clobber=True);
   # add log to output
