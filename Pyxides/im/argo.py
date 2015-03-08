@@ -142,7 +142,6 @@ def splitfits(fitsname,chunks,axis=None,ctype=None,prefix=None):
 
         _slice = [slice(None)]*naxis
         _slice[axis] = range(i*chunks,(i+1)*chunks if i+1!=nchunks else nstacks)
-	warn(data.shape,_slice)
         hdu[0].data = data[_slice]
         hdu[0].header['CRVAL%d'%(naxis-axis)] = crval + i*cdelt*chunks
         hdu[0].header['CRPIX%d'%(naxis-axis)] = 1
