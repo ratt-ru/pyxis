@@ -61,3 +61,4 @@ def msrun (script="$SCRIPT",job="$JOB",config="$TDLCONFIG",section="$SECTION",ar
     args = [ """${ms.MS_TDL} ${ms.CHAN_TDL} ms_sel.ms_ifr_subset_str=${ms.IFRS}""" ] + list(args),
     options=options); 
 
+document_globals(msrun,"MULTITHREAD EXTRA_TDLOPTS SCRIPT JOB SECTION TDLCONFIG");
