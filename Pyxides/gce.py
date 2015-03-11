@@ -113,9 +113,9 @@ def init_vm (vmname="$VM_NAME",vmtype="$VM_TYPE",
   for key,value in kw.iteritems():
     if key.startswith("attach_"):
       if isinstance(value,dict):
-        attach_disk(key[len("attach_"):],**value);
+        attach_disk(key[len("attach_"):],vmname=vmname,**value);
       elif isinstance(value,int):
-        attach_disk(key[len("attach_"):],size=value);
+        attach_disk(key[len("attach_"):],size=value,vmname=vmname);
       else:
       	raise TypeError,"unknown data type for %s"%key;
   # provision with pyxis scripts in specified directory
