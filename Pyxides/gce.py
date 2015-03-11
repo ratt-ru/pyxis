@@ -122,7 +122,7 @@ def init_vm (vmname="$VM_NAME",vmtype="$VM_TYPE",
   if propagate:
     propagate_scripts(name,dir=propagate if isinstance(propagate,str) else "");
 
-document_globals(init_vm,"VM_* PROJECT ZONE");
+document_globals(init_vm,"VM_NAME VM_TYPE VM_SNAPSHOT VM_DATADISKSIZE PROJECT ZONE");
 
 def rsh (command,vmname='$VM_NAME',bg=False):
   """Executes a command on a VM""";
@@ -241,30 +241,44 @@ def get_vms ():
 document_globals(get_vms,"PROJECT ZONE");
 
 def list_vms ():
+  """prints list of all VMs in zone""";
   gc("instances list");
+document_globals(list_vms,"PROJECT ZONE");
 
 def get_snapshots (pattern="*"):
+  """returns list of all snapshots in zone""";
   a = [ x.split(None,1) for x in gcr1("snapshots list").split("\n")[1:] if x ];
   return dict([ x for x in a if fnmatch.fnmatch(x[0],pattern) ]);
+document_globals(get_snapshots,"PROJECT ZONE");
 
 def list_snapshots ():
+  """prints list of all snapshots in zone""";
   gc1("snapshots list");
+document_globals(list_snapshots,"PROJECT ZONE");
 
 def get_disks ():
+  """returns list of all disks in zone""";
   return dict([ x.split(None,1) for x in gcr("disks list").split("\n")[1:] if x])
+document_globals(get_disks,"PROJECT ZONE");
 
 def list_disks ():
+  """prints list of all disks in zone""";
   gc("disks list");
   # vms = get_disks().items();
   # for name,data in sorted(vms):
   #   info("disk $name: $data");
+document_globals(list_disks,"PROJECT ZONE");
 
 def list_machine_types ():
+  """prints list of all VM types available in zone (i.e. possible VM_TYPE settings)""";
   gc("machine-types list");
+document_globals(list_machine_types,"PROJECT ZONE");
 
 def delete_disk (*disknames):
+  """deletes the specified disk(s)"""
   for disk in disknames:
     gc("disks delete $disk --quiet");
+document_globals(delete_disk,"PROJECT ZONE");
 
 def delete_vm (vmname="$VM_NAME",disks=True):
   """Deletes a GCE VM instance. If disks=True, deletes associated data disks.""";
@@ -275,12 +289,17 @@ def delete_vm (vmname="$VM_NAME",disks=True):
     for key,value in get_disks().iteritems():
       if key.startswith(name+"-"):
         gc("disks delete $key --quiet");
+document_globals(delete_vm,"VM_NAME PROJECT ZONE");
 
 
 def wrapup ():
+  """Helper function run on remote VMs to wrap up (i.e. if wrapup=True is given to gce.rpyxis()). Copies
+  outputs to cloud storage and shuts down the VM.
+  """
   files = [ f for f in glob.glob("/var/log/syslog*") + 
             glob.glob(II("$OUTDIR/*txt")) +
             glob.glob(os.path.expanduser("~/screenlog.*")) if exists(f) ];
   if files:
     gcpo("%s $VM_OUTPUT_BUCKET"%" ".join(files));
   x.sh("sudo poweroff")
+document_globals(wrapup,"VM_NAME VM_OUTPUT_BUCKET OUTDIR");
