@@ -28,11 +28,13 @@ def_global('EXTRA_TDLOPTS',"","extra options passed to all TDL scripts");
 
 ## pipeliner tool
 pipeliner = x.time.args("meqtree-pipeliner.py");
-
+pipeliner_mprof = x.mprof.args("run --python meqtree-pipeliner.py");
 def_global("SCRIPT",None,"default TDL script");
 def_global("JOB",None,"default TDL job to run");
 def_global("SECTION",None,"default section to use in TDL config file");
 def_global("TDLCONFIG","tdlconf.profiles","default TDL config file",config=True);
+
+def_global("MEMPROF",False,"if True, runs python memory profiling");
 
 def run (script="$SCRIPT",job="$JOB",config="$TDLCONFIG",section="$SECTION",args=[],options={}):
   """Uses meqtree-pipeliner to compile the specified MeqTrees 'script', using 'config' file and config 'section',
@@ -44,12 +46,15 @@ def run (script="$SCRIPT",job="$JOB",config="$TDLCONFIG",section="$SECTION",args
   pass extra arguments as key=value.""";
   script,job,config,section = interpolate_locals("script job config section");
   section = section or os.path.splitext(os.path.basename(script))[0];
+  args =  [ "--mt $MULTITHREAD" if MULTITHREAD > 1 else "" ] + \
+      [ "-c $config [$section]" ] + list(args) + [ "%s=%s"%(a,b) for a,b in options.iteritems() ] + \
+      [ "$EXTRA_TDLOPTS $script =$job" ];
   # run pipeliner
-  pipeliner(*(
-    [ "--mt $MULTITHREAD" if MULTITHREAD > 1 else "" ] +
-    [ "-c $config [$section]" ] + list(args) + [ "%s=%s"%(a,b) for a,b in options.iteritems() ]+
-    [ "$EXTRA_TDLOPTS $script =$job" ]
-  ));
+  if MEMPROF:
+    args.append("--memprof");
+    pipeliner_mprof(*args);
+  else:
+    pipeliner(*args);
 
 document_globals(run,"MULTITHREAD EXTRA_TDLOPTS SCRIPT JOB SECTION TDLCONFIG");
 
