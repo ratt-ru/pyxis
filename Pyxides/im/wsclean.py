@@ -40,7 +40,11 @@ _wsclean_known_args = {0:set('name predict size scale nwlayers minuvw maxuvw max
                        'field weight natural mfsweighting superweight beamsize makepsf '
                        'imaginarypart datacolumn gkernelsize oversampling reorder no-reorder '
                        'addmodel addmodelapp savemodel wlimit'.split()),
-                       1.4:set('channelsout mem absmem j'.split())
+                       1.4:set('channelsout mem absmem j'.split()),
+                       1.5:set('fitbeam nofitbeam circularbeam ellipticalbeam beamshape tempdir'                                'savegridding minuvw-m maxuvw-m'.split()),
+                       1.6:set('dft-predict'),
+                       1.7:set('moresane-ext casamask fitsmask mgain intervalsout' 
+                               'no-update-model-required saveweights'.split())
 }
 
 # whenever the path changes, find out new version number, and build new set of arguments
