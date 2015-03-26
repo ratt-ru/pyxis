@@ -199,10 +199,16 @@ def make_image(msname='$MS',image_prefix='${im.BASENAME_IMAGE}',column='${im.COL
     kw['name'] = image_prefix    
 
     # Check channel selection options in kw
-    if 'interval' in kw.keys():
-        start,end = map(int,kw['interval'].split())
+    if 'channerange' in kw.keys():
+        start,end = map(int,kw['channelrange'].split())
         ms.CHANSTART = start
         ms.NUMCHANS = end-start
+    else:
+        crange = ms.CHANRANGE
+        N = crange
+        end = crange[1] if (N==2 or N==3) else ms.NUMCHANS
+        warn(crange)
+        kw['channelrange'] = "%d %d"%(ms.CHANSTART,end)
 
     nr = 1 
     if channelize is None:
