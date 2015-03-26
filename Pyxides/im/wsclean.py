@@ -207,7 +207,6 @@ def make_image(msname='$MS',image_prefix='${im.BASENAME_IMAGE}',column='${im.COL
         crange = ms.CHANRANGE
         N = crange
         end = crange[1] if (N==2 or N==3) else ms.NUMCHANS
-        warn(crange)
         kw['channelrange'] = "%d %d"%(ms.CHANSTART,end)
 
     nr = 1 
