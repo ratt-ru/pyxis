@@ -59,3 +59,17 @@ no_weight_fov = False
 # import lwimager
 # import casa
 # import moresane
+
+def make_image (*args,**kw):
+  imager = kw.get('imager',IMAGER).lower();
+  imgmod = "im."+imager;
+  try:
+    mod = getattr(__import__(imgmod),imager);
+  except:
+    traceback.print_exc();
+    abort("import $imgmod failed")
+  call_imager = getattr(mod,'make_image',None);
+  if not callable(call_imager):
+    abort("$imgmod does not provide a make_image() function");
+  call_imager(*args,**kw);
+
