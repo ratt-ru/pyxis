@@ -231,11 +231,15 @@ def plot_uvcov (msname="$MS",width=None,height=None,dpi=None,save=None,select=No
   if select:
     tab = tab.query(select);
   uv = tab.getcol("UVW")[:,:2];
+  flag=tab.getcol("FLAG")
+  import numpy as np
+  flagindex=np.where(flag==False)[0]
   import pylab
+  
   pylab.figure(figsize=(width or FIGURE_WIDTH,height or FIGURE_HEIGHT));
-  pylab.plot(-uv[:,0],-uv[:,1],'.r',**kw);
-  pylab.plot(uv[:,0],uv[:,1],'.b',**kw);
-  mb = numpy.sqrt((uv**2).sum(1)).max();
+  pylab.plot(-uv[:,0][flagindex],-uv[:,1][flagindex],'.r',**kw);
+  pylab.plot(uv[:,0][flagindex],uv[:,1][flagindex],'.b',**kw);
+  mb = np.sqrt((uv[flagindex]**2).sum(1)).max();
   info("max baseline is %.3f km"%(mb*1e-3));
   if limit is not None:
     pylab.xlim(-limit,limit);
