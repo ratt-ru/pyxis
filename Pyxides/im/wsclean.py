@@ -71,7 +71,6 @@ def WSCLEAN_VERSION_Template (path='$WSCLEAN_PATH'):
     if _wsclean_path_version[1]>=1.4:
         for item in 'addmodel addmodelapp savemodel'.split():
             _wsclean_args.discard(item)
-
     return _wsclean_path_version[1]
 
 def wsclean_version(path='${WSCLEAN_PATH}'):
@@ -112,20 +111,28 @@ def _run(msname='$MS',clean=False,path='${im.WSCLEAN_PATH}',**kw):
     if path is False:
         abort('Could not find WSCLEAN in system path, alises or at $path')
 
-    # map stokes and npix and cellsize to wsclean equivalents
-    global scale,size,weight,threshold
-    scale = cellsize if isinstance(cellsize,(int,float)) else argo.toDeg(cellsize)
-
-    size = '%d %d'%(npix,npix)
-    if weight == 'briggs':
-        weight = '%s %.2f'%(weight,robust)
-    if isinstance(threshold,str):
-        threshold = im.argo.toJy(threshold)
-    
     # make dict of imager arguments that have been specified globally or locally
     args = dict([ (arg,globals()[arg]) for arg in _wsclean_args if arg in globals() and globals()[arg] is not None ]);
     args.update([ (arg,kw[arg]) for arg in _wsclean_args if arg in kw ])
+
+    # map image size/resolution parameters
+    csz = kw.get('cellsize',cellsize)
+    np = kw.get('npix',npix)
+    args['scale'] = csz if isinstance(csz,(int,float)) else argo.toDeg(csz)
+    args['size']= '%d %d'%(np,np)
+
+    # map weight parameters
+    wgt = args['weight'];
+    if wgt == "robust":
+        args['weight'] = "briggs";
+    if wgt == 'briggs':
+        args['weight'] = '%s %.2f'%(wgt,kw.get('robust',robust))
+
+    # map threshold
+    if isinstance(args['threshold'],str):
+        args['threshold'] = im.argo.toJy(args['threshold'])
     
+    # map clean parameter
     if not clean:
         args['niter'] = 0
 
@@ -200,21 +207,17 @@ def make_image(msname='$MS',image_prefix='${im.BASENAME_IMAGE}',column='${im.COL
     kw['name'] = image_prefix    
 
     # Check channel selection options in kw
-    if 'channerange' in kw.keys():
+    if 'channelrange' in kw.keys():
         start,end = map(int,kw['channelrange'].split())
-        ms.CHANSTART = start
-        ms.NUMCHANS = end-start
     else:
-        crange = ms.CHANRANGE
-        N = crange
-        end = crange[1] if (N==2 or N==3) else ms.NUMCHANS
-        kw['channelrange'] = "%d %d"%(ms.CHANSTART,end)
+        start,end = ms.CHANSTART,ms.CHANSTART+ms.NUMCHANS;
+        kw['channelrange'] = "%d %d"%(start,end);
 
     nr = 1 
     if channelize is None:
         channelize = im.IMAGE_CHANNELIZE
     if channelize:
-        nr = ms.NUMCHANS//channelize
+        nr = (end-start)//channelize
         kw['channelsout'] = nr
     if nr ==1:
         channelize=False
