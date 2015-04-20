@@ -9,7 +9,7 @@ register_pyxis_module('im')
 define('IMAGER','lwimager','imager to use. Default is lwimager.')
 define('LWIMAGER_PATH','lwimager','path to lwimager binary. Default is to look in the system PATH.')
 define('WSCLEAN_PATH','wsclean','path to wsclean binary.')
-define('MORESANE_PATH','moresane','path to PyMORESANE')
+define('MORESANE_PATH','runsane','path to PyMORESANE')
 define('CASA_PATH','casapy','path to casapy')
 
 # default clean algorithm

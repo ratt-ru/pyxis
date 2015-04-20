@@ -12,11 +12,12 @@ import im
 gain = 0.1
 sigmalevel = 3.0
 
-define('MORESANE_PATH','${im.MORESANE_PATH}','Path to PyMORESANE')
+define('MORESANE_PATH_Template','${im.MORESANE_PATH}','Path to PyMORESANE')
+
 _moresane_args = {'outputname': None,
-                  'model-image': None,
-                  'residual-image': None,
-                  'restored-image':None,
+                  'modelname': None,
+                  'residualname': None,
+                  'restoredname':None,
                   'singlerun': False,
                   'subregion': None,
                   'scalecount': None,
@@ -40,14 +41,16 @@ _moresane_args = {'outputname': None,
                   'mfs':False,
                   'mfs-chanrange':None,
                   'spi-sigmalevel':10,
-                  'spec-curv':False
+                  'spec-curv':False,
+                  'fluxthreshold': 0,
+                  'mask': None
 }
 
 def deconv(dirty_image,psf_image,
                  model_image='${im.MODEL_IMAGE}',
                  residual_image='${im.RESIDUAL_IMAGE}',
                  restored_image='${im.RESTORED_IMAGE}',
-                 image_prefix=None,
+                 image_prefix='${im.BASENAME_IMAGE}',
                  path='$MORESANE_PATH',**kw):
     """ Runs PyMORESANE """
 
@@ -57,17 +60,14 @@ def deconv(dirty_image,psf_image,
     if not found_path:
         abort('could not find PyMORESANE at $path')
    
-    kw['model-image'] = model_image
-    kw['residual-image'] = residual_image
-    kw['restored-image'] = restored_image
+    kw['modelname'] = model_image
+    kw['residualname'] = residual_image
+    kw['restoredname'] = restored_image
     
     # make dict of imager arguments that have been specified globally or locally
     args = dict([ (arg,globals()[arg]) for arg in _moresane_args if arg in globals() and globals()[arg] is not None ]);
     args.update([ (arg,kw[arg]) for arg in _moresane_args if arg in kw ])
 
-    if image_prefix: 
-        args.update['outputname']=image_prefix+'.moresane.fits'
-
-    x.sh(argo.gen_run_cmd(path,args,suf='--',assign='=',pos_args=[dirty_image,psf_image]))
+    x.sh(argo.gen_run_cmd(path,args,suf='--',assign='=',pos_args=[dirty_image,psf_image,image_prefix]))
 
 document_globals(deconv,'im*_IMAGE MORESANE_PATH im.MORESANE_PATH')
