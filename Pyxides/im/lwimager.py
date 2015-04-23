@@ -267,7 +267,7 @@ def make_image (msname="$MS",column="${im.COLUMN}",imager='$IMAGER',
     ## if mask was specified as a fits image, convert to CASA image
     mask = kw.get("mask");
     if mask and not isinstance(mask,str):
-      kw['mask'] = mask = MASK_IMAGE; 
+      kw['mask'] = mask = im.MASK_IMAGE; 
     imgmask = None;
     if mask and os.path.exists(mask) and not os.path.isdir(mask):
       info("converting clean mask $mask into CASA image");
