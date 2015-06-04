@@ -119,10 +119,10 @@ def _run (convert_output_to_fits=True,lwimager_path="$LWIMAGER_PATH",**kw):
     velo = kw.get('velocity') or velocity;
     for arg in _fileargs:
       if arg in fitsfiles:
-        im = pyrap.images.image(args[arg]);
+        _im = pyrap.images.image(args[arg]);
         if fs and fs != 1:
-          im.putdata(fs*im.getdata());
-        im.tofits(fitsfiles[arg],overwrite=True,velocity=velo);  
+          _im.putdata(fs*_im.getdata());
+        _im.tofits(fitsfiles[arg],overwrite=True,velocity=velo);  
         subprocess.call("rm -fr "+args[arg],shell=True);
 
 def lwimager_version (path="$LWIMAGER_PATH"):

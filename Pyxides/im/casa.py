@@ -5,6 +5,7 @@ import im
 import subprocess
 import tempfile
 import im.argo
+import pyrap.images as Images
 
 # register ourselves with Pyxis and define the superglobals
 register_pyxis_module(superglobals="MS LSM OUTDIR DESTDIR")
@@ -29,7 +30,8 @@ _casa_known_args = {4.10:set('vis imagename outlierfile field spw selectdata tim
 }
 
 def STANDARD_IMAGING_OPTS_Template():
-    global npix,cellsize,mode,stokes,weight,robust,niter,gain,threshold,algorithm
+    global npix,cellsize,mode,stokes,weight,robust,niter,gain,threshold
+    global wprojplanes,cachesize,ifrs,fixed,flux_rescale,velocity,no_weight_fov
     npix = im.npix
     cellsize = im.cellsize
     mode = im.mode
@@ -39,6 +41,16 @@ def STANDARD_IMAGING_OPTS_Template():
     niter = im.niter
     gain = im.gain
     threshold = im.threshold
+    wprojplanes = im.wprojplanes
+    cachesize = im.cachesize
+    ifrs = im.ifrs
+    fixed = im.fixed
+    # rescale images by factor
+    flux_rescale= im.flux_rescale
+    # use velocity rather than frequency
+    velocity = im.velocity
+    no_weight_fov = im.no_weight_fov
+
 
 # whenever the path changes, find out new version number, and build new set of arguments
 _casa_path_version = None,None;
@@ -126,7 +138,20 @@ def _run(path='${im.CASA_PATH}',clean=False,makepsf=False,**kw):
     if makepsf: 
         mult.append({'imagename':'%s.%s'%(imagename,'psf'),'fitsimage':kw['psf']})
     if mult:
-        im.argo.icasa('exportfits',mult=mult,overwrite=True)
+        velo = kw.get("velocity") or velocity
+        fs = kw.get("flux_rescale") or flux_rescale
+        for pair in mult:
+            casaim, fitsim = pair["imagename"],pair["fitsimage"]
+            _im = Images.image(casaim)
+            if fs!=1:
+                _im.putdata(fs*_im.getdata())
+            if os.path.exists(casaim):
+                _im.tofits(fitsim, overwrite=True, velocity=velo)
+            else:
+                abort("Cannot find images. Something went wrong when running CASAPY clean task. Please check logs")
+        
+
+#        im.argo.icasa('exportfits',mult=mult,overwrite=True)
     # delete casa images
     for image in ['$imagename.%s'%s for s in 'model residual image flux psf'.split()]:
         if os.path.exists(II(image)):
