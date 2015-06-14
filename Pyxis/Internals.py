@@ -664,7 +664,8 @@ def assign_templates ():
   for ns in _namespaces.itervalues():
     if ns is not Pyxis.Context:
       for var in _superglobals.get(id(ns)):
-        ns[var] = Pyxis.Context[var];
+        if var in Pyxis.Context:
+          ns[var] = Pyxis.Context[var];
   # set logger, in case LOG value has changed
   set_logfile(Pyxis.Context.get('LOG',None));
   _in_assign_templates = False;
