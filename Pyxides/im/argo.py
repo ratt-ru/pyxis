@@ -12,6 +12,8 @@ import tempfile
 import ms
 import glob
 import time
+import Owlcat.FitsTool as fitstool
+
 # Load some Pyxis functionality
 from Pyxis.ModSupport import *
 
@@ -43,6 +45,7 @@ def make_threshold_mask (input="${im.RESTORED_IMAGE}",threshold=0,output="$im.MA
 document_globals(make_threshold_mask,"im.RESTORED_IMAGE im.MASK_IMAGE");
 
 define("COPY_IMAGE_TO_Template", "${MS:BASE}.imagecopy.fits","container for image copy")
+
 def make_empty_image (msname="$MS",image="${COPY_IMAGE_TO}",channelize=None,**kw0):
     msname,image = interpolate_locals("msname image")
     # setup imager options
@@ -57,104 +60,11 @@ def make_empty_image (msname="$MS",image="${COPY_IMAGE_TO}",channelize=None,**kw
     info("created empty image $image")
 
 
-def combine_fits(fitslist,outname='combined.fits',axis=0,ctype=None,keep_old=False):
-    """ Combine a list of fits files along a given axiis.
-       
-       fitslist: list of fits file to combine
-       outname: output file name
-       axis: axis along which to combine the files (numpy index. not FITS index)
-       ctype: Axis label in the fits header (if given, axis will be ignored)
-       keep_old: Keep component files after combining?
-    """
+combine_fits = fitstool.stack_planes
 
-    hdu = pyfits.open(fitslist[0])[0]
-    hdr = hdu.header
-    naxis = hdr['NAXIS']
-
-    # find axis via CTYPE key
-    if ctype is not None:
-        for i in range(1,naxis+1):
-            if hdr['CTYPE%d'%i].startswith(ctype):
-                axis = naxis - i # fits to numpy convention
-
-
-    fits_ind = abs(axis-naxis)
-    crval = hdr['CRVAL%d'%fits_ind]
-
-    imslice = [slice(None)]*naxis
-    _sorted = sorted([pyfits.open(fits) for fits in fitslist],
-                    key=lambda a: a[0].header['CRVAL%d'%(naxis-axis)])
-
-    # define structure of new FITS file
-    nn = [ hd[0].header['NAXIS%d'%(naxis-axis)] for hd in _sorted] 
-    shape = list(hdu.data.shape)
-    shape[axis] = sum(nn)
-    data = numpy.zeros(shape,dtype=float)
-
-    for i,hdu0 in enumerate(_sorted):
-        h = hdu0[0].header
-        d = hdu0[0].data
-        imslice[axis] = range(sum(nn[:i]),sum(nn[:i+1]) )
-        data[imslice] = d
-        if crval > h['CRVAL%d'%fits_ind]:
-            crval =  h['CRVAL%d'%fits_ind]
-
-    # update header
-    hdr['CRVAL%d'%fits_ind] = crval
-    hdr['CRPIX%d'%fits_ind] = 1
+splitfits = fitstool.unstack_planes
     
-    pyfits.writeto(outname,data,hdr,clobber=True)
-    
-    # remove old files
-    if not keep_old:
-        for fits in fitslist:
-            os.system('rm -f %s'%fits)
 
-
-def splitfits(fitsname,chunks,axis=None,ctype=None,prefix=None):
-    """ split fits data along a given axis in N chunks """
-    
-    prefix = prefix or fitsname[:-5] # take everthing but .FITS/.fits
-    hdu = pyfits.open(fitsname)
-    hdr = hdu[0].header
-    data = hdu[0].data.copy()    
-    naxis = hdr["NAXIS"]
-
-    if axis is None and ctype is None:
-        abort('Please specify either axis or ctype')
-    # find axis via CTYPE key
-    if ctype :
-        for i in range(1,naxis+1):
-            if hdr['CTYPE%d'%i].startswith(ctype):
-                axis = naxis - i # fits to numpy indexing
-
-    crval = hdr['CRVAL%d'%(naxis-axis)]
-    cdelt = hdr['CDELT%d'%(naxis-axis)]
-    crpix = hdr['CRPIX%d'%(naxis-axis)]
-    # shift crval to crpix=1
-    crval = crval - (crpix-1)*cdelt
-
-    nstacks = hdr['NAXIS%d'%(naxis-axis)]
-    nchunks = nstacks//chunks
-    info("The FITS file $fitsname has $nstacks stacks along this axis. Breaking it up to $nchunks images")
-
-    outfiles = []
-    for i in range(0,nchunks):
-
-        _slice = [slice(None)]*naxis
-        _slice[axis] = range(i*chunks,(i+1)*chunks if i+1!=nchunks else nstacks)
-        hdu[0].data = data[_slice]
-        hdu[0].header['CRVAL%d'%(naxis-axis)] = crval + i*cdelt*chunks
-        hdu[0].header['CRPIX%d'%(naxis-axis)] = 1
-        outfile = '%s-%04d.fits'%(prefix,i)
-        outfiles.append(outfile)
-        info("Making chunk $i : %s. File is $outfile"%repr(_slice[axis]))
-        hdu.writeto(outfile,clobber=True)
-
-    hdu.close()
-    return outfiles
-
-    
 def addcol(msname='$MS',colname=None,shape=None,
            data_desc_type='array',valuetype=None,init_with=0,**kw):
     """ add column to MS 
@@ -266,63 +176,14 @@ def findImager(path,imager_name=None):
         return False # Exhausted all sensible options, give up. 
 
 
-def swap_stokes_freq(fitsname,freq2stokes=False):
-    print 'Checking STOKES and FREQ in FITS file, might need to swap these around.'
-    hdu = pyfits.open(fitsname)[0]
-    hdr = hdu.header
-    data = hdu.data
-    if hdr['NAXIS']<4:
-        print 'Editing fits file [%s] to make it usable by the pipeline.'%fitsname
-        isfreq = hdr['CTYPE3'].startswith('FREQ')
-        if not isfreq :
-          return False
-        hdr.update('CTYPE4','STOKES')
-        hdr.update('CDELT4',1)
-        hdr.update('CRVAL4',1)
-        hdr.update('CUNIT4','Jy/Pixel')
-        data.resize(1,*data.shape)
-    if freq2stokes:
-        if hdr["CTYPE3"].startswith("FREQ") : return 0;
-        else:
-            hdr0 = hdr.copy()
-            hdr.update("CTYPE4",hdr0["CTYPE3"])
-            hdr.update("CRVAL4",hdr0["CRVAL3"])
-            hdr.update("CDELT4",hdr0["CDELT3"])
-            try :
-                hdr.update("CUNIT4",hdr0["CUNIT3"])
-            except KeyError: 
-                hdr.update('CUNIT3','Hz    ')
-            #--------------------------
-            hdr.update("CTYPE3",hdr0["CTYPE4"])
-            hdr.update("CRVAL3",hdr0["CRVAL4"])
-            hdr.update("CDELT3",hdr0["CDELT4"])
-            try :
-                hdr.update("CUNIT3",hdr0["CUNIT4"])
-            except KeyError: 
-                hdr.update('CUNIT4','Jy/Pixel    ')
-                print ('Swapping FREQ and STOKES axes in the fits header [%s]'%fitsname)
-            pyfits.writeto(fitsname,np.rollaxis(data,1),hdr,clobber=True)
-    elif hdr["CTYPE3"].startswith("FREQ"):
-        hdr0 = hdr.copy()
-        hdr.update("CTYPE3",hdr0["CTYPE4"])
-        hdr.update("CRVAL3",hdr0["CRVAL4"])
-        hdr.update("CDELT3",hdr0["CDELT4"])
-        try :
-            hdr.update("CUNIT3",hdr0["CUNIT4"])
-        except KeyError: 
-            hdr.update('CUNIT3','Jy/Pixel    ')
-        #--------------------------
-        hdr.update("CTYPE4",hdr0["CTYPE3"])
-        hdr.update("CRVAL4",hdr0["CRVAL3"])
-        hdr.update("CDELT4",hdr0["CDELT3"])
-        try :
-            hdr.update("CUNIT4",hdr0["CUNIT3"])
-        except KeyError: 
-            hdr.update('CUNIT4','Hz    ')
-        print 'Swapping FREQ and STOKES axes in the fits header [%s]. This is a  MeqTrees work arround.'%fitsname
-        pyfits.writeto(fitsname,np.rollaxis(data,1),hdr,clobber=True)
-    return 0
+def swap_stokes_freq(fitsname):
+    """ 
+        Swaps around STOKES and FREQ axes in FITS image. 
+        Ensure that you FITS image has atleast 4 axes.
+    """
 
+    fitstool.reorder(fitsname, [1,2,4,3], outfile=fitsname)
+    
 
 def gen_run_cmd(path,options,suf='',assign='=',lv_str=False,pos_args=None):
     """ Generate command line run command """

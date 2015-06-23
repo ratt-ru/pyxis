@@ -68,6 +68,7 @@ def CASA_VERSION_Template (path='$CASA_PATH'):
                 _casa_args.update(args)
     return _casa_path_version[1]
 
+
 def casa_version(path='$CASA_PATH'):
     """ try to find casa version """
 
@@ -94,6 +95,7 @@ def casa_version(path='$CASA_PATH'):
         vstr = '%d.' + '%d'*(len(version)-1)
         version = float(vstr%(tuple(version)))
     return version,tail
+
 
 def _run(path='${im.CASA_PATH}',clean=False,makepsf=False,**kw):
     """ runs casa's clean task """
@@ -157,6 +159,7 @@ def _run(path='${im.CASA_PATH}',clean=False,makepsf=False,**kw):
         if os.path.exists(II(image)):
             rm_fr(image)
 
+
 def make_image (msname="$MS",column="${im.COLUMN}",imager='$IMAGER',
                 dirty=True,restore=False,restore_lsm=True,psf=False,
                 dirty_image="${im.DIRTY_IMAGE}",
@@ -170,6 +173,7 @@ def make_image (msname="$MS",column="${im.COLUMN}",imager='$IMAGER',
                 channelize=None,lsm="$LSM",**kw0):
     """ run casa imager """
 
+    _imager = im.IMAGER
     im.IMAGER = II(imager)
     #Add algorithm label if required
     if im.DECONV_LABEL and restore: 
@@ -237,5 +241,7 @@ interpolate_locals("imager msname column lsm dirty_image psf_image restored_imag
             info("Restoring LSM into FULLREST_IMAGE=$fullrest_image")
             opts = restore_lsm if isinstance(restore_lsm,dict) else {}
             tigger_restore(restoring_options,"-f",restored_image,lsm,fullrest_image,kwopt_to_command_line(**opts))
+
+    im.IMAGER = _imager
 
 document_globals(make_image,"im.*_IMAGE COLUMN im.IMAGE_CHANNELIZE MS im.RESTORING_OPTIONS im.CLEAN_ALGORITHM ms.IFRS ms.DDID ms.FIELD ms.CHANRANGE")

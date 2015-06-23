@@ -155,10 +155,12 @@ def make_image(msname='$MS',image_prefix='${im.BASENAME_IMAGE}',column='${im.COL
                 residual_image='${im.RESIDUAL_IMAGE}',
                 restored_image='${im.RESTORED_IMAGE}',
                 fullrest_image='${im.FULLREST_IMAGE}',
-                restoring_options='${im.RESTORING_OPTIONS}',**kw):
+                restoring_options='${im.RESTORING_OPTIONS}',
+                keep_component_images=False, **kw):
     """ run WSCLEAN """
 
     makedir('$DESTDIR')
+    _imager = im.IMAGER
     im.IMAGER = II(imager)
     #Add algorithm label if required
     if im.DECONV_LABEL and restore:
@@ -258,31 +260,31 @@ def make_image(msname='$MS',image_prefix='${im.BASENAME_IMAGE}',column='${im.COL
     def combine_pol(pol,image_prefix=None,mfs=False):
         dirtys = eval_list(['$image_prefix-%s-dirty.fits'%d for d in pol])
         if dirty:
-            argo.combine_fits(dirtys,outname=dirty_image,ctype='STOKES',keep_old=False)
+            argo.combine_fits(dirtys,outname=dirty_image,ctype='STOKES',keep_old=keep_component_images)
         else:
             for item in dirtys:
                 rm_fr(item)
 
         if restore:
             model = eval_list(['$image_prefix-%s-model.fits'%d for d in pol])
-            argo.combine_fits(model,outname=model_image,ctype='STOKES',keep_old=False)
+            argo.combine_fits(model,outname=model_image,ctype='STOKES',keep_old=keep_component_images)
 
             residual = eval_list(['$image_prefix-%s-residual.fits'%d for d in pol])
-            argo.combine_fits(residual,outname=residual_image,ctype='STOKES',keep_old=False)
+            argo.combine_fits(residual,outname=residual_image,ctype='STOKES',keep_old=keep_component_images)
 
             restored = eval_list(['$image_prefix-%s-image.fits'%d for d in pol])
-            argo.combine_fits(restored,outname=restored_image,ctype='STOKES',keep_old=False)
+            argo.combine_fits(restored,outname=restored_image,ctype='STOKES',keep_old=keep_component_images)
 
             if mfs:
                 model_mfs = eval_list(['$image_prefix-MFS-%s-model.fits'%d for d in pol])
                 argo.combine_fits(model_mfs,
                        outname=model_image.replace('.model.fits','-MFS.model.fits'),
-                       ctype='STOKES',keep_old=False)
+                       ctype='STOKES',keep_old=keep_component_images)
 
                 residual_mfs = eval_list(['$image_prefix-MFS-%s-residual.fits'%d for d in pol])
                 argo.combine_fits(residual_mfs,
                        outname=residual_image.replace('.residual.fits','-MFS.residual.fits'),
-                       ctype='STOKES',keep_old=False)
+                       ctype='STOKES',keep_old=keep_component_images)
 
                 restored_mfs = eval_list(['$image_prefix-MFS-%s-image.fits'%d for d in pol])
                 argo.combine_fits(restored_mfs,
@@ -317,7 +319,7 @@ def make_image(msname='$MS',image_prefix='${im.BASENAME_IMAGE}',column='${im.COL
         labels = ['%04d'%d for d in range(nr)]
         psfs = eval_list(['$image_prefix-%s-psf.fits'%d for d in labels])
         if psf: 
-            argo.combine_fits(psfs,outname=II('$image_prefix.psf.fits'),ctype='FREQ',keep_old=False)
+            argo.combine_fits(psfs,outname=II('$image_prefix.psf.fits'),ctype='FREQ',keep_old=keep_component_images)
         elif restore:
             for fits in psfs:
                 rm_fr(fits)
@@ -333,7 +335,7 @@ def make_image(msname='$MS',image_prefix='${im.BASENAME_IMAGE}',column='${im.COL
             if dirty:
                 argo.combine_fits(dirtys,
                        outname=II('$image_prefix$i-dirty.fits') if i else dirty_image,
-                       ctype='FREQ',keep_old=False)
+                       ctype='FREQ',keep_old=keep_component_images)
                 if not restore:
                     xo.sh('rm -fr ${image_prefix}*image*.fits')
             else: 
@@ -343,15 +345,15 @@ def make_image(msname='$MS',image_prefix='${im.BASENAME_IMAGE}',column='${im.COL
             if restore:
                 model = eval_list(['$image_prefix-%s$i-model.fits'%d for d in labels])
                 argo.combine_fits(model,outname=II('$image_prefix$i-model.fits') if i else model_image,
-                       ctype='FREQ',keep_old=False)
+                       ctype='FREQ',keep_old=keep_component_images)
 
                 residual = eval_list(['$image_prefix-%s$i-residual.fits'%d for d in labels])
                 argo.combine_fits(residual,outname=II('$image_prefix$i-residual.fits') if i else residual_image,
-                       ctype='FREQ',keep_old=False)
+                       ctype='FREQ',keep_old=keep_component_images)
 
                 restored = eval_list(['$image_prefix-%s$i-image.fits'%d for d in labels])
                 argo.combine_fits(restored,outname=II('$image_prefix$i-image.fits') if i else restored_image ,
-                       ctype='FREQ',keep_old=False)
+                       ctype='FREQ',keep_old=keep_component_images)
                 if len(pol)==1:
                     for old,new in zip([image_prefix+'-MFS-%s.fits'%img for img in 'model residual image'.split()],
                                        [model_image.replace('.model.fits','-MFS.model.fits'),
@@ -381,5 +383,7 @@ def make_image(msname='$MS',image_prefix='${im.BASENAME_IMAGE}',column='${im.COL
                            restored_image,lsm,
                            fullrest_image,
                            kwopt_to_command_line(**opts));
+    
+    im.IMAGER = _imager
 
 document_globals(make_image,"im.*_IMAGE COLUMN im.IMAGE_CHANNELIZE MS im.RESTORING_OPTIONS im.CLEAN_ALGORITHM ms.IFRS ms.DDID ms.FIELD ms.CHANRANGE")
