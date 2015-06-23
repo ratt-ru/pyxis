@@ -16,6 +16,7 @@ import time
 from Pyxis.ModSupport import *
 
 # register ourselves with Pyxis and define the superglobals
+register_pyxis_module(superglobals="MS LSM")
 register_pyxis_module()
 
 rm_fr = x.rm.args("-fr")
