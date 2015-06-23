@@ -9,6 +9,7 @@ from Pyxis.ModSupport import *
 
 import std
 import _utils.casa_scripts
+import im.argo
 
 # register ourselves with Pyxis, and define the superglobals
 register_pyxis_module();
@@ -524,3 +525,41 @@ def set_default_spectral_info():
   CHANSTART = 0
   CHANSTEP = 1
   CHANRANGE = CHANSTART,NUMCHANS-1,CHANSTEP
+
+
+def create_empty_ms(msname="$MS", tel=None, pos=None, pos_type='casa', coords="itrf",
+            synthesis=4, dtime=10, freq0="1.4GHz", dfreq="10MHz", lon_lat=None, **kw):
+    """
+Uses simms to create an empty measurement set. Requires
+either an antenna table (CASA table) or a list of ITRF or ENU positions. 
+
+msname: MS name
+tel: Telescope name (This name must be in the CASA Database (check in me.obslist() in casapy)
+     If its not there, then you will need to specify the telescope coordinates via "lon_lat"
+pos: Antenna positions. This can either a CASA table or an ASCII file. 
+     (see simms --help for more on using an ascii file)
+pos_type: Antenna position type. Choices are (casa, ascii)
+coords: This is only applicable if you are using an ASCII file. Choices are (itrf, enu)
+synthesis: Synthesis time in hours
+dtime: Integration time in seconds
+freq0: Start frequency 
+dfreq: Channel width
+nbands: Number of frequency bands
+**kw: extra keyword arguments.
+
+A standard file should have the format: pos1 pos2 pos3* dish_diameter station
+mount. NOTE: In the case of ENU, the 3rd position (up) is not essential and
+may not be specified; indicate that your file doesn't have this dimension by
+enebaling the --noup (-nu) option.
+    """
+
+    try:
+        from simms import simms
+    except ImportError:
+        abort("Import simms failed. Please make sure you simms intalled.\n"
+              "Find simms at github.com/SpheMakh/simms or install it by running"
+              "  pip install simms")
+    
+    simms.create_empty_ms(msname=II(msname), tel=tel, pos=pos, pos_type=pos_type, 
+                coords=coords, synthesis=synthesis, dtime=dtime, freq0=freq0, 
+                dfreq=dfreq, lon_lat=lon_lat, **kw)
