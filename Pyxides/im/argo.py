@@ -60,9 +60,13 @@ def make_empty_image (msname="$MS",image="${COPY_IMAGE_TO}",channelize=None,**kw
     info("created empty image $image")
 
 
+# Borrow some fuctions from Owlcat/FitsTool
+
 combine_fits = fitstool.stack_planes
 
 splitfits = fitstool.unstack_planes
+
+reorder_fits_axes = fitstool.reorder
     
 
 def addcol(msname='$MS',colname=None,shape=None,
@@ -176,13 +180,6 @@ def findImager(path,imager_name=None):
         return False # Exhausted all sensible options, give up. 
 
 
-def swap_stokes_freq(fitsname):
-    """ 
-        Swaps around STOKES and FREQ axes in FITS image. 
-        Ensure that you FITS image has atleast 4 axes.
-    """
-
-    fitstool.reorder(fitsname, [1,2,4,3], outfile=fitsname)
     
 
 def gen_run_cmd(path,options,suf='',assign='=',lv_str=False,pos_args=None):

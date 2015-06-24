@@ -237,7 +237,12 @@ def sofia_search(fitsname='${im.RESTORED_IMAGE}',sofia_conf=None,
     makedir(v.DESTDIR);
 
     # swap freq and stokes in fits hdr
-    im.argo.swap_stokes_freq(fitsname,freq2stokes=True)
+    with pyfits.open(fitsname) as hdu:
+        hdr = hdu[0].header
+        ndim = hdr["NAXIS"]
+        if ndim>3 and hdr["CTYPE4"].startswith("FREQ"):
+            warn("Swapping STOKES and FREQ axes in IMAGE $fitsname. This is a SoFiA workaround")
+            im.argo.reorder_fits_axes(fitsname, order=[1,2,4,3], outfile=fitsname)
 
     # use default SoFiA config if not specified
     if not sofia_conf:
