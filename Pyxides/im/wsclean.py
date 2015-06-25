@@ -44,7 +44,8 @@ _wsclean_known_args = {0:set('name predict size scale nwlayers minuvw maxuvw max
                        1.5:set('fitbeam nofitbeam circularbeam ellipticalbeam beamshape tempdir'                                'savegridding minuvw-m maxuvw-m'.split()),
                        1.6:set('dft-predict'),
                        1.7:set('moresane-ext casamask fitsmask mgain intervalsout' 
-                               'no-update-model-required saveweights'.split())
+                               'no-update-model-required saveweights'.split()),
+                       1.8:set('moresane-arg'.split())
 }
 
 # whenever the path changes, find out new version number, and build new set of arguments
@@ -155,7 +156,8 @@ def make_image(msname='$MS',image_prefix='${im.BASENAME_IMAGE}',column='${im.COL
                 residual_image='${im.RESIDUAL_IMAGE}',
                 restored_image='${im.RESTORED_IMAGE}',
                 fullrest_image='${im.FULLREST_IMAGE}',
-                restoring_options='${im.RESTORING_OPTIONS}',**kw):
+                restoring_options='${im.RESTORING_OPTIONS}',
+                **kw):
     """ run WSCLEAN """
 
     makedir('$DESTDIR')

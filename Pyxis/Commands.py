@@ -408,6 +408,8 @@ def makedir (dirname,no_interpolate=False):
   if not no_interpolate:
     dirname = interpolate(dirname,inspect.currentframe().f_back);
   parent = dirname;
+  while parent and parent[-1] == '/':
+    parent = parent[:-1]
   # go back and accumulate list of dirs to be created
   parents = [];
   while parent and not os.path.exists(parent):
