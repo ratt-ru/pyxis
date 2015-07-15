@@ -233,6 +233,8 @@ def make_image(msname='$MS',image_prefix='${im.BASENAME_IMAGE}',column='${im.COL
 
     if 'pol' in kw.keys():
         pol = kw['pol']
+    elif 'stokes' in kw.keys():
+        pol = kw['pol'] = kw.pop('stokes')
     else:
         pol = stokes
         kw['pol'] = pol
