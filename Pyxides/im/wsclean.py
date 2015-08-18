@@ -45,7 +45,7 @@ _wsclean_known_args = {0:set('name predict size scale nwlayers minuvw maxuvw max
                        1.6:set('dft-predict'),
                        1.7:set('moresane-ext casamask fitsmask mgain intervalsout' 
                                'no-update-model-required saveweights'.split()),
-                       1.8:set('moresane-arg'.split())
+                       1.8:set('moresane-arg moresane-sl'.split())
 }
 
 # whenever the path changes, find out new version number, and build new set of arguments
@@ -171,7 +171,7 @@ def make_image(msname='$MS',image_prefix='${im.BASENAME_IMAGE}',column='${im.COL
         im.DECONV_LABEL = None
 
     path,msname,image_prefix,column,dirty_image,model_image,residual_image,restored_image,psf_image,channelize,\
-      fullrest_image,restoring_optins = \
+      fullrest_image,restoring_options = \
       interpolate_locals('path msname image_prefix column dirty_image model_image residual_image '
                          'restored_image psf_image channelize fullrest_image restoring_options')
 
