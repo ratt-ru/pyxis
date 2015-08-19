@@ -216,7 +216,7 @@ def make_image(msname='$MS',image_prefix='${im.BASENAME_IMAGE}',column='${im.COL
         kw['channelrange'] = "%d %d"%(start,end);
 
     nr = 1 
-    if channelize is None:
+    if not channelize:
         channelize = im.IMAGE_CHANNELIZE
     if channelize:
         nr = (end-start)//channelize

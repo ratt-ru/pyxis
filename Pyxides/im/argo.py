@@ -203,7 +203,7 @@ def gen_run_cmd(path,options,suf='',assign='=',lv_str=False,pos_args=None):
     return run_cmd
 
 
-def icasa(taskname,mult=None,**kw0):
+def icasa(taskname, mult=None, loadthese=[],**kw0):
     """ 
       runs a CASA task given a list of options.
       A given task can be run multiple times with a different options, 
@@ -216,6 +216,18 @@ def icasa(taskname,mult=None,**kw0):
     td = tempfile.mkdtemp(dir='.')
     # we want get back to the working directory once casapy is launched
     cdir = os.path.realpath('.')
+
+    # load modules in loadthese
+    _load = ""
+    if "os" not in loadthese or "import os" not in loadthese:
+        loadthese.append("os")
+
+    if loadthese:
+        exclude = filter(lambda line: line.startswith("import") or line.startswith("from"), loadthese)
+        for line in loadthese:
+            if line not in exclude:
+                line = "import %s"%line
+            _load += "%s\n"%line
 
     if mult:
         if isinstance(mult,(tuple,list)):
@@ -235,13 +247,14 @@ def icasa(taskname,mult=None,**kw0):
                  val = '"%s"'%val
             task_cmds += '\n%s=%s'%(key,val)
         run_cmd += """
-import os
+%s
+
 os.chdir('%s')
 taskname = '%s'
 %s
 go()
 
-"""%(cdir,taskname,task_cmds)
+"""%(_load,cdir,taskname,task_cmds)
 
     tf = tempfile.NamedTemporaryFile(suffix='.py')
     tf.write(run_cmd)
