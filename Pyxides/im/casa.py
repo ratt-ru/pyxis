@@ -113,9 +113,8 @@ def _run(path='${im.CASA_PATH}',clean=False,makepsf=False,**kw):
     ms.DDID is not None and args.setdefault('spw',ms.DDID)
     ms.FIELD is not None and args.setdefault('field',ms.FIELD)
     
-    if wprojplanes:
+    if args.get("wprojplanes",0):
         args["gridmode"] = "widefield"
-        args["wprojplanes"] = wprojplanes
     
 
     # have an IFR subset? Parse that too
