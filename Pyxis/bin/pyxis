@@ -94,15 +94,21 @@ if __name__ == "__main__":
   parser.add_option("-X","--x11",action="store_true",
                     help="do not disable X11 connections when running under a screen or tmux session.");
   parser.add_option("-S","--screen",action="store_true",
-                    help="automatically spawn a screen session to run the commands. Equivalent to SPAWN_SCREEN=True.");
+                    help="automatically spawn a screen session to run the commands. Equivalent to SPAWN_SCREEN=True in config.");
+  parser.add_option("--no-screen",action="store_true",
+                    help="enforces SPAWN_SCREEN=False, overriding any config settings.");
   parser.add_option("-T","--screen-title",type="string",metavar="TITLE",
                     help="title of screen session. Equivalent to SPAWN_SCREEN_TITLE=TITLE. Default is formed from current directory name.");                    
   parser.add_option("--detach",action="store_true",
-                    help="detach screen session immediately. Equivalent to SPAWN_SCREEN_DETACH=True. Default is to stay attached to the session."); 
+                    help="detach screen session immediately. Equivalent to SPAWN_SCREEN_DETACH=True in config. Default is to stay attached to the session."); 
+  parser.add_option("--no-detach",action="store_true",
+                    help="enforces SPAWN_SCREEN_DETACH=False, overriding any config settings."); 
   parser.add_option("--no-screen-log",action="store_true",
                       help="disable logging of screen sessions (normally screen is run with -L to enable logging). Equivalent to SPAWN_SCREEN_LOG=False.");
   parser.add_option("--pause-on-exit",action="store_true",
                     help="pauses before exiting. Equivalent to PAUSE_ON_EXIT=True. Useful when automatically spawning a screen session.");
+  parser.add_option("--no-pause-on-exit",action="store_true",
+                    help="Enforces PAUSE_ON_EXIT=False, overriding any config settings.");
                     
 
   (options,args) = parser.parse_args();
@@ -202,7 +208,9 @@ if __name__ == "__main__":
   if options.persist:
     PERSIST = True;
   if options.screen:
-    SPAWN_SCREEN = True;
+    SPAWN_SCREEN = True
+  if options.no_screen:
+    SPAWN_SCREEN = False
   if options.interactive:
     SPAWN_SCREEN and verbose(-99,"--interactive specified, ignoring SPAWN_SCREEN setting.")
     PAUSE_ON_EXIT and verbose(-99,"--interactive specified, ignoring PAUSE_ON_EXIT setting.")
@@ -211,6 +219,12 @@ if __name__ == "__main__":
     SPAWN_SCREEN_LOG = False;
   if options.pause_on_exit:
     PAUSE_ON_EXIT = True;
+  if options.no_pause_on_exit:
+    PAUSE_ON_EXIT = False;
+  if options.detach:
+    SPAWN_SCREEN_DETACH = True
+  if options.no_detach:
+    SPAWN_SCREEN_DETACH = False
   if options.verbose is not None:
     VERBOSE = options.verbose;
   elif options.quiet:

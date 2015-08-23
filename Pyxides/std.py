@@ -9,7 +9,7 @@ v.define("OUTDIR","",
   """base output directory""");
 v.define("SUFFIX_Template",'${spw<ms.DDID}',
   """suffix added to filenames, default is "-spwX""");
-v.define("DESTDIR_Template",'${OUTDIR>/}plots${MS:BASE>-}${spw<ms.DDID}',
+v.define("DESTDIR_Template",'${OUTDIR>/}plots-${MS:BASE>-}${spw<ms.DDID}',
   """destination directory for plots, images, etc.""");
 v.define("OUTFILE_Template",'${DESTDIR>/}${MS:BASE>-}${SUFFIX>-}${s<STEP>-}${LABEL}',
   """base output filename for plots, images, etc.""");

@@ -10,6 +10,7 @@ import subprocess
 import im
 import tempfile
 import ms
+import std
 import glob
 import time
 import Owlcat.FitsTool as fitstool
@@ -27,7 +28,10 @@ def fits2casa (input,output):
     """Converts FITS image to CASA image."""
     if exists(output):
         rm_fr(output)
-    x.imagecalc("in='$input'","out=$output",split_args=False)
+    if not exists(input):
+        abort("$input does not exist")
+    std.runcasapy("importfits('$input','$output',overwrite=True)")
+#    x.imagecalc("in='$input'","out=$output",split_args=False)
 
 def make_threshold_mask (input="${im.RESTORED_IMAGE}",threshold=0,output="$im.MASK_IMAGE",high=1,low=0):
     """

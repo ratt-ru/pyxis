@@ -34,7 +34,7 @@ define('MIN_EXTENT',0,
   """minimum Gaussian source extent, arcsec; sources smaller than this will be converted to point sources""");
 
 def pybdsm_search (image="${imager.RESTORED_IMAGE}",output="$PYBDSM_OUTPUT",pol='$PYBDSM_POLARIZED',
-  select=None,
+  select=None,center=None,
   threshold=None,pbexp=None,**kw):
   """Runs pybdsm on the specified 'image', converts the results into a Tigger model and writes it to 'output'.
   Use 'threshold' to specify a non-default threshold (thresh_isl and thresh_pix).
@@ -42,8 +42,9 @@ def pybdsm_search (image="${imager.RESTORED_IMAGE}",output="$PYBDSM_OUTPUT",pol=
   Use 'pbexp' to supply a primary beam expression (passed to tigger-convert), in which case the output model will contain
   intrinsic fluxes.
   Use 'select' to apply a selection string on the new model (e.g. "I.gt.0.001")
+  Use 'center' to set the centre of the model (useful for e.g. selecting on radius), use a string e.g. Xdeg,Ydeg
   """
-  image,output,pol = interpolate_locals("image output pol");
+  image,output,pol,center = interpolate_locals("image output pol center");
   makedir(v.DESTDIR);
   # setup parameters
   gaul = II("${output:BASEPATH}.gaul");
@@ -85,6 +86,8 @@ def pybdsm_search (image="${imager.RESTORED_IMAGE}",output="$PYBDSM_OUTPUT",pol=
     args = []
   if select:
     args += [ "--select",select ];
+  if center:
+    args += [ "--center",center ]
   verifyGaulModel(gaul)
   
   #Dictionary for establishing correspondence between parameter names in gaul files produced by pybdsm, and pyxis parameter names
