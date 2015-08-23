@@ -37,8 +37,15 @@ def runcasapy (command,content=None,zap=None,zap_always=None):
   command = interpolate_locals("command");
   zap = zap if zap is not None else CASAPY_ZAPLOGS;
   zap_always = zap_always if zap_always is not None else CASAPY_ZAPLOGS_ALWAYS; 
+
   # write command to script file
   tf = tempfile.NamedTemporaryFile(suffix=".py");
+  # Call casapy from temp. directory to avoid conflicts when running parallel jobs
+  td = tempfile.mkdtemp(dir='.')
+  # we want get back to the working directory once casapy is launched
+  cdir = os.path.realpath('.')
+
+  command = "\nimport os\nos.chdir('%s')\n%s"%(cdir, command) 
   tf.write(command+"\nexit\n");
   tf.flush();
   tfname = tf.name;
@@ -49,8 +56,10 @@ def runcasapy (command,content=None,zap=None,zap_always=None):
     content = II(". Content:\n$command\n")
   info("Running casapy $tfname$content");
   t0 = time.time();
-  retcode = casapy(tfname);
+  retcode = x.sh("cd $td && casapy --nologger --log2term -c $tfname")
   tf.close();
+  # move content of temp. directory to working dir, then delete temp. directory
+  x.sh("mv ${td}/* $cdir && rm -fr $td")
   # zap logs
   if zap_always or ( zap and not retcode ):
     logs = glob.glob("ipython-*.log") + glob.glob("casapy-*.log");
