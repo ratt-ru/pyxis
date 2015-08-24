@@ -66,7 +66,8 @@ def runcasapy (command,content=None,zap=None,zap_always=None):
     logs = [ log for log in logs if os.path.getmtime(log) > t0 ];
     info("zapping CASA logfiles",*logs);
     for log in logs:
-      os.unlink(log);
+      if exists(log):
+        os.unlink(log);
   if retcode:
     abort("casapy failed with return code %d. Check the logs for errors.");
 
