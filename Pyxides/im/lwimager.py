@@ -73,6 +73,7 @@ def STANDARD_IMAGING_OPTS_Template():
 # known lwimager args -- these will be passed from keywords
 _fileargs = set("image model restored residual".split(" ")); 
 
+
 def add_imaging_columns (msname="$MS"):
   """Uses lwimager to insrt MODEL_DATA and CORRECTED_DATA columns""";
   msname = interpolate_locals("msname");
@@ -84,6 +85,7 @@ def add_imaging_columns (msname="$MS"):
   else:
     warn("lwimager >= 1.3.2 needed to add imaging columns to an MS");
     return None;
+
 
 def _run (convert_output_to_fits=True,lwimager_path="$LWIMAGER_PATH",**kw):
   # look up lwimager
@@ -119,11 +121,12 @@ def _run (convert_output_to_fits=True,lwimager_path="$LWIMAGER_PATH",**kw):
     velo = kw.get('velocity') or velocity;
     for arg in _fileargs:
       if arg in fitsfiles:
-        im = pyrap.images.image(args[arg]);
+        _im = pyrap.images.image(args[arg]);
         if fs and fs != 1:
-          im.putdata(fs*im.getdata());
-        im.tofits(fitsfiles[arg],overwrite=True,velocity=velo);  
+          _im.putdata(fs*_im.getdata());
+        _im.tofits(fitsfiles[arg],overwrite=True,velocity=velo);  
         subprocess.call("rm -fr "+args[arg],shell=True);
+
 
 def lwimager_version (path="$LWIMAGER_PATH"):
   """Determines lwimager version, returns tuple of xxxyyyzzz,tail, where 
@@ -151,6 +154,7 @@ def lwimager_version (path="$LWIMAGER_PATH"):
   info("$path version is $major.$minor.$patch${-<tail}")
   return major*1000000+minor*1000+patch,tail;
 
+
 def make_image (msname="$MS",column="${im.COLUMN}",imager='$IMAGER',
                 dirty=True,restore=False,restore_lsm=True,psf=False,
                 dirty_image="${im.DIRTY_IMAGE}",
@@ -175,6 +179,7 @@ def make_image (msname="$MS",column="${im.COLUMN}",imager='$IMAGER',
   'dirty_image', etc. sets the image names, with defaults determined by the globals DIRTY_IMAGE, etc.
   """;
   
+  _imager = im.IMAGER
   im.IMAGER = II(imager)
   # retain lwimager label for dirty maps and psf_maps
   #Add algorithm label if required
@@ -284,6 +289,8 @@ def make_image (msname="$MS",column="${im.COLUMN}",imager='$IMAGER',
       info("Restoring LSM into FULLREST_IMAGE=$fullrest_image");
       opts = restore_lsm if isinstance(restore_lsm,dict) else {};
       tigger_restore(restoring_options,"-f",restored_image,lsm,fullrest_image,kwopt_to_command_line(**opts));
+
+  im.IMAGER = _imager
       
 document_globals(make_image,"im.*_IMAGE COLUMN im.IMAGE_CHANNELIZE MS im.RESTORING_OPTIONS im.CLEAN_ALGORITHM ms.IFRS ms.DDID ms.FIELD ms.CHANRANGE");      
 
