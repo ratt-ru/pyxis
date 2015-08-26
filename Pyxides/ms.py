@@ -254,6 +254,27 @@ def plot_uvcov (msname="$MS",width=None,height=None,dpi=None,save=None,select=No
   
 document_globals(plot_uvcov,"MS FIGURE_*");  
 
+def swapfields (f1,f2,msname="$MS"):
+  """Swaps two fields in an MS"""
+  msname = interpolate_locals("msname")
+  info("swapping FIELDs $f1 and $f2 in $msname");
+  field = msw(msname=msname,subtable="FIELD");
+  for name in field.colnames():
+    info("swapping column $name");
+    col = field.getcol(name);
+    col[f1],col[f2] = col[f2],col[f1];
+    field.putcol(name,col);
+  field.close();
+  tab = msw();
+  fcol = tab.getcol("FIELD_ID");
+  r1 = (fcol==f1)
+  r2 = (fcol==f2)
+  fcol[r1] = f2
+  fcol[r2] = f1
+  tab.putcol("FIELD_ID",fcol);
+  tab.close();
+
+
 ##
 ## ARCHIVE/UNARCHIVE FUNCTIONS
 ##
