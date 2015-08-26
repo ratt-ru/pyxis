@@ -124,10 +124,8 @@ def _run(msname='$MS',clean=False,path='${im.WSCLEAN_PATH}',**kw):
 
     # map weight parameters
     wgt = args['weight'];
-    if wgt == "robust":
-        args['weight'] = "briggs";
-    if wgt == 'briggs':
-        args['weight'] = '%s %.2f'%(wgt,kw.get('robust',robust))
+    if wgt == "robust" or wgt == "briggs":
+        args['weight'] = 'briggs %.2f'%(kw.get('robust',robust))
 
     # map threshold
     if isinstance(args['threshold'],str):
