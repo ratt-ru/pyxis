@@ -5,6 +5,7 @@ import im
 import subprocess
 import tempfile
 import im.argo
+import pyrap.images as Images
 
 # register ourselves with Pyxis and define the superglobals
 register_pyxis_module(superglobals="MS LSM OUTDIR DESTDIR")
@@ -29,7 +30,8 @@ _casa_known_args = {4.10:set('vis imagename outlierfile field spw selectdata tim
 }
 
 def STANDARD_IMAGING_OPTS_Template():
-    global npix,cellsize,mode,stokes,weight,robust,niter,gain,threshold,algorithm
+    global npix,cellsize,mode,stokes,weight,robust,niter,gain,threshold
+    global wprojplanes,cachesize,ifrs,fixed,flux_rescale,velocity,no_weight_fov
     npix = im.npix
     cellsize = im.cellsize
     mode = im.mode
@@ -39,6 +41,16 @@ def STANDARD_IMAGING_OPTS_Template():
     niter = im.niter
     gain = im.gain
     threshold = im.threshold
+    wprojplanes = im.wprojplanes
+    cachesize = im.cachesize
+    ifrs = im.ifrs
+    fixed = im.fixed
+    # rescale images by factor
+    flux_rescale= im.flux_rescale
+    # use velocity rather than frequency
+    velocity = im.velocity
+    no_weight_fov = im.no_weight_fov
+
 
 # whenever the path changes, find out new version number, and build new set of arguments
 _casa_path_version = None,None;
@@ -55,6 +67,7 @@ def CASA_VERSION_Template (path='$CASA_PATH'):
             if version <= _casa_path_version[1][0]:
                 _casa_args.update(args)
     return _casa_path_version[1]
+
 
 def casa_version(path='$CASA_PATH'):
     """ try to find casa version """
@@ -83,6 +96,7 @@ def casa_version(path='$CASA_PATH'):
         version = float(vstr%(tuple(version)))
     return version,tail
 
+
 def _run(path='${im.CASA_PATH}',clean=False,makepsf=False,**kw):
     """ runs casa's clean task """
     
@@ -98,6 +112,10 @@ def _run(path='${im.CASA_PATH}',clean=False,makepsf=False,**kw):
     ms.IFRS is not None and args.setdefault('ifrs',ms.IFRS)
     ms.DDID is not None and args.setdefault('spw',ms.DDID)
     ms.FIELD is not None and args.setdefault('field',ms.FIELD)
+    
+    if args.get("wprojplanes",0):
+        args["gridmode"] = "widefield"
+    
 
     # have an IFR subset? Parse that too
     msname,ifrs = args['vis'],args.pop('ifrs',None)
@@ -126,11 +144,25 @@ def _run(path='${im.CASA_PATH}',clean=False,makepsf=False,**kw):
     if makepsf: 
         mult.append({'imagename':'%s.%s'%(imagename,'psf'),'fitsimage':kw['psf']})
     if mult:
-        im.argo.icasa('exportfits',mult=mult,overwrite=True)
+        velo = kw.get("velocity") or velocity
+        fs = kw.get("flux_rescale") or flux_rescale
+        for pair in mult:
+            casaim, fitsim = pair["imagename"],pair["fitsimage"]
+            _im = Images.image(casaim)
+            if fs!=1:
+                _im.putdata(fs*_im.getdata())
+            if os.path.exists(casaim):
+                _im.tofits(fitsim, overwrite=True, velocity=velo)
+            else:
+                abort("Cannot find images. Something went wrong when running CASAPY clean task. Please check logs")
+        
+
+#        im.argo.icasa('exportfits',mult=mult,overwrite=True)
     # delete casa images
     for image in ['$imagename.%s'%s for s in 'model residual image flux psf'.split()]:
         if os.path.exists(II(image)):
             rm_fr(image)
+
 
 def make_image (msname="$MS",column="${im.COLUMN}",imager='$IMAGER',
                 dirty=True,restore=False,restore_lsm=True,psf=False,
@@ -145,6 +177,7 @@ def make_image (msname="$MS",column="${im.COLUMN}",imager='$IMAGER',
                 channelize=None,lsm="$LSM",**kw0):
     """ run casa imager """
 
+    _imager = im.IMAGER
     im.IMAGER = II(imager)
     #Add algorithm label if required
     if im.DECONV_LABEL and restore: 
@@ -212,5 +245,7 @@ interpolate_locals("imager msname column lsm dirty_image psf_image restored_imag
             info("Restoring LSM into FULLREST_IMAGE=$fullrest_image")
             opts = restore_lsm if isinstance(restore_lsm,dict) else {}
             tigger_restore(restoring_options,"-f",restored_image,lsm,fullrest_image,kwopt_to_command_line(**opts))
+
+    im.IMAGER = _imager
 
 document_globals(make_image,"im.*_IMAGE COLUMN im.IMAGE_CHANNELIZE MS im.RESTORING_OPTIONS im.CLEAN_ALGORITHM ms.IFRS ms.DDID ms.FIELD ms.CHANRANGE")

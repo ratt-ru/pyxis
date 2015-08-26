@@ -13,10 +13,13 @@ import ms
 import std
 import glob
 import time
+import Owlcat.FitsTool as fitstool
+
 # Load some Pyxis functionality
 from Pyxis.ModSupport import *
 
 # register ourselves with Pyxis and define the superglobals
+register_pyxis_module(superglobals="MS LSM")
 register_pyxis_module()
 
 rm_fr = x.rm.args("-fr")
@@ -46,6 +49,7 @@ def make_threshold_mask (input="${im.RESTORED_IMAGE}",threshold=0,output="$im.MA
 document_globals(make_threshold_mask,"im.RESTORED_IMAGE im.MASK_IMAGE");
 
 define("COPY_IMAGE_TO_Template", "${MS:BASE}.imagecopy.fits","container for image copy")
+
 def make_empty_image (msname="$MS",image="${COPY_IMAGE_TO}",channelize=None,**kw0):
     msname,image = interpolate_locals("msname image")
     # setup imager options
@@ -60,104 +64,15 @@ def make_empty_image (msname="$MS",image="${COPY_IMAGE_TO}",channelize=None,**kw
     info("created empty image $image")
 
 
-def combine_fits(fitslist,outname='combined.fits',axis=0,ctype=None,keep_old=False):
-    """ Combine a list of fits files along a given axiis.
-       
-       fitslist: list of fits file to combine
-       outname: output file name
-       axis: axis along which to combine the files (numpy index. not FITS index)
-       ctype: Axis label in the fits header (if given, axis will be ignored)
-       keep_old: Keep component files after combining?
-    """
+# Borrow some fuctions from Owlcat/FitsTool
 
-    hdu = pyfits.open(fitslist[0])[0]
-    hdr = hdu.header
-    naxis = hdr['NAXIS']
+combine_fits = fitstool.stack_planes
 
-    # find axis via CTYPE key
-    if ctype is not None:
-        for i in range(1,naxis+1):
-            if hdr['CTYPE%d'%i].startswith(ctype):
-                axis = naxis - i # fits to numpy convention
+splitfits = fitstool.unstack_planes
 
-
-    fits_ind = abs(axis-naxis)
-    crval = hdr['CRVAL%d'%fits_ind]
-
-    imslice = [slice(None)]*naxis
-    _sorted = sorted([pyfits.open(fits) for fits in fitslist],
-                    key=lambda a: a[0].header['CRVAL%d'%(naxis-axis)])
-
-    # define structure of new FITS file
-    nn = [ hd[0].header['NAXIS%d'%(naxis-axis)] for hd in _sorted] 
-    shape = list(hdu.data.shape)
-    shape[axis] = sum(nn)
-    data = numpy.zeros(shape,dtype=float)
-
-    for i,hdu0 in enumerate(_sorted):
-        h = hdu0[0].header
-        d = hdu0[0].data
-        imslice[axis] = range(sum(nn[:i]),sum(nn[:i+1]) )
-        data[imslice] = d
-        if crval > h['CRVAL%d'%fits_ind]:
-            crval =  h['CRVAL%d'%fits_ind]
-
-    # update header
-    hdr['CRVAL%d'%fits_ind] = crval
-    hdr['CRPIX%d'%fits_ind] = 1
+reorder_fits_axes = fitstool.reorder
     
-    pyfits.writeto(outname,data,hdr,clobber=True)
-    
-    # remove old files
-    if not keep_old:
-        for fits in fitslist:
-            os.system('rm -f %s'%fits)
 
-
-def splitfits(fitsname,chunks,axis=None,ctype=None,prefix=None):
-    """ split fits data along a given axis in N chunks """
-    
-    prefix = prefix or fitsname[:-5] # take everthing but .FITS/.fits
-    hdu = pyfits.open(fitsname)
-    hdr = hdu[0].header
-    data = hdu[0].data.copy()    
-    naxis = hdr["NAXIS"]
-
-    if axis is None and ctype is None:
-        abort('Please specify either axis or ctype')
-    # find axis via CTYPE key
-    if ctype :
-        for i in range(1,naxis+1):
-            if hdr['CTYPE%d'%i].startswith(ctype):
-                axis = naxis - i # fits to numpy indexing
-
-    crval = hdr['CRVAL%d'%(naxis-axis)]
-    cdelt = hdr['CDELT%d'%(naxis-axis)]
-    crpix = hdr['CRPIX%d'%(naxis-axis)]
-    # shift crval to crpix=1
-    crval = crval - (crpix-1)*cdelt
-
-    nstacks = hdr['NAXIS%d'%(naxis-axis)]
-    nchunks = nstacks//chunks
-    info("The FITS file $fitsname has $nstacks stacks along this axis. Breaking it up to $nchunks images")
-
-    outfiles = []
-    for i in range(0,nchunks):
-
-        _slice = [slice(None)]*naxis
-        _slice[axis] = range(i*chunks,(i+1)*chunks if i+1!=nchunks else nstacks)
-        hdu[0].data = data[_slice]
-        hdu[0].header['CRVAL%d'%(naxis-axis)] = crval + i*cdelt*chunks
-        hdu[0].header['CRPIX%d'%(naxis-axis)] = 1
-        outfile = '%s-%04d.fits'%(prefix,i)
-        outfiles.append(outfile)
-        info("Making chunk $i : %s. File is $outfile"%repr(_slice[axis]))
-        hdu.writeto(outfile,clobber=True)
-
-    hdu.close()
-    return outfiles
-
-    
 def addcol(msname='$MS',colname=None,shape=None,
            data_desc_type='array',valuetype=None,init_with=0,**kw):
     """ add column to MS 
@@ -269,63 +184,7 @@ def findImager(path,imager_name=None):
         return False # Exhausted all sensible options, give up. 
 
 
-def swap_stokes_freq(fitsname,freq2stokes=False):
-    print 'Checking STOKES and FREQ in FITS file, might need to swap these around.'
-    hdu = pyfits.open(fitsname)[0]
-    hdr = hdu.header
-    data = hdu.data
-    if hdr['NAXIS']<4:
-        print 'Editing fits file [%s] to make it usable by the pipeline.'%fitsname
-        isfreq = hdr['CTYPE3'].startswith('FREQ')
-        if not isfreq :
-          return False
-        hdr.update('CTYPE4','STOKES')
-        hdr.update('CDELT4',1)
-        hdr.update('CRVAL4',1)
-        hdr.update('CUNIT4','Jy/Pixel')
-        data.resize(1,*data.shape)
-    if freq2stokes:
-        if hdr["CTYPE3"].startswith("FREQ") : return 0;
-        else:
-            hdr0 = hdr.copy()
-            hdr.update("CTYPE4",hdr0["CTYPE3"])
-            hdr.update("CRVAL4",hdr0["CRVAL3"])
-            hdr.update("CDELT4",hdr0["CDELT3"])
-            try :
-                hdr.update("CUNIT4",hdr0["CUNIT3"])
-            except KeyError: 
-                hdr.update('CUNIT3','Hz    ')
-            #--------------------------
-            hdr.update("CTYPE3",hdr0["CTYPE4"])
-            hdr.update("CRVAL3",hdr0["CRVAL4"])
-            hdr.update("CDELT3",hdr0["CDELT4"])
-            try :
-                hdr.update("CUNIT3",hdr0["CUNIT4"])
-            except KeyError: 
-                hdr.update('CUNIT4','Jy/Pixel    ')
-                print ('Swapping FREQ and STOKES axes in the fits header [%s]'%fitsname)
-            pyfits.writeto(fitsname,np.rollaxis(data,1),hdr,clobber=True)
-    elif hdr["CTYPE3"].startswith("FREQ"):
-        hdr0 = hdr.copy()
-        hdr.update("CTYPE3",hdr0["CTYPE4"])
-        hdr.update("CRVAL3",hdr0["CRVAL4"])
-        hdr.update("CDELT3",hdr0["CDELT4"])
-        try :
-            hdr.update("CUNIT3",hdr0["CUNIT4"])
-        except KeyError: 
-            hdr.update('CUNIT3','Jy/Pixel    ')
-        #--------------------------
-        hdr.update("CTYPE4",hdr0["CTYPE3"])
-        hdr.update("CRVAL4",hdr0["CRVAL3"])
-        hdr.update("CDELT4",hdr0["CDELT3"])
-        try :
-            hdr.update("CUNIT4",hdr0["CUNIT3"])
-        except KeyError: 
-            hdr.update('CUNIT4','Hz    ')
-        print 'Swapping FREQ and STOKES axes in the fits header [%s]. This is a  MeqTrees work arround.'%fitsname
-        pyfits.writeto(fitsname,np.rollaxis(data,1),hdr,clobber=True)
-    return 0
-
+    
 
 def gen_run_cmd(path,options,suf='',assign='=',lv_str=False,pos_args=None):
     """ Generate command line run command """
@@ -348,7 +207,7 @@ def gen_run_cmd(path,options,suf='',assign='=',lv_str=False,pos_args=None):
     return run_cmd
 
 
-def icasa(taskname,mult=None,**kw0):
+def icasa(taskname, mult=None, loadthese=[],**kw0):
     """ 
       runs a CASA task given a list of options.
       A given task can be run multiple times with a different options, 
@@ -361,6 +220,18 @@ def icasa(taskname,mult=None,**kw0):
     td = tempfile.mkdtemp(dir='.')
     # we want get back to the working directory once casapy is launched
     cdir = os.path.realpath('.')
+
+    # load modules in loadthese
+    _load = ""
+    if "os" not in loadthese or "import os" not in loadthese:
+        loadthese.append("os")
+
+    if loadthese:
+        exclude = filter(lambda line: line.startswith("import") or line.startswith("from"), loadthese)
+        for line in loadthese:
+            if line not in exclude:
+                line = "import %s"%line
+            _load += "%s\n"%line
 
     if mult:
         if isinstance(mult,(tuple,list)):
@@ -380,13 +251,14 @@ def icasa(taskname,mult=None,**kw0):
                  val = '"%s"'%val
             task_cmds += '\n%s=%s'%(key,val)
         run_cmd += """
-import os
+%s
+
 os.chdir('%s')
 taskname = '%s'
 %s
 go()
 
-"""%(cdir,taskname,task_cmds)
+"""%(_load,cdir,taskname,task_cmds)
 
     tf = tempfile.NamedTemporaryFile(suffix='.py')
     tf.write(run_cmd)
