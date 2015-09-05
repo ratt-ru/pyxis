@@ -220,7 +220,7 @@ def pyxls (mod=None,what="FVTB"):
 
 def exists (filename):
   """Returns True if filename exists, interpolating the filename""";
-  return os.path.exists(_I(filename,2));
+  return filename and os.path.exists(_I(filename,2));
 
 def _per (varname,parallel,*commands):
   # default frame to look for vars is caller of caller
