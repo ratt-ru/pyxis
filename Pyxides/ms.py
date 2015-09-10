@@ -262,7 +262,11 @@ def swapfields (f1,f2,msname="$MS"):
   for name in field.colnames():
     info("swapping column $name");
     col = field.getcol(name);
-    col[f1],col[f2] = col[f2],col[f1];
+    # arrays needs to be swapped with copy, else confusion ensues
+    if hasattr(col,'shape') and len(col.shape) > 1:
+        col[f1],col[f2] = col[f2].copy(),col[f1].copy();
+    else:
+        col[f1],col[f2] = col[f2],col[f1]
     field.putcol(name,col);
   field.close();
   tab = msw();
