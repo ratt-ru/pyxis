@@ -294,10 +294,15 @@ def make_image (msname="$MS",column="${im.COLUMN}",imager='$IMAGER',
       
 document_globals(make_image,"im.*_IMAGE COLUMN im.IMAGE_CHANNELIZE MS im.RESTORING_OPTIONS im.CLEAN_ALGORITHM ms.IFRS ms.DDID ms.FIELD ms.CHANRANGE");      
 
-def predict_vis (msname="$MS",image="${im.MODEL_IMAGE}",column="MODEL_DATA",channelize=None,
+def_global("PREDICT_CHANCHUNK",None,"use a maximum chunk size (in channels) when predicting image cubes")
+
+def predict_vis (msname="$MS",image="${im.MODEL_IMAGE}",column="MODEL_DATA",
+  channelize=None,
+  chanchunk=None,
   copy=False,copyto="$COPY_IMAGE_TO",**kw0):
   """Converts image into predicted visibilities"""
-  msname,image,column,copyto = interpolate_locals("msname image column copyto");
+  msname,image,column,copyto = interpolate_locals("msname image column copyto")
+  chanchunk = chanchunk or PREDICT_CHANCHUNK
   
   if LWIMAGER_VERSION[0] in (1003000,1003001):
     abort("lwimager 1.3.%d cannot be used to predict visibilities. Try lwimager-1.2, or upgrade to 1.3.2 or higher"%(LWIMAGER_VERSION[0]%1000))
@@ -313,34 +318,75 @@ def predict_vis (msname="$MS",image="${im.MODEL_IMAGE}",column="MODEL_DATA",chan
 #    ff1 = pyfits.open(copyto);
 #    ff1[0].data[0:data.shape[0],...] = data;
 #    ff1.writeto(copyto,clobber=True);
+
+  # pyrap.images.image() does not appear to like some FITS files we generate (maybe from WSCLEAN), so use
+  # CASA to convert them
+  casaimage = II("${MS:BASE}.predict_vis.img")
+  im.argo.fits2casa(image,casaimage)
   
   # convert to CASA image
-  casaimage = II("${MS:BASE}.predict_vis.img");
-  argo.fits2casa(image,casaimage);
-  
-  # setup channelize options
-  if 'img_nchan' not in kw0 or 'img_chanstart' not in kw0:
-    if channelize is None:
-      channelize = im.IMAGE_CHANNELIZE
-    if channelize == 0:
-      kw0.update(img_nchan=1,img_chanstart=ms.CHANSTART,img_chanstep=ms.NUMCHANS);
-    elif channelize > 0:
-      kw0.update(img_nchan=ms.NUMCHANS//channelize,img_chanstart=ms.CHANSTART,img_chanstep=channelize);
-
-  # setup imager options
-  kw0.setdefault("weight","natural");
-  kw0.update(ms=msname,niter=0,fixed=1,mode="channel",operation="csclean",model=casaimage,
-             chanstart=ms.CHANSTART,chanstep=ms.CHANSTEP,nchan=ms.NUMCHANS);
-  if LWIMAGER_VERSION[0] >= 1003001:
-    kw0['fillmodel'] = 1;
-  info("Predicting visibilities from $image into MODEL_DATA");
-  _run(**kw0);
-  rm_fr(casaimage);
+  # see discussion in https://github.com/ska-sa/pyxis/issues/61 -- make chunks in frequency if asked to
+  import pyrap.images
+  info("image is $casaimage")
+  img = pyrap.images.image(casaimage)
+  imgshp = img.shape()
+  # default chunk list is entire chanel range. Update this if needed
+  chunklist = [ (ms.CHANSTART,ms.NUMCHANS,None,None) ]
+  if len(imgshp) == 4 and imgshp[0] > 1:
+      nimgchan = imgshp[0]
+      info("image cube has $nimgchan channels, MS has ${ms.NUMCHANS} channels")
+      imgchansize = imgshp[1]*imgshp[2]*imgshp[3]*4  # size of an image channel in bytes
+      if chanchunk is None:
+          mem_bytes = os.sysconf('SC_PAGE_SIZE') * os.sysconf('SC_PHYS_PAGES')  # e.g. 4015976448
+          chanchunk = max((mem_bytes/20)/imgchansize,1)
+          info("based on available memory ($mem_bytes), max image chunk is $chanchunk channels")
+      if chanchunk < nimgchan:
+          mschanstep = ms.NUMCHANS*ms.CHANSTEP/nimgchan
+          if ms.NUMCHANS%nimgchan:
+              warn("MS channels not evenly divisible into $nimgchan image channels, chunking may be incorrect")
+          chunklist = []
+          for chan0 in range(0,nimgchan,chanchunk):
+              imch0, imch1 = chan0, (min(chan0+chanchunk, nimgchan)-1)
+              msch0 = ms.CHANSTART + imch0*mschanstep
+              msnch = (imch1-imch0+1)*mschanstep/ms.CHANSTEP
+              # overlap each chunk from 1 onwards by a half-chunk back to take care of extrapolated visibilties
+              # from previous channel
+              if imch0:
+                  imch0 -= 1
+                  msch0 -= mschanstep/2
+                  msnch += mschanstep/2
+              info("image chunk $imch0~$imch1 corresponds to MS chunk %d~%d"%(msch0,msch0+msnch-1))
+              chunklist.append((msch0, msnch, imch0, imch1));
+              
+  casaimage1 = None
+  # image channelize options ignoed by lwimager in fill-model mode so just use 1
+  kw0.update(img_nchan=1,img_chanstart=1,img_chanstep=1,model=casaimage)
+  blc = [0]*len(imgshp)
+  trc = [ x-1 for x in imgshp ]
+  # now loop over image frequency chunks
+  for mschanstart, msnumchans, imgch0, imgch1 in chunklist:
+      if len(chunklist) > 1:
+          blc[0], trc[0] = imgch0, imgch1
+          info("writing CASA image for slice $blc $trc")
+          casaimage1 = casaimage+"1"
+          img.subimage(blc,trc).saveas(casaimage1)
+          kw0.update(model=casaimage1)
+      # setup imager options
+      kw0.update(ms=msname, niter=0, fixed=1, mode="channel", operation="csclean",
+                 chanstart=mschanstart, chanstep=ms.CHANSTEP, nchan=msnumchans)
+      if LWIMAGER_VERSION[0] >= 1003001:
+          kw0['fillmodel'] = 1;
+      info("predicting visibilities into MODEL_DATA");
+      _run(**kw0);
+      
+  rm_fr(casaimage)
+  if casaimage1:
+      rm_fr(casaimage1)
   
   if column != "MODEL_DATA":
     ms.copycol(msname=msname,fromcol="MODEL_DATA",tocol=column);
 
-document_globals(predict_vis,"MS im.MODEL_IMAGE COPY_IMAGE_TO ms.IFRS ms.DDID ms.FIELD ms.CHANRANGE");      
+document_globals(predict_vis,"PREDICT_CHANCHUNK MS im.MODEL_IMAGE COPY_IMAGE_TO ms.IFRS ms.DDID ms.FIELD ms.CHANRANGE");      
 
 def make_psf (msname="$MS",**kw):
   """Makes an image of the PSF. All other arguments as per make_image()."""
