@@ -295,6 +295,7 @@ def make_image (msname="$MS",column="${im.COLUMN}",imager='$IMAGER',
 document_globals(make_image,"im.*_IMAGE COLUMN im.IMAGE_CHANNELIZE MS im.RESTORING_OPTIONS im.CLEAN_ALGORITHM ms.IFRS ms.DDID ms.FIELD ms.CHANRANGE");      
 
 def_global("PREDICT_CHANCHUNK",None,"use a maximum chunk size (in channels) when predicting image cubes")
+def_global("PREDICT_KEEPIMAGES",False,"do not delete CASA images made while predicting image cubes")
 
 def predict_vis (msname="$MS",image="${im.MODEL_IMAGE}",column="MODEL_DATA",
   channelize=None,
@@ -321,7 +322,8 @@ def predict_vis (msname="$MS",image="${im.MODEL_IMAGE}",column="MODEL_DATA",
 
   # pyrap.images.image() does not appear to like some FITS files we generate (maybe from WSCLEAN), so use
   # CASA to convert them
-  casaimage = II("${MS:BASE}.predict_vis.img")
+  casaimage = II("$image.img")
+  rm_fr(casaimage)
   im.argo.fits2casa(image,casaimage)
   
   # convert to CASA image
@@ -358,35 +360,39 @@ def predict_vis (msname="$MS",image="${im.MODEL_IMAGE}",column="MODEL_DATA",
               info("image chunk $imch0~$imch1 corresponds to MS chunk %d~%d"%(msch0,msch0+msnch-1))
               chunklist.append((msch0, msnch, imch0, imch1));
               
-  casaimage1 = None
-  # image channelize options ignoed by lwimager in fill-model mode so just use 1
-  kw0.update(img_nchan=1,img_chanstart=1,img_chanstep=1,model=casaimage)
+  # even in fill-model mode where it claims to ignore image parameters, the image channelization
+  # arguments need to be "just so" as per below, otherwise it gives a GridFT: weights all zero message
+  kw0.update(ms=msname, model=casaimage, 
+      niter=0, fixed=1, mode="channel", operation="csclean",
+      img_nchan=1,img_chanstart=ms.CHANSTART, img_chanstep=ms.NUMCHANS*ms.CHANSTEP)
+  if LWIMAGER_VERSION[0] >= 1003001:
+      kw0['fillmodel'] = 1;
+                   
   blc = [0]*len(imgshp)
   trc = [ x-1 for x in imgshp ]
   # now loop over image frequency chunks
-  for mschanstart, msnumchans, imgch0, imgch1 in chunklist:
+  for ichunk, (mschanstart, msnumchans, imgch0, imgch1) in enumerate(chunklist):
       if len(chunklist) > 1:
           blc[0], trc[0] = imgch0, imgch1
           info("writing CASA image for slice $blc $trc")
-          casaimage1 = casaimage+"1"
+          casaimage1 = II("$casaimage.$ichunk")
+          rm_fr(casaimage1)
+          info("writing CASA image for slice $blc $trc to $casaimage1")
           img.subimage(blc,trc).saveas(casaimage1)
           kw0.update(model=casaimage1)
       # setup imager options
-      kw0.update(ms=msname, niter=0, fixed=1, mode="channel", operation="csclean",
-                 chanstart=mschanstart, chanstep=ms.CHANSTEP, nchan=msnumchans)
-      if LWIMAGER_VERSION[0] >= 1003001:
-          kw0['fillmodel'] = 1;
+      kw0.update(chanstart=mschanstart, chanstep=ms.CHANSTEP, nchan=msnumchans)
       info("predicting visibilities into MODEL_DATA");
       _run(**kw0);
-      
-  rm_fr(casaimage)
-  if casaimage1:
-      rm_fr(casaimage1)
+      if len(chunklist) > 1 and not PREDICT_KEEPIMAGES:
+        rm_fr(casaimage1)   
+  if not PREDICT_KEEPIMAGES:
+      rm_fr(casaimage)
   
   if column != "MODEL_DATA":
     ms.copycol(msname=msname,fromcol="MODEL_DATA",tocol=column);
 
-document_globals(predict_vis,"PREDICT_CHANCHUNK MS im.MODEL_IMAGE COPY_IMAGE_TO ms.IFRS ms.DDID ms.FIELD ms.CHANRANGE");      
+document_globals(predict_vis,"PREDICT_* MS im.MODEL_IMAGE COPY_IMAGE_TO ms.IFRS ms.DDID ms.FIELD ms.CHANRANGE");      
 
 def make_psf (msname="$MS",**kw):
   """Makes an image of the PSF. All other arguments as per make_image()."""
