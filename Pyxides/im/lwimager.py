@@ -375,7 +375,7 @@ def predict_vis (msname="$MS",image="${im.MODEL_IMAGE}",column="MODEL_DATA",
       if len(chunklist) > 1:
           blc[0], trc[0] = imgch0, imgch1
           info("writing CASA image for slice $blc $trc")
-          casaimage1 = II("$casaimage.$ichunk")
+          casaimage1 = II("$image.$ichunk.img")
           rm_fr(casaimage1)
           info("writing CASA image for slice $blc $trc to $casaimage1")
           img.subimage(blc,trc).saveas(casaimage1)
