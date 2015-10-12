@@ -45,7 +45,8 @@ _wsclean_known_args = {0:set('name predict size scale nwlayers minuvw maxuvw max
                        1.6:set('dft-predict'),
                        1.7:set('moresane-ext casamask fitsmask mgain intervalsout' 
                                'no-update-model-required saveweights'.split()),
-                       1.8:set('moresane-arg moresane-sl'.split())
+                       1.8:set('moresane-arg moresane-sl'.split()),
+                       1.9:set('fit-spectral-pol fit-spectral-log-pol deconvolution-channels'.split())
 }
 
 # whenever the path changes, find out new version number, and build new set of arguments
@@ -96,9 +97,9 @@ def wsclean_version(path='${WSCLEAN_PATH}'):
     info('$path version is $version${-<tail}')
 
     if '.' in version:
-        if version == '1.9b':
+        if version.startswith('1.9'):
             version = '1.9'
-            info("using wsclean 1.9 interface for 1.9b")
+            info("using wsclean 1.9 interface for 1.9x")
         try:
             version = map(int,version.split('.'))
         except ValueError: 

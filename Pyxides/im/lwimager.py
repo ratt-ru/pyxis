@@ -378,8 +378,10 @@ def predict_vis (msname="$MS",image="${im.MODEL_IMAGE}",column="MODEL_DATA",
           casaimage1 = II("$image.$ichunk.img")
           rm_fr(casaimage1)
           info("writing CASA image for slice $blc $trc to $casaimage1")
-          img.subimage(blc,trc).saveas(casaimage1)
+          img.subimage(blc,trc,dropdegenerate=False).saveas(casaimage1)
           kw0.update(model=casaimage1)
+      else:
+          img.unlock()
       # setup imager options
       kw0.update(chanstart=mschanstart, chanstep=ms.CHANSTEP, nchan=msnumchans)
       info("predicting visibilities into MODEL_DATA");
