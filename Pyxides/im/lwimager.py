@@ -7,7 +7,6 @@ import subprocess
 import pyfits
 import argo
 
-import mqt
 import ms
 import std
 import im
