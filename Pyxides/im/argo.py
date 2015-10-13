@@ -14,7 +14,6 @@ import std
 import glob
 import time
 import Owlcat.FitsTool as fitstool
-import pyrap.images as images
 
 # Load some Pyxis functionality
 from Pyxis.ModSupport import *
@@ -31,9 +30,8 @@ def fits2casa (input,output):
         rm_fr(output)
     if not exists(input):
         abort("$input does not exist")
-    image = images.image(input)
-    image.saveas(output,overwrite=True)
-
+    std.runcasapy("importfits('$input','$output',overwrite=True)")
+#    x.imagecalc("in='$input'","out=$output",split_args=False)
 
 def make_threshold_mask (input="${im.RESTORED_IMAGE}",threshold=0,output="$im.MASK_IMAGE",high=1,low=0):
     """
