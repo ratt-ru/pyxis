@@ -236,8 +236,8 @@ class ShellExecutorFactory (object):
     # pipe the output into here via communicate()
     stdout = subprocess.PIPE if self.get_output or type(sys.stdout) is not file else sys.stdout;
     stderr = subprocess.PIPE if type(sys.stderr) is not file else sys.stderr;
-    po = subprocess.Popen(commands,preexec_fn=_on_parent_exit('SIGTERM'),shell=True,
-        stdout=stdout,stderr=stderr);
+    po = subprocess.Popen(["/bin/bash","-c"]+list(commands), preexec_fn=_on_parent_exit('SIGTERM'),
+        shell=False,stdout=stdout,stderr=stderr);
     # if piping either output stream, capture it here
     if stdout is subprocess.PIPE or stderr is subprocess.PIPE:
       output,err_output = po.communicate();
