@@ -85,7 +85,7 @@ if __name__ == "__main__":
   parser.add_option("-o","--outdir",type="string",metavar="DIR",
                     help="redirect all outputs to subdirectory. Equivalent to OUTDIR=DIR. Overrides any config file OUTDIR settings.");
   parser.add_option("-w","--wrapup",type="string",metavar="COMMAND",action="append",
-                    help="executes command on exit, regardless of success or failure. Can be specified multiple times for multiple commands.");
+                    help="executes command on exit, regardless of success or failure. Can be specified multiple times for multiple commands. Equivalent to PYXIS_WRAPUP.append(\"command\").");
   parser.add_option("-x","--no-x11",action="store_true",
                     help="explicitly disable X11 connections. Equivalent to NO_X11=True.\n"
                     "HIGHLY RECOMMENDED for offline jobs, as some tools (e.g. matplolib) like\n"
