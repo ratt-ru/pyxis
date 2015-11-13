@@ -3,9 +3,9 @@
 import os
 from distutils.core import setup
 
-setup(name='pyxis',
-      version='1.4.0',
-      description='Python Extensions for Interferometry Scripting',
+setup(name='astro-pyxis',
+      version='1.4.3',
+      description='Python Extensions for astronomical Interferometry Scripting',
       author='Oleg Smirnov',
       author_email='Oleg Smirnov <osmirnov@gmail.com>',
       url='https://github.com/ska-sa/pyxis',

@@ -1,4 +1,6 @@
 build/
 debian/
 *.pyc
+MANIFEST
+dist/
 

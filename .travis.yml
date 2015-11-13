@@ -1,0 +1,15 @@
+language: python
+python:
+- '2.7'
+before_install:
+- sudo apt-get update -qq
+install:
+- python setup.py install
+deploy:
+  provider: pypi
+  user: gijzelaerr
+  password:
+    secure: FIU8/3mER+/IyngbN1B1p8sUj6IiWXhTp3XC0jy+oab4MvAKY5s5i9AASejfVBPcCjYgUKOrNM0lvkdnNtmWQMnuYpLAjNDtYLnHqoupJ1PRXOmkGGDj+4Ivgk/gbitduoyXWkbxafuwyQ/PX3XbIda2pgs28SUQmIaYVKbcAtg=
+  on:
+    tags: true
+    repo: ska-sa/pyxis
