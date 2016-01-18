@@ -229,20 +229,23 @@ class ShellExecutorFactory (object):
     # run command
     _verbose(self.verbose,"executing '%s':"%(" ".join(commands)));
     flush_log();
+    #
+    quiet = kws.pop("quiet",False)
     # if stdout/stderr is not a file (as is the case under ipython notebook, then
     # subprocess.Popen() fails. Therefore, in these cases, or if get_output is true, we
     # pipe the output into here via communicate()
     stdout = subprocess.PIPE if self.get_output or type(sys.stdout) is not file else sys.stdout;
     stderr = subprocess.PIPE if type(sys.stderr) is not file else sys.stderr;
-    po = subprocess.Popen(commands,preexec_fn=_on_parent_exit('SIGTERM'),shell=True,
-        stdout=stdout,stderr=stderr);
+    po = subprocess.Popen(["/bin/bash","-c"]+list(commands), preexec_fn=_on_parent_exit('SIGTERM'),
+        shell=False,stdout=stdout,stderr=stderr);
     # if piping either output stream, capture it here
     if stdout is subprocess.PIPE or stderr is subprocess.PIPE:
       output,err_output = po.communicate();
-      if not self.get_output:
+      if not self.get_output and output is not None and not quiet:
         sys.stdout.write(output);
         output = None;
-      sys.stderr.write(err_output);
+      if err_output is not None and not quiet:
+        sys.stderr.write(err_output);
     else:
       po.wait();
       output = po.returncode;

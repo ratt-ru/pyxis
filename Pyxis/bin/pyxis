@@ -85,7 +85,7 @@ if __name__ == "__main__":
   parser.add_option("-o","--outdir",type="string",metavar="DIR",
                     help="redirect all outputs to subdirectory. Equivalent to OUTDIR=DIR. Overrides any config file OUTDIR settings.");
   parser.add_option("-w","--wrapup",type="string",metavar="COMMAND",action="append",
-                    help="executes command on exit, regardless of success or failure. Can be specified multiple times for multiple commands.");
+                    help="executes command on exit, regardless of success or failure. Can be specified multiple times for multiple commands. Equivalent to PYXIS_WRAPUP.append(\"command\").");
   parser.add_option("-x","--no-x11",action="store_true",
                     help="explicitly disable X11 connections. Equivalent to NO_X11=True.\n"
                     "HIGHLY RECOMMENDED for offline jobs, as some tools (e.g. matplolib) like\n"
@@ -142,6 +142,9 @@ if __name__ == "__main__":
   SPAWN_SCREEN_LOG = not options.no_screen_log;
   SPAWN_SCREEN_DETACH = options.detach;
   PAUSE_ON_EXIT = options.pause_on_exit;
+  PYXIS_WRAPUP = options.wrapup or []
+  PYXIS_INTERACTIVE = options.interactive
+  
   if options.verbose is None:
     if options.quiet:
       VERBOSE = -1;
@@ -315,25 +318,31 @@ if __name__ == "__main__":
   # check that we're not in a subprocess -- exit quietly if so, else go wrap things up
   if Pyxis.Commands._subprocess_id is None:
     # execute wrapup commands
-    if options.wrapup:
-      try:
-        Pyxis.Internals.run(*options.wrapup);
-      except Exception:
-        if sys.stdout is not sys.__stdout__:
+    if PYXIS_WRAPUP:
+      info("executing wrapup commands")
+      if type(PYXIS_WRAPUP) is str:
+        PYXIS_WRAPUP = [ PYXIS_WRAPUP ]
+      if not isinstance(PYXIS_WRAPUP,(list,tuple)):
+        wrapfail = "PYXIS_WRAPUP must be set to a list or tuple of commands, or a single command"
+      else:
+        try:
+          Pyxis.Internals.run(*PYXIS_WRAPUP);
+        except Exception:
+          if sys.stdout is not sys.__stdout__:
+            traceback.print_exc();
+            error("Exception raised during wrapup command");
+            Pyxis.Internals.flush_log();
+          sys.stdout = sys.__stdout__;
+          sys.stderr = sys.__stderr__;
           traceback.print_exc();
           error("Exception raised during wrapup command");
-          Pyxis.Internals.flush_log();
-        sys.stdout = sys.__stdout__;
-        sys.stderr = sys.__stderr__;
-        traceback.print_exc();
-        error("Exception raised during wrapup command");
-        wrapfail = "failed with an exception";
-      except SystemExit,exc:
-        wrapfail = "exited with code %d"%exc.code;
-      except KeyboardInterrupt:
-        if Pyxis.Commands._subprocess_id is None:
-          error("Wrapup command aborted with Ctrl+C");
-        wrapfail = "been interrupted with Ctrl+C";
+          wrapfail = "failed with an exception";
+        except SystemExit,exc:
+          wrapfail = "exited with code %d"%exc.code;
+        except KeyboardInterrupt:
+          if Pyxis.Commands._subprocess_id is None:
+            error("Wrapup command aborted with Ctrl+C");
+          wrapfail = "been interrupted with Ctrl+C";
     
     # print status
     if not retcode:
