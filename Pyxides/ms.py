@@ -182,6 +182,38 @@ def copycol (fromcol="DATA",tocol="CORRECTED_DATA",rowchunk=500000,msname="$MS",
       tab1.putcol(tocol,tab0.getcol(fromcol,row0,nr),row0,nr)
   for t in tab0,tab1,maintab0,maintab1:
     tab0.close()
+
+def sumcols (fromcol1="DATA",fromcol2="MODEL_DATA",tocol="CORRECTED_DATA",rowchunk=500000,msname="$MS",to_ms="$msname",ddid=None,to_ddid=None):
+  """Sums data from two columns of MS into a third.
+  Copies 'rowchunk' rows at a time; decrease the default if you have low RAM.
+  """;
+  msname,destms,fromcol1,fromcol2,tocol = interpolate_locals("msname to_ms fromcol1 fromcol2 tocol");
+  if ddid is None:
+      ddids = range(ms(msname,subtable="DATA_DESCRIPTION").nrows());
+      info("copying $msname $fromcol1+$fromcol2 to $destms $tocol");
+      info("$msname has %d DDIDs"%len(ddids));
+      to_ddid = None;
+  else:
+      ddids = [ddid];
+      if to_ddid is None:
+        to_ddid = ddid;
+      info("copying from $msname DDID $ddid $fromcol1+$fromcol2 to $destms DDID $to_ddid $tocol");
+  maintab0 = ms(msname);
+  maintab1 = msw(destms);
+  for ddid in ddids:
+    tab0 = maintab0.query("DATA_DESC_ID == %d"%ddid);
+    tab1 = maintab1.query("DATA_DESC_ID == %d"%(to_ddid if to_ddid is not None else ddid));
+    nrows = tab0.nrows();
+    info("DDID $ddid has $nrows rows");
+    if tab1.nrows() != nrows:
+      abort("table size mismatch: destination has %d rows"%tab1.nrows());
+    for row0 in range(0,nrows,rowchunk):
+      nr = min(rowchunk,nrows-row0);
+      info("copying rows $row0 to %d"%(row0+nr-1));
+      tab1.putcol(tocol,tab0.getcol(fromcol1,row0,nr)+tab0.getcol(fromcol2,row0,nr),row0,nr)
+  for t in tab0,tab1,maintab0,maintab1:
+    tab0.close()
+
     
 document_globals(copycol,"MS");
 
