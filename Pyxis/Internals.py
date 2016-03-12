@@ -1029,17 +1029,27 @@ def _parse_cmdline_value (value):
 def print_doc (symbol):
   import pydoc;
   # if symbol is "module.symbol", try auto-import
-  m = _re_mod_command.match(symbol);
-  if m:
-    _autoimport(m.group(1));
+  match_module = _re_mod_command.match(symbol);
+  if match_module:
+    _autoimport(match_module.group(1));
+  # try to evaluate the symbol to 'what'
+  what = None
   try:
     what = eval(symbol,Pyxis.Context);
   except:
+    # if symbol does not contain a dot, try to treat it as a module name
+    if '.' not in symbol:
+      try:
+        _autoimport(symbol)
+        what = eval(symbol,Pyxis.Context)
+      except:
+        pass
+  if what is None:
     print "Pyxis doesn't know anything about '%s'"%symbol;
     return;
   docs = pydoc.render_doc(what).split("\n");
   if docs[0].startswith("Python Library"):
-    docs[0] = "Pyxis documentation for %s:"%symbol;
+    docs[0] = "Pyxis documentation for %s (%s):"%(symbol, type(what).__name__);
   print "\n".join(docs);
 
 def run (*commands):
