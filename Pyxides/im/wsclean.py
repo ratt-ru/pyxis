@@ -97,9 +97,9 @@ def wsclean_version(path='${WSCLEAN_PATH}'):
     info('$path version is $version${-<tail}')
 
     if '.' in version:
-        if version.startswith('1.9'):
+        if version.startswith('1.9') or version.startswith('1.10'):
             version = '1.9'
-            info("using wsclean 1.9 interface for 1.9x")
+            info("using wsclean 1.9 interface for 1.9x/1.10x")
         try:
             version = map(int,version.split('.'))
         except ValueError: 
