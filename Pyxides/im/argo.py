@@ -83,7 +83,7 @@ def addcol(msname='$MS',colname=None,shape=None,
         data_desc_type : 'scalar' for scalar elements and array for 'array' elements
         init_with : value to initialise the column with 
     """
-    msname = interpolate_locals('msname')
+    msname, colname = interpolate_locals('msname colname')
     tab = pyrap.tables.table(msname,readonly=False)
 
     try: 
