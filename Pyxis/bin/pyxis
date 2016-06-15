@@ -270,10 +270,15 @@ if __name__ == "__main__":
           args.append("-d");
         if SPAWN_SCREEN_LOG:
           args.append("-L");
-        args += sys.argv;
-        args.append("--running-in-screen");
-        if PAUSE_ON_EXIT and "--pause-on-exit" not in args:
-          args.append("--pause-on-exit");
+        args += [ "bash", "-ci" ] 
+        pyxis_args = sys.argv 
+        pyxis_args.append("--running-in-screen");
+        if PAUSE_ON_EXIT and "--pause-on-exit" not in pyxis_args:
+          pyxis_args.append("--pause-on-exit");
+        # now turn the pyxis args list into a something that bash -c will process
+        # quote the single quotes in arguments
+        pyxis_args = [ re.sub(r'(["\'$` ])',r'\\\1',x) for x in pyxis_args ]
+        args.append(' '.join(pyxis_args)) 
         os.execv(screenpath,args);
 
   Pyxis.Internals.saveconf();
