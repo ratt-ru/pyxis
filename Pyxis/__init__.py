@@ -2,6 +2,7 @@ import inspect
 import os.path
 import math
 import numpy
+import imp
 np = numpy
 
 # some useful constants
@@ -32,11 +33,14 @@ if not _initialized:
   exec('from Pyxis.Commands import *',_context);
   exec('from Pyxis.Commands import _I,_II',_context);
   
-  import Pyxides
+  pyxides_path = os.path.realpath(os.path.join(os.path.dirname(__file__), "..", "Pyxides"))
+  verbose(2,"importing Pyxides from",pyxides_path)
+
+  Pyxides = imp.load_source('Pyxides',os.path.join(pyxides_path, "__init__.py"))
   # add Pyxides path to module includes (so we can do stuff like "import ms" instead of "from Pyxides import ms"
   if _context.get("ADD_PYXIDES_PATH",True):
-    verbose(2,"adding Pyxides to import path. Set ADD_PYXIDES_PATH=False to disable");
-    sys.path.append(os.path.dirname(Pyxides.__file__));
+    verbose(2,"added %s to import path. Set ADD_PYXIDES_PATH=False to disable"%pyxides_path);
+    sys.path.append(pyxides_path)
 
   ## import standard modules, unless a specific other set is given
   #if not context.get("pyxis_preload"):
