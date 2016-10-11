@@ -4,6 +4,7 @@ import pyrap.tables
 from pyrap.tables import table
 import os.path
 import pyfits
+import numpy as np
 
 from Pyxis.ModSupport import *
 
@@ -219,7 +220,7 @@ define('FIGURE_WIDTH',8,'width of plots, in inches');
 define('FIGURE_HEIGHT',6,'height of plots, in inches');
 define('FIGURE_DPI',100,'resolution of plots, in DPI');
   
-def plot_uvcov (msname="$MS",width=None,height=None,dpi=None,save=None,select=None,limit=None,**kw):
+def plot_uvcov (msname="$MS",width=None,height=None,dpi=None,save=None,select=None,limit=None,use_flags=False,**kw):
   """Makes uv-coverage plot
   'msname' is superglobal MS by default.
   If 'save' is given, saves figure to file.
@@ -232,15 +233,15 @@ def plot_uvcov (msname="$MS",width=None,height=None,dpi=None,save=None,select=No
   if select:
     tab = tab.query(select);
   uv = tab.getcol("UVW")[:,:2];
-  flag=tab.getcol("FLAG")
-  import numpy as np
-  flagindex=np.where(flag==False)[0]
+  if use_flags:
+    flag = tab.getcol("FLAG_ROW")
+    uv = uv[~flag,:]
   import pylab
   
   pylab.figure(figsize=(width or FIGURE_WIDTH,height or FIGURE_HEIGHT));
-  pylab.plot(-uv[:,0][flagindex],-uv[:,1][flagindex],'.r',**kw);
-  pylab.plot(uv[:,0][flagindex],uv[:,1][flagindex],'.b',**kw);
-  mb = np.sqrt((uv[flagindex]**2).sum(1)).max();
+  pylab.plot(-uv[:,0],-uv[:,1],'.r',**kw);
+  pylab.plot(uv[:,0],uv[:,1],'.b',**kw);
+  mb = np.sqrt((uv**2).sum(1)).max();
   info("max baseline is %.3f km"%(mb*1e-3));
   if limit is not None:
     pylab.xlim(-limit,limit);
