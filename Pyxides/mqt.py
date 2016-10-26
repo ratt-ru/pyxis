@@ -66,11 +66,24 @@ def run (script="$SCRIPT",job="$JOB",config="$TDLCONFIG",section="$SECTION",save
 document_globals(run,"MULTITHREAD EXTRA_TDLOPTS SCRIPT JOB SECTION TDLCONFIG SAVECONFIG");
 
 
-def msrun (script="$SCRIPT",job="$JOB",config="$TDLCONFIG",section="$SECTION",args=[],options={}):
+def msrun (script="$SCRIPT",job="$JOB",section="$SECTION",config="$TDLCONFIG",args=[],options={}):
   """Like run(), but automatically adds TDL options for the currently selected MS/channels/etc
   (according to what is defined in the 'ms' Pyxides module).""";
+  script,job,config,section = interpolate_locals("script job config section");
   return run(script=script,job=job,config=config,section=section,
     args = [ """${ms.MS_TDL} ${ms.CHAN_TDL} ms_sel.ms_ifr_subset_str=${ms.IFRS}""" ] + list(args),
     options=options); 
 
 document_globals(msrun,"MULTITHREAD EXTRA_TDLOPTS SCRIPT JOB SECTION TDLCONFIG");
+
+SIMULATION_SCRIPT_Template = "$CATTERY/Siamese/turbo-sim.py" 
+
+def mssim (section="$SECTION",config="$TDLCONFIG",script="$SIMULATION_SCRIPT",job="simulate",args=[],options={}):
+  """Like runms(), but by default runs the turb-sim.py simulations script from the Cattery.
+  Common usage is mssim("simulation_section")
+  """;
+  script,job,config,section = interpolate_locals("script job config section");
+  return msrun(script=script,job=job,config=config,section=section,
+    args = [ """${ms.MS_TDL} ${ms.CHAN_TDL} ms_sel.ms_ifr_subset_str=${ms.IFRS}""" ] + list(args),
+    options=options); 
+
