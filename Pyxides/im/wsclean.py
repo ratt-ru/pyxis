@@ -4,7 +4,7 @@ from Pyxis.ModSupport import *
 import argo
 import ms
 import im
-import subprocess
+import subprocess,glob
 
 rm_fr = x.rm.args("-fr")
 tigger_restore = x("tigger-restore")
@@ -41,9 +41,10 @@ _wsclean_known_args = {0:set('name predict size scale nwlayers minuvw maxuvw max
                        'imaginarypart datacolumn gkernelsize oversampling reorder no-reorder '
                        'addmodel addmodelapp savemodel wlimit'.split()),
                        1.4:set('channelsout mem absmem j'.split()),
-                       1.5:set('fitbeam nofitbeam circularbeam ellipticalbeam beamshape tempdir'                                'savegridding minuvw-m maxuvw-m'.split()),
+                       1.5:set('fitbeam nofitbeam circularbeam ellipticalbeam beamshape tempdir '                                
+                               'savegridding minuvw-m maxuvw-m'.split()),
                        1.6:set('dft-predict'),
-                       1.7:set('moresane-ext casamask fitsmask mgain intervalsout' 
+                       1.7:set('moresane-ext casamask fitsmask mgain intervalsout ' 
                                'no-update-model-required saveweights'.split()),
                        1.8:set('moresane-arg moresane-sl'.split()),
                        1.9:set('fit-spectral-pol fit-spectral-log-pol deconvolution-channels'.split())
@@ -97,9 +98,10 @@ def wsclean_version(path='${WSCLEAN_PATH}'):
     info('$path version is $version${-<tail}')
 
     if '.' in version:
-        if version.startswith('1.9') or version.startswith('1.10'):
+        if version.startswith('1.9') or version.startswith('1.10') or \
+            version.startswith('1.11') or version.startswith('1.12'):
+            info("using wsclean 1.9 interface for $version")
             version = '1.9'
-            info("using wsclean 1.9 interface for 1.9x/1.10x")
         try:
             version = map(int,version.split('.'))
         except ValueError: 
@@ -110,14 +112,14 @@ def wsclean_version(path='${WSCLEAN_PATH}'):
 
 def _run(msname='$MS',clean=False,path='${im.WSCLEAN_PATH}',**kw):
     """ Run WSCLEAN """
-
     msname,path = interpolate_locals('msname path')
     path = argo.findImager(path,imager_name='WSCLEAN')
     if path is False:
         abort('Could not find WSCLEAN in system path, alises or at $path')
 
     # make dict of imager arguments that have been specified globally or locally
-    args = dict([ (arg,globals()[arg]) for arg in _wsclean_args if arg in globals() and globals()[arg] is not None ]);
+    args = dict([ (arg,globals()[arg.replace("-","_")]) for arg in _wsclean_args 
+                    if arg.replace("-","_") in globals() and globals()[arg.replace("-","_")] is not None ]);
     args.update([ (arg,kw[arg]) for arg in _wsclean_args if arg in kw ])
 
     # map image size/resolution parameters
@@ -140,9 +142,10 @@ def _run(msname='$MS',clean=False,path='${im.WSCLEAN_PATH}',**kw):
         args['niter'] = 0
 
     ms.FIELD is not None and args.setdefault('field',ms.FIELD)
-    x.sh(argo.gen_run_cmd(path,args,suf='-',assign=' ',pos_args=[msname]))
+    x.sh(argo.gen_run_cmd(path,args,suf='-',assign=' ',pos_args=[msname] if not isinstance(msname,(list,tuple)) else msname))
    
 def make_image(msname='$MS',image_prefix='${im.BASENAME_IMAGE}',column='${im.COLUMN}',
+               mslist=None,         # if given, overrieds msname
                 path='${WSCLEAN_PATH}',
                 imager='$IMAGER',
                 restore=False,
@@ -214,10 +217,17 @@ def make_image(msname='$MS',image_prefix='${im.BASENAME_IMAGE}',column='${im.COL
 
     # Check channel selection options in kw
     if 'channelrange' in kw.keys():
-        start,end = map(int,kw['channelrange'].split())
+        if isinstance(kw['channelrange'],str):
+            start,end = map(int,kw['channelrange'].split())
+        else:
+            start,end = kw['channelrange']
     else:
         start,end = ms.CHANSTART,ms.CHANSTART+ms.NUMCHANS;
-        kw['channelrange'] = "%d %d"%(start,end);
+        # if multiple MSs are specified, adjust channel range
+        if mslist:
+            end = ms.TOTAL_CHANNELS*(len(mslist)-1) + end
+
+    kw['channelrange'] = "%d %d"%(start,end);
 
     nr = 1 
     if not channelize:
@@ -245,11 +255,19 @@ def make_image(msname='$MS',image_prefix='${im.BASENAME_IMAGE}',column='${im.COL
 
     if ',' in pol:
         pol = pol.split(',')
-    _run(msname,clean=restore,**kw)
+    kw['clean'] = restore
+
+    # also accepts list of MSs
+    _run(mslist or msname,**kw)
 
     # delete gridding image unless user wants it
     if not KEEP_GRIDDING_IMAGE:
         rm_fr('$image_prefix-gridding.fits')
+
+    # delete first-residual images
+    first_residual_images = glob.glob(II("$image_prefix-*-first-residual.fits"))
+    if first_residual_images:
+        rm_fr(" ".join(first_residual_images))
 
     #TODO(sphe): always keep wsclean MFS images?
     # Combine images if needed

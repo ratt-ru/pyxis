@@ -23,10 +23,11 @@ copy            = x.cp.args("-a");
 plotparms       = x("plot-parms.py").args("$PLOTPARMS_ARGS");
 fitstool        = x("fitstool.py");
 
-casapy = x.casapy.args("--nologger --log2term -c");
+CASAPY_AUTO = xro.which("casapy").strip() or xro.which("casa").strip()
 
 v.define("CASAPY_ZAPLOGS",True,"clean casapy*log and ipython*log files after successful execution of runcasapy")
 v.define("CASAPY_ZAPLOGS_ALWAYS",False,"clean casapy*log and ipython*log files after any execution of runcasapy")
+v.define("CASAPY_PATH",None,"explicit path to casapy/casa executable")
 
 def runcasapy (command,content=None,zap=None,zap_always=None):
   """Runs the specified casapy command (which can be a multi-line script including newlines).
@@ -37,6 +38,10 @@ def runcasapy (command,content=None,zap=None,zap_always=None):
   command = interpolate_locals("command");
   zap = zap if zap is not None else CASAPY_ZAPLOGS;
   zap_always = zap_always if zap_always is not None else CASAPY_ZAPLOGS_ALWAYS; 
+  
+  casapy = CASAPY_PATH or CASAPY_AUTO
+  if not casapy:
+      abort("casapy/casa executable not found. Is CASA installed? You can also try setting std.CASAPY explicitly")
 
   # write command to script file
   tf = tempfile.NamedTemporaryFile(suffix=".py");
@@ -54,15 +59,15 @@ def runcasapy (command,content=None,zap=None,zap_always=None):
     content = II(" ($content)");
   else:
     content = II(". Content:\n$command\n")
-  info("Running casapy $tfname$content");
-  t0 = time.time();
-  retcode = x.sh("cd $td && casapy --nologger --log2term -c $tfname")
+  info("Running casapy $tfname$content")
+  t0 = time.time()
+  retcode = x.sh("cd $td && $casapy --nologger --log2term -c $tfname")
   tf.close();
   # move content of temp. directory to working dir, then delete temp. directory
   x.sh("mv ${td}/* $cdir && rm -fr $td")
   # zap logs
   if zap_always or ( zap and not retcode ):
-    logs = glob.glob("ipython-*.log") + glob.glob("casapy-*.log");
+    logs = glob.glob("ipython-*.log") + glob.glob("casapy-*.log") + glob.glob("casa-*.log")
     logs = [ log for log in logs if os.path.getmtime(log) > t0 ];
     info("zapping CASA logfiles",*logs);
     for log in logs:
