@@ -52,9 +52,15 @@ def run (script="$SCRIPT",job="$JOB",config="$TDLCONFIG",section="$SECTION",save
       args = [ "--mt $MULTITHREAD" ] + args
   if saveconfig:
       args = [ "--save-config $saveconfig"  ] + args
-  args += [ "%s=%s"%(a,b) for a,b in options.iteritems() ] + \
-      [ "$EXTRA_TDLOPTS $script =$job" ];
-  # run pipeliner
+  if isinstance(options, list):
+    for dictionary in options:
+      args += [ "%s=%s"%(a,b) for a,b in dictionary.iteritems() ] + \
+          [ "$EXTRA_TDLOPTS $script =$job "]
+  else:
+    args += [ "%s=%s"%(a,b) for a,b in options.iteritems() ] + \
+        [ "$EXTRA_TDLOPTS $script =$job" ]; 
+
+ # run pipeliner
   if MEMPROF:
     args.append("--memprof");
     pipeliner_mprof(*args);
@@ -72,3 +78,4 @@ def msrun (script="$SCRIPT",job="$JOB",config="$TDLCONFIG",section="$SECTION",ar
     options=options); 
 
 document_globals(msrun,"MULTITHREAD EXTRA_TDLOPTS SCRIPT JOB SECTION TDLCONFIG");
+
