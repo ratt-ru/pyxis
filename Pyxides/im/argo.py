@@ -207,7 +207,7 @@ def gen_run_cmd(path,options,suf='',assign='=',lv_str=False,pos_args=None):
     return run_cmd
 
 
-def icasa(taskname, mult=None, loadthese=[],**kw0):
+def icasa(taskname, mult=None, loadthese=[], **kw0):
     """ 
       runs a CASA task given a list of options.
       A given task can be run multiple times with a different options, 
@@ -220,7 +220,8 @@ def icasa(taskname, mult=None, loadthese=[],**kw0):
     td = tempfile.mkdtemp(dir='.')
     # we want get back to the working directory once casapy is launched
     cdir = os.path.realpath('.')
-
+    
+    casapy = xro.which("casapy").strip() or xro.which("casa").strip() 
     # load modules in loadthese
     _load = ""
     if "os" not in loadthese or "import os" not in loadthese:
@@ -265,7 +266,7 @@ go()
     tf.flush()
     t0 = time.time()
     # all logging information will be in the pyxis log files 
-    x.sh('cd $td && casapy --nologger --log2term --nologfile -c %s'%(tf.name))
+    x.sh('cd $td && $casapy --nologger --log2term --nologfile -c %s'%(tf.name))
 
     # log taskname.last 
     task_last = '%s.last'%taskname
