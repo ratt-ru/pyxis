@@ -4,7 +4,7 @@ import os
 from distutils.core import setup
 
 setup(name='astro-pyxis',
-      version='1.4.4',
+      version='1.5.1.',
       description='Python Extensions for astronomical Interferometry Scripting',
       author='Oleg Smirnov',
       author_email='Oleg Smirnov <osmirnov@gmail.com>',
