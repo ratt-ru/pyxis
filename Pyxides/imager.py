@@ -1,6 +1,6 @@
-import ms  
-import im 
-import im.argo
+from . import ms  
+from . import im 
+from . import im.argo
 
 from Pyxis.ModSupport import *
 
@@ -133,7 +133,7 @@ def predict_vis (msname="$MS",image="$MODEL_IMAGE",column="MODEL_DATA",channeliz
   copy=False,copyto="$COPY_IMAGE_TO",**kw0):
     """Converts image into predicted visibilities"""
     
-    import im.lwimager
+    from . import im.lwimager
 
     msname,image,column,copyto = interpolate_locals("msname image column copyto")
 

@@ -1,7 +1,7 @@
 """Pyxis module for MS-related operations""";
 from Pyxis.ModSupport import *
 
-import argo
+from . import argo
 import ms
 import im
 import subprocess,glob
@@ -66,7 +66,7 @@ def WSCLEAN_VERSION_Template (path='$WSCLEAN_PATH'):
     if path != _wsclean_path_version[0]:
         _wsclean_path_version = path,wsclean_version()
         _wsclean_args = set()
-        for version,args in _wsclean_known_args.iteritems():
+        for version,args in _wsclean_known_args.items():
             if version <= _wsclean_path_version[1][0]:
                 _wsclean_args.update(args)
 
@@ -103,7 +103,7 @@ def wsclean_version(path='${WSCLEAN_PATH}'):
             info("using wsclean 1.9 interface for $version")
             version = '1.9'
         try:
-            version = map(int,version.split('.'))
+            version = list(map(int,version.split('.')))
         except ValueError: 
             version = 0,0
         vstr = '%d.' + '%d'*(len(version)-1)
@@ -189,7 +189,7 @@ def make_image(msname='$MS',image_prefix='${im.BASENAME_IMAGE}',column='${im.COL
     if wsclean_version()[0]<1.6:
         argo.addcol(msname,colname='WEIGHT_SPECTRUM',valuetype='float',init_with=1) 
     
-    if 'datacolumn' not in kw.keys():
+    if 'datacolumn' not in list(kw.keys()):
         kw['datacolumn'] = column
      
     # Cater for moresane
@@ -216,9 +216,9 @@ def make_image(msname='$MS',image_prefix='${im.BASENAME_IMAGE}',column='${im.COL
     kw['name'] = image_prefix    
 
     # Check channel selection options in kw
-    if 'channelrange' in kw.keys():
+    if 'channelrange' in list(kw.keys()):
         if isinstance(kw['channelrange'],str):
-            start,end = map(int,kw['channelrange'].split())
+            start,end = list(map(int,kw['channelrange'].split()))
         else:
             start,end = kw['channelrange']
     else:
@@ -245,9 +245,9 @@ def make_image(msname='$MS',image_prefix='${im.BASENAME_IMAGE}',column='${im.COL
     if psf and not restore:
         kw['makepsf'] = True
 
-    if 'pol' in kw.keys():
+    if 'pol' in list(kw.keys()):
         pol = kw['pol']
-    elif 'stokes' in kw.keys():
+    elif 'stokes' in list(kw.keys()):
         pol = kw['pol'] = kw.pop('stokes')
     else:
         pol = stokes

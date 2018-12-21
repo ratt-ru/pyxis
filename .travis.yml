@@ -1,11 +1,20 @@
-language: python
-sudo: false
-python:
-  - '2.7'
+lanuage: python
+matrix:
+  include:
+  - env: TARGET=py2
+  - env: TARGET=py3
+  - env: TARGET=pep8
+  - env: TARGET=mypy
+  allow_failures:
+  - env: TARGET=pep8
+  - env: TARGET=mypy
+sudo: required
+services:
+ - docker
 install:
-  - python setup.py install
+ - true
 script:
-  - true
+- docker build . -f .travis/${TARGET}.docker
 deploy:
   provider: pypi
   user: gijzelaerr

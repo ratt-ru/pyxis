@@ -153,7 +153,7 @@ if __name__ == "__main__":
     
   # protect these variables down below from being reassigned in configs, if set from command line
   presets = set([varname for varname in 
-    'OUTDIR','LOG','SPAWN_SCREEN_TITLE',
+                 ('OUTDIR','LOG','SPAWN_SCREEN_TITLE')
     if varname in globals() ])
 
   import Pyxis
@@ -312,7 +312,7 @@ if __name__ == "__main__":
       traceback.print_exc();
       error("Exception raised, aborting");
       retcode = 1;
-    except SystemExit,exc:
+    except SystemExit as exc:
       retcode = exc.code;
     except KeyboardInterrupt:
       if Pyxis.Commands._subprocess_id is None:
@@ -342,7 +342,7 @@ if __name__ == "__main__":
           traceback.print_exc();
           error("Exception raised during wrapup command");
           wrapfail = "failed with an exception";
-        except SystemExit,exc:
+        except SystemExit as exc:
           wrapfail = "exited with code %d"%exc.code;
         except KeyboardInterrupt:
           if Pyxis.Commands._subprocess_id is None:

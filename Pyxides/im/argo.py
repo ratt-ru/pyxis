@@ -192,7 +192,7 @@ def gen_run_cmd(path,options,suf='',assign='=',lv_str=False,pos_args=None):
     pos_args = pos_args or []
     run_cmd = '%s '%path
 
-    for key,val in options.iteritems():
+    for key,val in options.items():
         if val is not None:
             if isinstance(val,str) and lv_str:
                 val = '"%s"'%val
@@ -228,7 +228,7 @@ def icasa(taskname, mult=None, loadthese=[], **kw0):
         loadthese.append("os")
 
     if loadthese:
-        exclude = filter(lambda line: line.startswith("import") or line.startswith("from"), loadthese)
+        exclude = [line for line in loadthese if line.startswith("import") or line.startswith("from")]
         for line in loadthese:
             if line not in exclude:
                 line = "import %s"%line
@@ -247,7 +247,7 @@ def icasa(taskname, mult=None, loadthese=[], **kw0):
     run_cmd = """ """
     for kw in mult:
         task_cmds = ''
-        for key,val in kw.iteritems():
+        for key,val in kw.items():
             if isinstance(val,str):
                  val = '"%s"'%val
             task_cmds += '\n%s=%s'%(key,val)

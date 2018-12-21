@@ -1,10 +1,10 @@
 from Pyxis.ModSupport import *
 
-import imager,std
+from . import imager,std
 
 import pyfits
 import Tigger
-import im.argo
+from . import im.argo
 
 register_pyxis_module(superglobals="OUTFILE");
 
@@ -60,7 +60,7 @@ def pybdsm_search (image="${imager.RESTORED_IMAGE}",output="$PYBDSM_OUTPUT",pol=
   pol = opts.get('polarisation_do',False);
   opts['quiet'] = True;
   # run pybdsm
-  info("running PyBDSM process_image($image,%s)"%",".join(sorted([ "%s=%s"%x for x in opts.iteritems() ])));
+  info("running PyBDSM process_image($image,%s)"%",".join(sorted([ "%s=%s"%x for x in opts.items() ])));
   from lofar import bdsm
   img = bdsm.process_image(image,**opts);
   info("writing PyBDSM gaul catalog");
@@ -70,7 +70,7 @@ def pybdsm_search (image="${imager.RESTORED_IMAGE}",output="$PYBDSM_OUTPUT",pol=
   if exists(logfile):
     info("PyBDSM log output follows:");
     for line in file(logfile):
-      print "     ",line;
+      print("     ",line);
   else:
     warn("PyBDSM log $logfile not found");
   # set clustering parameter from beam size
@@ -248,16 +248,16 @@ def sofia_search(fitsname='${im.RESTORED_IMAGE}',sofia_conf=None,
             _SOFIA_DEFAULTS['merge']['mergeZ'] = merge
 
       # Update default SoFia configuration dictionary with user options
-        for key,val in options.iteritems():
+        for key,val in options.items():
             a,b = key.split('.')
-            if a not in _SOFIA_DEFAULTS.keys():
+            if a not in list(_SOFIA_DEFAULTS.keys()):
                 abort('Option ${a}.${b} is not recognisable.')
             _SOFIA_DEFAULTS[a][b] = val
 
       # Generate sofia configuration file
         sofia_std.write('#Sofia autogen configuration file [pyxis]')
-        for a,b in  _SOFIA_DEFAULTS.iteritems():
-            for key,val in b.iteritems():
+        for a,b in  _SOFIA_DEFAULTS.items():
+            for key,val in b.items():
                 sofia_std.write('\n%s.%s = %s'%(a,key,val))
         sofia_std.close()
 

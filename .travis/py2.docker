@@ -1,0 +1,13 @@
+FROM kernsuite/base:4
+RUN docker-apt-install \
+    meqtrees-timba \
+    python-astropy \
+    python-matplotlib \
+    python-casacore \
+    python-numpy \
+    python-pip
+
+ADD . /code
+WORKDIR /code
+RUN pip install .
+RUN pyxis

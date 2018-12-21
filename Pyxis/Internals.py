@@ -78,7 +78,7 @@ def init (context):
   context.setdefault("VERBOSE",1);
   # set context and init stuff
   Pyxis.Context = context;
-  Pyxis._predefined_names = set(context.iterkeys());
+  Pyxis._predefined_names = set(context.keys());
   Pyxis.Commands._init(context);
   # loaded modules
   global _namespaces,_superglobals,_modules;
@@ -115,7 +115,7 @@ def _int_or_str (x):
 def interpolate_args (args,kws,frame,convert_lists=False): 
   """Helper function to interpolate argument list and keywords using the local dictionary, plus Pyxis.Context globals""";
   return [ interpolate(arg,frame,convert_lists=convert_lists) for arg in args ], \
-         dict([ (kw,interpolate(arg,frame,convert_lists=convert_lists)) for kw,arg in kws.iteritems() ]);
+         dict([ (kw,interpolate(arg,frame,convert_lists=convert_lists)) for kw,arg in kws.items() ]);
   
 class ShellExecutor (object):    
   """This is a ShellExecutor object, which is associated with a particular shell command, and can be
@@ -164,7 +164,7 @@ the object. ShellExecutors are typically created via the Pyxis x, xo or xz built
         self.get_output,self.bg,self.verbose,(args0+list(args)),kws0,args1,kws1);
 
   def __str__ (self):
-    return " ".join([self.path or ""]+self._pre_args+["%s=%s"%(a,b) for a,b in self._pre_kws.iteritems()]);
+    return " ".join([self.path or ""]+self._pre_args+["%s=%s"%(a,b) for a,b in self._pre_kws.items()]);
     
   def __repr__ (self):
     return "ShellExecutor: %s"%str(self);
@@ -382,7 +382,7 @@ def interpolate (arg,frame,depth=1,ignore=set(),skip=set(),convert_lists=False):
   # interpolate until things stop changing, but quit after 20 loops
     for count in range(20):
       updates = {};
-      for key,value in arg.iteritems():
+      for key,value in arg.items():
         # interpolate string variables
         if key not in skip and isinstance(value,str):
           defdict.ignores = [value];
@@ -467,7 +467,7 @@ def _resolve_namespace (name,frame,default_namespace=None,autoimport=False):
       _autoimport(nsname);
     namespace = _namespaces.get(nsname);
     if namespace is None:
-      raise ValueError,"invalid namespace %s"%nsname;
+      raise ValueError("invalid namespace %s"%nsname);
   else:
     namespace = default_namespace or frame.f_globals;
   return namespace,name;
@@ -501,7 +501,7 @@ def assign (name,value,namespace=None,default_namespace=None,interpolate=True,fr
   # across all other namespaces using that superglobal
   superglobs = _superglobals.get(id(namespace),[]);
   if name in superglobs:
-    namespaces += [ ns for ns in _namespaces.itervalues() if name in _superglobals.get(id(ns)) and ns is not namespace ];
+    namespaces += [ ns for ns in _namespaces.values() if name in _superglobals.get(id(ns)) and ns is not namespace ];
   # now assign
   for ns in namespaces:
     nsname = ns['__name__'] if ns is not Pyxis.Context else "v";
@@ -525,7 +525,7 @@ def unset (name,namespace=None,frame=None,verbose_level=2):
   # across all other namespaces using that superglobal
   superglobs = _superglobals.get(id(namespace),[]);
   if name in superglobs:
-    namespaces += [ ns for ns in _namespaces.itervalues() if name in _superglobals.get(id(ns)) and ns is not namespace ];
+    namespaces += [ ns for ns in _namespaces.values() if name in _superglobals.get(id(ns)) and ns is not namespace ];
   # now loop over all namespaces in which to unset
   for ns in namespaces:
     modname = ns.get('__name__',"???") if ns is not Pyxis.Context else "v";
@@ -579,12 +579,12 @@ def assign_templates ():
   _in_assign_templates = True;
   for count in range(100):
     updated = False;
-    for modname,context in list(_namespaces.iteritems()):
+    for modname,context in list(_namespaces.items()):
       superglobs = _superglobals[id(context)];
       newvalues = {};
       templdict = context.setdefault("__pyxis_template_ids",{});
       # interpolate new values for each variable that has a _Template equivalent
-      for var,value in list(context.iteritems()):
+      for var,value in list(context.items()):
         if var.endswith("_Template"):
           varname = var[:-len("_Template")];
           # skip protected variables in global context
@@ -621,12 +621,12 @@ def assign_templates ():
             # or SELECT_EXPR,[ (pattern,value),(pattern,value),... ]  [,ELSEVALUE]
             elif isinstance(value,tuple):
               if len(value) not in (2,3) or not isinstance(value[0],str) or not isinstance(value[1],(list,tuple,dict)):
-                raise TypeError,"invalid select clause";
+                raise TypeError("invalid select clause");
               select_expr = interpolate(value[0],context);
               # loop through patterns, if one matches the select expression, return that value
-              for pair in ( value[1] if not isinstance(value[1],dict) else value[1].iteritems() ):
+              for pair in ( value[1] if not isinstance(value[1],dict) else iter(value[1].items()) ):
                 if len(pair) != 2 or not isinstance(pair[0],str):
-                  raise TypeError,"invalid element in select clause";
+                  raise TypeError("invalid element in select clause");
                 if fnmatch.fnmatch(select_expr,interpolate(pair[0],context)):
                   varvalue = pair[1];
                   break;
@@ -648,7 +648,7 @@ def assign_templates ():
           if varvalue is not oldvalue:
             newvalues[varname] = varvalue;
       # update dict
-      for var,value in newvalues.iteritems():
+      for var,value in newvalues.items():
         oldval = context.get(var);
         if oldval != value:
           updated = True;
@@ -664,7 +664,7 @@ def assign_templates ():
   else:
     _abort("Too many template assignment steps. This can be caused by templates that cross-reference each other");
   # propagate superglobals
-  for ns in _namespaces.itervalues():
+  for ns in _namespaces.values():
     if ns is not Pyxis.Context:
       for var in _superglobals.get(id(ns)):
         if var in Pyxis.Context:
@@ -759,7 +759,7 @@ def initconf (force=False,files=[],directory="."):
   global _config_files;
   _config_files = files;
   # remember current set of globals
-  oldsyms = frozenset(Pyxis.Context.iterkeys());
+  oldsyms = frozenset(iter(Pyxis.Context.keys()));
   # load config files -- all variable assignments go into the Pyxis.Context scope
   cwd = os.getcwd();
   try:
@@ -770,10 +770,10 @@ def initconf (force=False,files=[],directory="."):
   assign_templates();
   # report on global symbols
   report_symbols("global",[],
-      [ (name,obj) for name,obj in Pyxis.Context.iteritems() 
+      [ (name,obj) for name,obj in Pyxis.Context.items() 
         if name not in oldsyms and not name.startswith("_") and name not in ("In","Out") and name not in Pyxis.Commands.__dict__ ]);
   # make all auto-imported Pyxides modules available to global context
-  toplevel = [ m for m in _modules.iterkeys() if not '.' in m and (m in sys.modules or "Pyxides."+m in sys.modules) ];
+  toplevel = [ m for m in _modules.keys() if not '.' in m and (m in sys.modules or "Pyxides."+m in sys.modules) ];
   if Pyxis.Context.get("PYXIS_AUTO_IMPORT_MODULES",True) and toplevel:
     _verbose(1,"importing top-level modules (%s) for you. Preset PYXIS_AUTO_IMPORT_MODULES=False to disable."%", ".join(toplevel));
     for mod in toplevel:
@@ -791,7 +791,7 @@ def saveconf ():
   OUTDIR = Pyxis.Context['OUTDIR'] or '.';
   # make set of all config files
   configs = set(_config_files);
-  for m,globs in _namespaces.iteritems():
+  for m,globs in _namespaces.items():
     for fvar in globs.get('_config_files',[]):
       if fvar in globs:
         configs.add(globs[fvar]);
@@ -893,9 +893,9 @@ def _call_exec (path,args,kws1={},**kws):
     # eliminate empty strings
     args1 = [ x for x in args1 if x ];
   else:
-    args1 += map(str,args);
+    args1 += list(map(str,args));
   # eliminate empty strings when splitting
-  args = args1 + ["%s=%s"%(a,b) for a,b in kws.iteritems()] + ["%s=%s"%(a,b) for a,b in kws1.iteritems()];
+  args = args1 + ["%s=%s"%(a,b) for a,b in kws.items()] + ["%s=%s"%(a,b) for a,b in kws1.items()];
   # if command is 'time', then actual command is second argument
   cmdname = args[1] if args[0] == "time" or args[0] == "/usr/bin/time" else args[0];
   # run command
@@ -1045,12 +1045,12 @@ def print_doc (symbol):
       except:
         pass
   if what is None:
-    print "Pyxis doesn't know anything about '%s'"%symbol;
+    print("Pyxis doesn't know anything about '%s'"%symbol);
     return;
   docs = pydoc.render_doc(what).split("\n");
   if docs[0].startswith("Python Library"):
     docs[0] = "Pyxis documentation for %s (%s):"%(symbol, type(what).__name__);
-  print "\n".join(docs);
+  print("\n".join(docs));
 
 def run (*commands):
   """Runs list of commands""";
@@ -1097,7 +1097,7 @@ def run (*commands):
         result = comcall(*args,**kws);
         assign_templates();
         if comname == 'pydoc.render_doc':
-          print "help:",result;
+          print("help:",result);
         # reset logging, if disabled for 'help'
         if logfile:
           set_logfile(logfile);

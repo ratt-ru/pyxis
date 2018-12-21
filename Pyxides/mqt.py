@@ -9,7 +9,7 @@ register_pyxis_module();
 ## find the Cattery
 import Timba
 import os.path
-import ms
+from . import ms
 
 _cattery_path = Timba.packages()['Cattery'][0]
 sys.path.append(_cattery_path);
@@ -56,10 +56,10 @@ def run (script="$SCRIPT",job="$JOB",config="$TDLCONFIG",section="$SECTION",save
       args = [ "--save-config $saveconfig"  ] + args
   if isinstance(options, list):
     for dictionary in options:
-      args += [ "%s=%s"%(a,b) for a,b in dictionary.iteritems() ] + \
+      args += [ "%s=%s"%(a,b) for a,b in dictionary.items() ] + \
           [ "$EXTRA_TDLOPTS $script =$job "]
   else:
-    args += [ "%s=%s"%(a,b) for a,b in options.iteritems() ] + \
+    args += [ "%s=%s"%(a,b) for a,b in options.items() ] + \
         [ "$EXTRA_TDLOPTS $script =$job" ]; 
 
  # run pipeliner

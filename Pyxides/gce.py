@@ -95,7 +95,7 @@ def init_vm (vmname="$VM_NAME",vmtype="$VM_TYPE",
   if name not in disks:
     snapshot = VM_SNAPSHOT;
     if '*' in snapshot:
-      matching = sorted(get_snapshots(snapshot).keys(),
+      matching = sorted(list(get_snapshots(snapshot).keys()),
         lambda a,b:-cmp(_version_suffix(a),_version_suffix(b)));
       snapshot = matching[0];
       info("using latest snapshot $snapshot");
@@ -110,14 +110,14 @@ def init_vm (vmname="$VM_NAME",vmtype="$VM_TYPE",
   # run provisioning script
   provision_vm(name);
   # attach disks
-  for key,value in kw.iteritems():
+  for key,value in kw.items():
     if key.startswith("attach_"):
       if isinstance(value,dict):
         attach_disk(key[len("attach_"):],vmname=vmname,**value);
       elif isinstance(value,int):
         attach_disk(key[len("attach_"):],size=value,vmname=vmname);
       else:
-      	raise TypeError,"unknown data type for %s"%key;
+      	raise TypeError("unknown data type for %s"%key);
   # provision with pyxis scripts in specified directory
   if propagate:
     propagate_scripts(name,dir=propagate if isinstance(propagate,str) else "");
@@ -286,7 +286,7 @@ def delete_vm (vmname="$VM_NAME",disks=True):
   gco("instances delete $name --quiet");
   info("deleted VM instance $name" + ("; deleting asociated disks" if disks else ""));
   if disks:
-    for key,value in get_disks().iteritems():
+    for key,value in get_disks().items():
       if key.startswith(name+"-"):
         gc("disks delete $key --quiet");
 document_globals(delete_vm,"VM_NAME PROJECT ZONE");

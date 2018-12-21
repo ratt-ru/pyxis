@@ -63,7 +63,7 @@ def CASA_VERSION_Template (path='$CASA_PATH'):
     if path != _casa_path_version[0]:
         _casa_path_version = path,casa_version(path)
         _casa_args = set()
-        for version,args in _casa_known_args.iteritems():
+        for version,args in _casa_known_args.items():
             if version <= _casa_path_version[1][0]:
                 _casa_args.update(args)
     return _casa_path_version[1]
@@ -89,7 +89,7 @@ def casa_version(path='$CASA_PATH'):
 
     if '.' in version:
         try:
-            version = map(int,version.split('.'))
+            version = list(map(int,version.split('.')))
         except ValueError: 
             version = 4,1,0
         vstr = '%d.' + '%d'*(len(version)-1)

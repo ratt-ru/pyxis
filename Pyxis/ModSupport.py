@@ -23,7 +23,7 @@ def register_pyxis_module (superglobals=""):
   # check for double registration
   if id(globs) in _superglobals:
     if _modules[modname] is not module:
-      raise RuntimeError,"a different Pyxis module named '%s' is already registered"%modname;
+      raise RuntimeError("a different Pyxis module named '%s' is already registered"%modname);
   _modules[modname] = module;
   # build list of superglobals
   if isinstance(superglobals,str):
@@ -46,7 +46,7 @@ def register_pyxis_module (superglobals=""):
       assign(sym,globs.get(sym,None),namespace=Pyxis.Context,frame=frame)
   # report 
   Pyxis.Internals.report_symbols(modname,superglobs,
-      [ (name,obj) for name,obj in globs.iteritems() if not name.startswith("_") and name not in Pyxis.Commands.__dict__ and name not in superglobs ]);
+      [ (name,obj) for name,obj in globs.items() if not name.startswith("_") and name not in Pyxis.Commands.__dict__ and name not in superglobs ]);
       
 
 def def_global (name,default,doc=None,config=False):
@@ -94,12 +94,12 @@ def document_globals (obj,*patterns):
   # (i.e. have entries in _symdocs)
   # each entry in allsyms is a pair of set_of_symbols,dict_of_docs
   allsyms = {}
-  for modname,globs in _namespaces.iteritems():
+  for modname,globs in _namespaces.items():
     docs = globs.get('_symdocs',{});
-    allsyms[modname] = set(itertools.chain(globs.iterkeys(),docs.iterkeys())),docs;
+    allsyms[modname] = set(itertools.chain(iter(globs.keys()),iter(docs.keys()))),docs;
   if modname0 not in allsyms:
     docs = globs0.get('_symdocs',{});
-    allsyms[modname0] = set(itertools.chain(globs0.iterkeys(),docs.iterkeys())),docs;
+    allsyms[modname0] = set(itertools.chain(iter(globs0.keys()),iter(docs.keys()))),docs;
   # keep track of what's been documented, to avoid duplicates
   documented = set();
   doclist = [];
@@ -112,7 +112,7 @@ def document_globals (obj,*patterns):
       if '.' in patt:
         modname,patt = patt.split('.',1);
         if modname not in allsyms:
-          raise ValueError,"document_globals(\"%s.%s\"): module '%s' not registered"%(modname,patt,modname);
+          raise ValueError("document_globals(\"%s.%s\"): module '%s' not registered"%(modname,patt,modname));
       else:
         modname = modname0;
       modsyms,moddocs = allsyms[modname];
@@ -153,4 +153,4 @@ def kwopt_to_command_line (**kwopt):
   """Converts keyword options to command-line arguments: returns a string of 
   --NAME=VALUE or --NAME (for value=True) pairs, where NAME and VALUE are looked up in the dict, and
   VALUE is interpolated."""
-  return " ".join([ ("--%s %s"%(name,interpolate(value,depth=2)) if value is not True else "--%s"%name) for name,value in kwopt.iteritems()]);
+  return " ".join([ ("--%s %s"%(name,interpolate(value,depth=2)) if value is not True else "--%s"%name) for name,value in kwopt.items()]);

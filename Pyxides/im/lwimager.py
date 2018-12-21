@@ -5,7 +5,7 @@ import pyrap.images
 import os
 import subprocess
 import pyfits
-import argo
+from . import argo
 
 import ms
 import std
@@ -37,7 +37,7 @@ def LWIMAGER_VERSION_Template ():
   if LWIMAGER_PATH != _lwimager_path_version[0]:
     _lwimager_path_version = LWIMAGER_PATH,lwimager_version();
     _lwimager_args = set();
-    for version,args in _lwimager_known_args.iteritems():
+    for version,args in _lwimager_known_args.items():
       if version <= _lwimager_path_version[1][0]:
         _lwimager_args.update(args); 
   return _lwimager_path_version[1];
@@ -147,7 +147,7 @@ def lwimager_version (path="$LWIMAGER_PATH"):
   else:
     major,minor,patch,tail = 1,3,0,vstr;
   try:
-    major,minor,patch = map(int,[major,minor,patch]);
+    major,minor,patch = list(map(int,[major,minor,patch]));
   except:
     major,minor,patch,tail = 0,0,0,vstr;
   info("$path version is $major.$minor.$patch${-<tail}")
@@ -241,7 +241,7 @@ def make_image (msname="$MS",column="${im.COLUMN}",imager='$IMAGER',
     # Moresane does better with a double sized PSF
     double_psf = double_psf or im.DOUBLE_PSF
     if double_psf: 
-        _npix = int(npix)*2 if 'npix' not in kw0.keys() else (kw0['npix'])*2
+        _npix = int(npix)*2 if 'npix' not in list(kw0.keys()) else (kw0['npix'])*2
         make_psf(npix=_npix)
     elif not psf: 
          make_psf()

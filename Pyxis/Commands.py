@@ -10,7 +10,7 @@ import itertools
 import math
 import fcntl
 import multiprocessing
-import Queue
+import queue
 
 import Pyxis
 import Pyxis.Internals
@@ -98,7 +98,7 @@ def _message (*msg,**kw):
     if sync:
       fcntl.lockf(sys.stdout,fcntl.LOCK_EX);
       sys.stdout.seek(0,2);
-    print output;
+    print(output);
     if sync:
       sys.stdout.flush();
       fcntl.lockf(sys.stdout,fcntl.LOCK_UN);
@@ -106,7 +106,7 @@ def _message (*msg,**kw):
       sys.__stdout__.write(output+"\n");
   else:
     if not quiet:
-      print output;
+      print(output);
   
 def _debug (*msg,**kw):
   """Prints debug message(s) without interpolation""";
@@ -168,7 +168,7 @@ def pyxreload ():
   for m in 'Pyxis.Internals','Pyxis.Commands','Pyxis.ModSupport':
     info("Reloading",m);
     reload(sys.modules[m]);
-  for m in _modules.itervalues():
+  for m in _modules.values():
     info("Reloading",m.__name__);
     reload(m);
 
@@ -185,40 +185,40 @@ def pyxls (mod=None,what="FVTB"):
   """Prints symbols defined by module. 'what' is a combination of characters specifying what to print.""";
   # make sorted list of globals (excepting those starting with underscore)
   globs = Pyxis.Context if mod is None else vars(mod);
-  globs = [ (name,value) for name,value in sorted(globs.iteritems()) 
+  globs = [ (name,value) for name,value in sorted(globs.items()) 
             if name[0]!="_" and name not in Pyxis._predefined_names ];
   # from this, extract the non-callables
   varlist = [ (name,value) for name,value in globs if not callable(value)  ];
   if "V" in what:
-    print "Globals:";
+    print("Globals:");
     for var,val in varlist:
       if not var.endswith("_List") and not var.endswith("_Template") and isinstance(val,(str,int)):
-        print "  %s=%s"%(var,val);
-    print "Lists:";
+        print("  %s=%s"%(var,val));
+    print("Lists:");
     for var,val in varlist:
       if var.endswith("_List"):
-        print "  %s=%s"%(var,val);
-    print "Templates:";
+        print("  %s=%s"%(var,val));
+    print("Templates:");
     for var,val in globs:
       if var.endswith("_Template"):
-        print "  %s=%s"%(var,val);
+        print("  %s=%s"%(var,val));
   # now deal with the callables
   if "F" in what:
-    print "Functions:";
-    print " ",", ".join([ name for name,value in globs 
+    print("Functions:");
+    print(" ",", ".join([ name for name,value in globs 
         if callable(value) and not isinstance(value,Pyxis.Internals.ShellExecutor) and not name.endswith("_Template") 
           and not name in globals() 
           and not name in Pyxis.ModSupport.__dict__
-      ]);
+      ]));
   if "T" in what:
-    print "External tools:";
+    print("External tools:");
     for name,value in globs:
       if isinstance(value,Pyxis.Internals.ShellExecutor):
-        print "  %s=%s"%(name,value.path);
+        print("  %s=%s"%(name,value.path));
   if "B" in what:
-    print "Pyxis built-ins:";
-    print " ",", ".join([ name for name,value in globs 
-      if callable(value) and not isinstance(value,Pyxis.Internals.ShellExecutor) and not name.endswith("_Template") and name in globals() ]);
+    print("Pyxis built-ins:");
+    print(" ",", ".join([ name for name,value in globs 
+      if callable(value) and not isinstance(value,Pyxis.Internals.ShellExecutor) and not name.endswith("_Template") and name in globals() ]));
 
 def exists (filename):
   """Returns True if filename exists, interpolating the filename""";
@@ -243,7 +243,7 @@ def _per (varname,parallel,*commands):
     return;
   try:
     if type(varlist) is str:
-      varlist = map(_int_or_str,varlist.split(","));
+      varlist = list(map(_int_or_str,varlist.split(",")));
     elif not isinstance(varlist,(list,tuple)):
       _abort("PYXIS: per(%s,%s): %s_List has invalid type %s"%(varname,cmdlist,str(type(varlist))));
     nforks = Pyxis.Context.get("JOBS",0);
@@ -297,7 +297,7 @@ def _per (varname,parallel,*commands):
               while True:
                 try:
                   value = varqueue.get(False)
-                except Queue.Empty:
+                except queue.Empty:
                   break
                 _verbose(1,"per-loop, setting %s=%s"%(varname,value),sync=True);
                 assign(vname,value,namespace=namespace,interpolate=False);
@@ -356,7 +356,7 @@ def _per (varname,parallel,*commands):
           _restore();
           _error("Caught Ctrl+C, waiting for %d jobs to exit"%len(forked_pids),sync=True);
           import signal;
-          for pid in forked_pids.keys():
+          for pid in list(forked_pids.keys()):
             os.kill(pid,signal.SIGINT);
           while forked_pids:
             pid,status = os.waitpid(-1,0);
@@ -405,11 +405,11 @@ def is_true (arg):
     try:
       return bool(eval(arg));
     except:
-      raise TypeError,"is_true('%s'): invalid string argument"%arg;
+      raise TypeError("is_true('%s'): invalid string argument"%arg);
   try:
     return bool(arg);
   except:
-    raise TypeError,"is_true(%s): invalid argument %s"%(str(arg),str(type(arg)));
+    raise TypeError("is_true(%s): invalid argument %s"%(str(arg),str(type(arg))));
 
 def makedir (dirname,no_interpolate=False):
   """Makes sure the supplied directory exists, by creating parents as necessary. Interpolates the dirname.""";
@@ -430,7 +430,7 @@ def makedir (dirname,no_interpolate=False):
     
     
 import tempfile   
-import cPickle
+import pickle
 import fcntl
     
 class Safelist (object):
@@ -459,7 +459,7 @@ class Safelist (object):
     ff = file(self.filename,"ab");
     fcntl.flock(ff,fcntl.LOCK_EX);
     try:
-      cPickle.dump(obj,ff);
+      pickle.dump(obj,ff);
     finally:
       fcntl.flock(ff,fcntl.LOCK_UN);
     
@@ -471,7 +471,7 @@ class Safelist (object):
       fcntl.flock(ff,fcntl.LOCK_EX);
       try:
         while True:
-          ret.append(cPickle.load(ff));
+          ret.append(pickle.load(ff));
       except EOFError:
         pass;
       finally:

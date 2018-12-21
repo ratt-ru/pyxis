@@ -1,9 +1,9 @@
 from Pyxis.ModSupport import *
 
-import ms
-import mqt
-import imager
-import std
+from . import ms
+from . import mqt
+from . import imager
+from . import std
 
 import pyfits
 
