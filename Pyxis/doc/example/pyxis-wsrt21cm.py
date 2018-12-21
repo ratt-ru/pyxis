@@ -10,7 +10,7 @@ import Pyxis
 import ms,imager,std,lsm,stefcal
 
 # import some other Python modules that we make use of below
-import pyfits
+from astropy.io import fits as pyfits
 import pyrap.tables
 
 ## 2. Default variable assignments

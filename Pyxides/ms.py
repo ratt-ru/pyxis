@@ -1,9 +1,8 @@
 """Pyxis module for MS-related operations""";
-import math
 import pyrap.tables
 from pyrap.tables import table
 import os.path
-import pyfits
+from astropy.io import fits as pyfits
 import numpy as np
 
 from Pyxis.ModSupport import *

@@ -2,7 +2,7 @@ from Pyxis.ModSupport import *
 
 from . import imager,std
 
-import pyfits
+from astropy.io import fits as pyfits
 import Tigger
 from . import im.argo
 

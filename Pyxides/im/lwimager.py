@@ -4,7 +4,7 @@ from Pyxis.ModSupport import *
 import pyrap.images
 import os
 import subprocess
-import pyfits
+from astropy.io import fits as pyfits
 from . import argo
 
 import ms

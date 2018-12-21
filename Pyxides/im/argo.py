@@ -2,7 +2,7 @@
 # interferometry packages
 import os
 import sys
-import pyfits
+from astropy.io import fits as pyfits
 import numpy
 import math
 import pyrap.tables
