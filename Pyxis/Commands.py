@@ -6,17 +6,14 @@ import inspect
 import os
 import os.path
 import time
-import itertools
 import math
-import fcntl
 import multiprocessing
 import queue
 
 import Pyxis
 import Pyxis.Internals
-from Pyxis.Internals import _int_or_str,interpolate,loadconf,assign,unset,assign_templates
+from Pyxis.Internals import _int_or_str,interpolate,assign
 
-import numpy as np
 
 DEG = math.pi/180
 ARCMIN = DEG/60

@@ -29,10 +29,11 @@ import sys
 import os.path
 import re
 import time
-import subprocess
-import imp
 import traceback
-import shutil
+
+from Pyxis.Commands import _info as info
+from Pyxis.Commands import _verbose as verbose
+from Pyxis.Commands import _verbose as error
 
 # defer config until later
 PYXIS_LOAD_CONFIG = False
@@ -118,6 +119,8 @@ if __name__ == "__main__":
   LOG_DISABLE = options.interactive or options.doc;
   if options.outdir:
     OUTDIR = options.outdir;
+  else:
+    OUTDIR = False
   if not options.doc and not options.interactive:
     if options.log:
       LOG = options.log;
@@ -239,7 +242,7 @@ if __name__ == "__main__":
   if not options.running_in_screen:
     pyxislog = (OUTDIR or '.')+"/pyxis.log"
     try:
-      file(pyxislog,'a').write(cmdline+"\n");
+      open(pyxislog,'a').write(cmdline+"\n");
     except:
       verbose(-99,"error writing to $pyxislog, perhaps no write permissions? Proceeding anyway.")
     

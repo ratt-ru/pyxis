@@ -9,8 +9,6 @@ import os
 import os.path
 import inspect
 import sys
-import itertools
-import time
 import fnmatch
 import shutil
 import shlex
