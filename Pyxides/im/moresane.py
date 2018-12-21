@@ -5,7 +5,7 @@ import os
 import sys
 import numpy
 import math
-from . import argo
+import argo
 import im
 
 # Standard options

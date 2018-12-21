@@ -9,7 +9,7 @@ register_pyxis_module();
 ## find the Cattery
 import Timba
 import os.path
-from . import ms
+import ms
 
 _cattery_path = Timba.packages()['Cattery'][0]
 sys.path.append(_cattery_path);

@@ -1,7 +1,7 @@
 """Pyxis module for MS-related operations""";
 from Pyxis.ModSupport import *
 
-from . import argo
+import argo
 import ms
 import im
 import subprocess,glob

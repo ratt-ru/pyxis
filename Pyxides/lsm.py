@@ -1,10 +1,10 @@
 from Pyxis.ModSupport import *
 
-from . import imager,std
+import imager,std
 
 from astropy.io import fits as pyfits
 import Tigger
-from . import im.argo
+import im.argo
 
 register_pyxis_module(superglobals="OUTFILE");
 

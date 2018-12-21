@@ -1,9 +1,9 @@
 from Pyxis.ModSupport import *
 
-from . import ms
-from . import mqt
-from . import imager
-from . import std
+import ms
+import mqt
+import imager
+import std
 
 from astropy.io import fits as pyfits
 
