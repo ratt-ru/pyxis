@@ -14,7 +14,7 @@ install_requires = [
 ]
 
 setup(name='astro-pyxis',
-      version='1.6.0',
+      version='1.6.1',
       description='Python Extensions for astronomical Interferometry Scripting',
       author='Oleg Smirnov',
       author_email='Oleg Smirnov <osmirnov@gmail.com>',
