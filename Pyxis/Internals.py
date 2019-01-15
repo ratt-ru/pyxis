@@ -63,6 +63,12 @@ def init (context):
   global _abort
   global _verbose
   global _warn
+  
+  import six
+  global _ispy3
+  global _ispy2
+  _ispy3 = six.PY3
+  _ispy2 = six.PY2
   from Pyxis.Commands import _debug,_info,_abort,_verbose,_warn
   # set default output dir
   context.setdefault("OUTDIR",".");
@@ -714,15 +720,15 @@ def set_logfile (filename,quiet=False):
       sys.stdout,sys.stderr = sys.__stdout__,sys.__stderr__;
       _current_logobj = None;
     else:
-      mode = "a";
+      mode = "wab";
       # append to file if name starts with +, or if file has already been used as a log this session, or if flush is off
       if Pyxis.Context.get("LOG_FLUSH"):
-        mode = "w";
+        mode = "wb";
         if filename[0] == '+':
           filename = filename[1:];
-          mode = "a";
+          mode = "wab";
         if filename in _visited_logfiles:
-          mode = "a";
+          mode = "wab";
       Pyxis.ModSupport.makedir(os.path.dirname(filename),no_interpolate=True);
       _current_logobj = sys.stdout = sys.stderr = open(filename,mode);
       hdr = Pyxis.Context.get("LOG_HEADER");
@@ -811,7 +817,7 @@ def load_package (pkgname,filename,chdir=True,report=True):
     if dirname not in oldpath:
       sys.path.append(dirname);
     try:
-      exec(file(filename),Pyxis.Context);
+      exec(open(filename),Pyxis.Context);
     finally:
       sys.path = oldpath;
   except SystemExit:
@@ -908,22 +914,32 @@ def _call_exec (path,args,kws1={},**kws):
     _verbose(verbose,"executing '%s':"%(" ".join(args)));
     stdout,stderr = sys.stdout,sys.stderr;
     if quiet:
-      stdout = stderr = file('/dev/null','w')
+      stdout = stderr = open('/dev/null','wb')
     # if stdout/stderr is not a file (as is the case under ipython notebook, then
     # subprocess.Popen() fails. Therefore, in these cases, or if get_output is true, we
     # pipe the output into here via communicate()
-    if get_output or type(stdout) is not file or type(stderr) is not file:
+    if _ispy2:
+      is_not_std_file = type(stdout) is not file or type(stderr) is not file
+    else:
+      from _io import TextIOWrapper
+      is_not_std_file = type(stdout) is not TextIOWrapper or type(stderr) is not TextIOWrapper
+    if get_output or is_not_std_file:
       stdout = stderr = subprocess.PIPE;
-    type(stdout) is file and stdout.flush();
-    type(stderr) is file and stderr.flush();
+    if _ispy2:
+      type(stdout) is file and stdout.flush();
+      type(stderr) is file and stderr.flush();
+    else:
+      from _io import TextIOWrapper
+      type(stdout) is TextIOWrapper and stdout.flush();
+      type(stderr) is TextIOWrapper and stderr.flush();
     po = subprocess.Popen(args,preexec_fn=_on_parent_exit('SIGTERM'),
       stdout=stdout,stderr=stderr);
     if stdout is subprocess.PIPE:
       output,err_output = po.communicate();
       if not get_output:
-        sys.stdout.write(output);
+        sys.stdout.write(output.decode('ascii'));
         output = None;
-      sys.stderr.write(err_output);
+      sys.stderr.write(err_output.decode('ascii'));
     else:
       po.wait();
       output = po.returncode;

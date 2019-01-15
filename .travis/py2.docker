@@ -1,13 +1,37 @@
-FROM kernsuite/base:4
+FROM kernsuite/base:5
 RUN docker-apt-install \
+    casacore-dev \
+    casacore-tools \
+    casarest \
     meqtrees-timba \
+    libqdbm-dev \
+    owlcat \
+    python-astro-tigger \
+    python-gdbm \
+    python-pip \
     python-astropy \
-    python-matplotlib \
-    python-casacore \
     python-numpy \
-    python-pip
+    python-scipy \
+    python-astlib \
+    python-casacore \
+    python-casacore \
+    python-qt4 \
+    python-qwt \
+    build-essential \
+    libboost-all-dev \
+    makems \
+    git
 
-ADD . /code
-WORKDIR /code
+# get the test from cattery
+WORKDIR /code/test
+RUN git clone https://github.com/ska-sa/meqtrees-cattery
+
+# check basic pyxis installation
+ADD . /code/pyxis
+WORKDIR /code/pyxis
 RUN pip install .
 RUN pyxis
+
+# run test when built
+WORKDIR /code/test/meqtrees-cattery/test/Batchtest
+CMD python2.7 batch_test.py

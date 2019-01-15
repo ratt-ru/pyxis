@@ -1,13 +1,47 @@
-FROM kernsuite/base:4
+FROM kernsuite/base:5
 RUN docker-apt-install \
+    casacore-dev \
+    casacore-tools \
+    casarest \
     meqtrees-timba \
+    libqdbm-dev \
+    owlcat \
+    python-astro-tigger \
+    python3-gdbm \
+    python3-pip \
     python3-astropy \
-    python3-matplotlib \
-    python3-casacore \
     python3-numpy \
-    python3-pip
+    python3-scipy \
+    python3-astlib \
+    python3-casacore \
+    python3-casacore \
+    python3-pyqt4 \
+    python3-qwt \
+    build-essential \
+    libboost-all-dev \
+    makems \
+    git
 
-ADD . /code
-WORKDIR /code
+# owlcat does not contain python3 targets
+WORKDIR /code/test
+RUN git clone https://github.com/ska-sa/owlcat
+WORKDIR /code/test/owlcat
 RUN pip3 install .
+
+# get the test from cattery
+WORKDIR /code/test
+RUN git clone https://github.com/ska-sa/meqtrees-cattery
+WORKDIR /code/test/meqtrees-cattery
+RUN pip3 install .
+
+# check basic pyxis installation
+ADD . /code/pyxis
+WORKDIR /code/pyxis
+RUN pip3 install -U .
 RUN pyxis
+
+# run test when built
+WORKDIR /code/test/meqtrees-cattery/test/Batchtest
+CMD python3 batch_test.py
+
+
