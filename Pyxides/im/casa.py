@@ -1,10 +1,10 @@
 #Pyxis casa wrap
 from Pyxis.ModSupport import *
-import ms
-import im
+from Pyxides import ms
+from Pyxides import im
 import subprocess
 import tempfile
-import im.argo
+import argo
 import pyrap.images as Images
 
 # register ourselves with Pyxis and define the superglobals

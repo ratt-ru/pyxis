@@ -31,9 +31,18 @@ import re
 import time
 import traceback
 
+try: # check installation, don't remove
+    import Pyxides
+except:
+    import traceback
+    sys.stderr.write("Cannot find Pyxides\n")
+    sys.stderr.write(traceback.format_exc())
+    sys.exit(1)
+
 from Pyxis.Commands import _info as info
 from Pyxis.Commands import _verbose as verbose
 from Pyxis.Commands import _verbose as error
+
 from Pyxis.Internals import assign
 
 # defer config until later

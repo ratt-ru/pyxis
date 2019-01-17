@@ -2,24 +2,39 @@
 
 import os
 from distutils.core import setup
+import six
 
 install_requires = [
-      'astropy',
+      'astropy<=2.0.11',
       # 'timba', not available on pypi
       'matplotlib',
       'python_casacore',
       'numpy',
-      'future',
-      'six',
+      'future'
+] if six.PY2 else [
+      'astropy>=3.0',
+      # 'timba', not available on pypi
+      'matplotlib',
+      'python_casacore',
+      'numpy',
+      'future'
 ]
+
+def readme():
+    """ Return README.rst contents """
+    with open('README.md') as f:
+      return f.read()
 
 setup(name='astro-pyxis',
       version='1.6.1',
       description='Python Extensions for astronomical Interferometry Scripting',
+      long_description = readme(),
       author='Oleg Smirnov',
       author_email='Oleg Smirnov <osmirnov@gmail.com>',
       url='https://github.com/ska-sa/pyxis',
-      packages=['Pyxis', 'Pyxides', 'Pyxides._utils', 'Pyxides.im'],
+      packages=['Pyxis', 'Pyxides', 'Pyxides.im', 'Pyxides.utils'],
       install_requires=install_requires,
+      zip_safe=True,
+      include_package_data=True,
       scripts=['Pyxis/bin/' + i for i in os.listdir('Pyxis/bin')],
      )

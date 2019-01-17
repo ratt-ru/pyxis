@@ -19,19 +19,22 @@ RUN docker-apt-install \
     python-qwt \
     build-essential \
     libboost-all-dev \
-    makems \
-    git
-
-# get the test from cattery
-WORKDIR /code/test
-RUN git clone https://github.com/ska-sa/meqtrees-cattery
+    makems
 
 # check basic pyxis installation
 ADD . /code/pyxis
 WORKDIR /code/pyxis
 RUN pip install .
+WORKDIR /
 RUN pyxis
 
 # run test when built
-WORKDIR /code/test/meqtrees-cattery/test/Batchtest
-CMD python2.7 batch_test.py
+RUN pip install nose
+WORKDIR /usr/local/lib/python2.7/dist-packages/Pyxis/recipies
+RUN echo "###########################################"
+RUN echo "STARTING PYTHON 2.7 TESTS"
+RUN echo "###########################################"
+RUN python2.7 -m "nose"
+RUN echo "###########################################"
+RUN echo "CRACK THE BUBBLY THIS HOG IS AIRBORNE!"
+RUN echo "###########################################"

@@ -20,28 +20,29 @@ RUN docker-apt-install \
     build-essential \
     libboost-all-dev \
     makems \
-    git
+    wget
 
 # owlcat does not contain python3 targets
 WORKDIR /code/test
-RUN git clone https://github.com/ska-sa/owlcat
-WORKDIR /code/test/owlcat
-RUN pip3 install .
-
-# get the test from cattery
-WORKDIR /code/test
-RUN git clone https://github.com/ska-sa/meqtrees-cattery
-WORKDIR /code/test/meqtrees-cattery
+RUN wget https://github.com/ska-sa/owlcat/archive/v1.5.1.tar.gz
+RUN tar -xvf v1.5.1.tar.gz
+WORKDIR /code/test/owlcat-1.5.1
 RUN pip3 install .
 
 # check basic pyxis installation
 ADD . /code/pyxis
 WORKDIR /code/pyxis
-RUN pip3 install -U .
+RUN pip3 install .
+WORKDIR /
 RUN pyxis
 
 # run test when built
-WORKDIR /code/test/meqtrees-cattery/test/Batchtest
-CMD python3 batch_test.py
-
-
+RUN pip3 install nose
+WORKDIR /usr/local/lib/python3.6/dist-packages/Pyxis/recipies
+RUN echo "###########################################"
+RUN echo "STARTING PYTHON 3 TESTS"
+RUN echo "###########################################"
+RUN python3.6 -m "nose"
+RUN echo "###########################################"
+RUN echo "CRACK THE BUBBLY THIS HOG IS AIRBORNE!"
+RUN echo "###########################################"

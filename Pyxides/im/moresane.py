@@ -6,8 +6,7 @@ import sys
 import numpy
 import math
 import argo
-import im
-
+from Pyxides import im
 # Standard options
 gain = 0.1
 sigmalevel = 3.0

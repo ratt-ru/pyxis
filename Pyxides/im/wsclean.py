@@ -2,8 +2,8 @@
 from Pyxis.ModSupport import *
 
 import argo
-import ms
-import im
+from Pyxides import ms
+from Pyxides import im
 import subprocess,glob
 
 rm_fr = x.rm.args("-fr")

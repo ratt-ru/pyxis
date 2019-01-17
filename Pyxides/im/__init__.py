@@ -61,7 +61,7 @@ no_weight_fov = False
 # import moresane
 
 def make_image (*args,**kw):
-  imager = kw.get('imager',IMAGER).lower();
+  imager = kw.get('imager', IMAGER).lower();
   imgmod = "im."+imager;
   try:
     mod = getattr(__import__(imgmod),imager);

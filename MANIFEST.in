@@ -1,0 +1,13 @@
+include pyxis *.py
+include Pyxides *.py
+include Pyxides/im *.py
+include Pyxides/utils *.py
+
+# any datafiles here
+recursive-include Pyxis/recipies/meqtrees-batch-test/WSRT_ANTENNA *
+include Pyxis/recipies/meqtrees-batch-test/test-lsm1.txt.reference
+recursive-include Pyxis/recipies/ *.py 
+recursive-include Pyxis/recipies/ *.txt 
+recursive-include Pyxis/recipies/ *.fits 
+recursive-include Pyxis/recipies/ *.conf
+recursive-include Pyxis/recipies/ *.cfg

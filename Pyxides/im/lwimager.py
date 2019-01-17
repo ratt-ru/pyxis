@@ -7,9 +7,9 @@ import subprocess
 from astropy.io import fits as pyfits
 import argo
 
-import ms
-import std
-import im
+from Pyxides import ms
+from Pyxides import std
+from Pyxides import im
 import numpy 
 # register ourselves with Pyxis and define the superglobals
 register_pyxis_module(superglobals="MS LSM DESTDIR");
