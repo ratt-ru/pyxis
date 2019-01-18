@@ -31,6 +31,9 @@ import re
 import time
 import traceback
 
+# required to import Pyxis under Python3 (see comments in Pyxis/__init__.py). Do not remove!
+PYXIS_ROOT_NAMESPACE = True
+
 try: # check installation, don't remove
     import Pyxides
 except:
