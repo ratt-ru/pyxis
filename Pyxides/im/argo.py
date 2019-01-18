@@ -7,10 +7,10 @@ import numpy
 import math
 import pyrap.tables
 import subprocess
-from Pyxides import im
+import im
 import tempfile
-import Pyxides.ms
-import Pyxides.std
+import ms
+import std
 import glob
 import time
 import Owlcat.FitsTool as fitstool

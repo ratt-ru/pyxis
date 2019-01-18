@@ -22,13 +22,6 @@ RUN docker-apt-install \
     makems \
     wget
 
-# owlcat does not contain python3 targets
-WORKDIR /code/test
-RUN wget https://github.com/ska-sa/owlcat/archive/v1.5.1.tar.gz
-RUN tar -xvf v1.5.1.tar.gz
-WORKDIR /code/test/owlcat-1.5.1
-RUN pip3 install .
-
 # check basic pyxis installation
 ADD . /code/pyxis
 WORKDIR /code/pyxis
@@ -39,10 +32,4 @@ RUN pyxis
 # run test when built
 RUN pip3 install nose
 WORKDIR /usr/local/lib/python3.6/dist-packages/Pyxis/recipies
-RUN echo "###########################################"
-RUN echo "STARTING PYTHON 3 TESTS"
-RUN echo "###########################################"
 RUN python3.6 -m "nose"
-RUN echo "###########################################"
-RUN echo "CRACK THE BUBBLY THIS HOG IS AIRBORNE!"
-RUN echo "###########################################"

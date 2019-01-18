@@ -5,11 +5,11 @@ import pyrap.images
 import os
 import subprocess
 from astropy.io import fits as pyfits
-import argo
+from im import argo
 
-from Pyxides import ms
-from Pyxides import std
-from Pyxides import im
+import ms
+import std
+import im
 import numpy 
 # register ourselves with Pyxis and define the superglobals
 register_pyxis_module(superglobals="MS LSM DESTDIR");
@@ -90,6 +90,8 @@ def _run (convert_output_to_fits=True,lwimager_path="$LWIMAGER_PATH",**kw):
   # look up lwimager
   lwimager_path = interpolate_locals("lwimager_path");
   lwimager_path = argo.findImager(lwimager_path)
+  if not lwimager_path:
+    raise RuntimeError("Failed to find lwimager")
   # make dict of imager arguments that have been specified globally or locally
   args = dict([ (arg,globals()[arg]) for arg in _lwimager_args if arg in globals() and globals()[arg] is not None ]);
   args.update([ (arg,kw[arg]) for arg in _lwimager_args if arg in kw ]);
@@ -120,6 +122,7 @@ def _run (convert_output_to_fits=True,lwimager_path="$LWIMAGER_PATH",**kw):
     velo = kw.get('velocity') or velocity;
     for arg in _fileargs:
       if arg in fitsfiles:
+        error("FITS::" + args[arg])
         _im = pyrap.images.image(args[arg]);
         if fs and fs != 1:
           _im.putdata(fs*_im.getdata());
@@ -141,9 +144,9 @@ def lwimager_version (path="$LWIMAGER_PATH"):
     vstr = subprocess.Popen([path,"--version"],stderr=subprocess.PIPE).stderr.read().strip().split()[-1];
   except:
     return 0,"";
-  if '.' in vstr:
-    major,minor,patch = vstr.split('.')
-    patch,tail = patch.split("-",1) if "-" in patch else (patch,"");
+  if b'.' in vstr:
+    major,minor,patch = vstr.split(b'.')
+    patch,tail = patch.split(b"-",1) if b"-" in patch else (patch,"");
   else:
     major,minor,patch,tail = 1,3,0,vstr;
   try:

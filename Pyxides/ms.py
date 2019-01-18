@@ -8,7 +8,6 @@ import numpy as np
 from Pyxis.ModSupport import *
 
 import std
-from im import argo
 from utils import casa_scripts
 
 

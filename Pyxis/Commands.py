@@ -457,7 +457,7 @@ class Safelist (object):
     """Adds an object to the safelist, in an MP-safe manner""";
     if isinstance(obj,str):
       obj = _I(obj,2);
-    ff = open(self.filename,"ab");
+    ff = open(self.filename,"a");
     fcntl.flock(ff,fcntl.LOCK_EX);
     try:
       pickle.dump(obj,ff);

@@ -21,6 +21,11 @@ RUN docker-apt-install \
     libboost-all-dev \
     makems
 
+# Test specific external software
+RUN docker-apt-install \
+    casalite \
+    wsclean
+
 # check basic pyxis installation
 ADD . /code/pyxis
 WORKDIR /code/pyxis
@@ -31,10 +36,4 @@ RUN pyxis
 # run test when built
 RUN pip install nose
 WORKDIR /usr/local/lib/python2.7/dist-packages/Pyxis/recipies
-RUN echo "###########################################"
-RUN echo "STARTING PYTHON 2.7 TESTS"
-RUN echo "###########################################"
 RUN python2.7 -m "nose"
-RUN echo "###########################################"
-RUN echo "CRACK THE BUBBLY THIS HOG IS AIRBORNE!"
-RUN echo "###########################################"

@@ -1,10 +1,10 @@
 #Pyxis casa wrap
 from Pyxis.ModSupport import *
-from Pyxides import ms
-from Pyxides import im
+import ms
+import im
 import subprocess
 import tempfile
-import argo
+import  argo
 import pyrap.images as Images
 
 # register ourselves with Pyxis and define the superglobals
@@ -102,7 +102,7 @@ def _run(path='${im.CASA_PATH}',clean=False,makepsf=False,**kw):
     
     path = interpolate_locals('path')
     # map some options to casapy equivalents
-    global cell,imsize,weighting
+    global cell,imsize,weighting,_casa_args
     cell,imsize,weighting = cellsize,npix,weight
 
     # make dict of imager arguments that have been specified globally or locally

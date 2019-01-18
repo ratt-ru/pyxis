@@ -238,8 +238,13 @@ class ShellExecutorFactory (object):
     # if stdout/stderr is not a file (as is the case under ipython notebook, then
     # subprocess.Popen() fails. Therefore, in these cases, or if get_output is true, we
     # pipe the output into here via communicate()
-    stdout = subprocess.PIPE if self.get_output or type(sys.stdout) is not file else sys.stdout;
-    stderr = subprocess.PIPE if type(sys.stderr) is not file else sys.stderr;
+    if _ispy2:
+      stdout = subprocess.PIPE if self.get_output or type(sys.stdout) is not file else sys.stdout;
+      stderr = subprocess.PIPE if type(sys.stderr) is not file else sys.stderr;
+    else:
+      from _io import TextIOWrapper
+      stdout = subprocess.PIPE if self.get_output or type(sys.stdout) is not TextIOWrapper else sys.stdout;
+      stderr = subprocess.PIPE if type(sys.stderr) is not TextIOWrapper else sys.stderr;
     po = subprocess.Popen(["/bin/bash","-c"]+list(commands), preexec_fn=_on_parent_exit('SIGTERM'),
         shell=False,stdout=stdout,stderr=stderr);
     # if piping either output stream, capture it here
@@ -720,15 +725,15 @@ def set_logfile (filename,quiet=False):
       sys.stdout,sys.stderr = sys.__stdout__,sys.__stderr__;
       _current_logobj = None;
     else:
-      mode = "wab";
+      mode = "wa";
       # append to file if name starts with +, or if file has already been used as a log this session, or if flush is off
       if Pyxis.Context.get("LOG_FLUSH"):
-        mode = "wb";
+        mode = "w";
         if filename[0] == '+':
           filename = filename[1:];
-          mode = "wab";
+          mode = "wa";
         if filename in _visited_logfiles:
-          mode = "wab";
+          mode = "wa";
       Pyxis.ModSupport.makedir(os.path.dirname(filename),no_interpolate=True);
       _current_logobj = sys.stdout = sys.stderr = open(filename,mode);
       hdr = Pyxis.Context.get("LOG_HEADER");
