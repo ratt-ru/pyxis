@@ -15,7 +15,7 @@ services:
 install:
  - true
 script:
-- docker build . -f .travis/${TARGET}.docker
+- travis_wait 30 docker build . -f .travis/${TARGET}.docker
 deploy:
   provider: pypi
   user: gijzelaerr
