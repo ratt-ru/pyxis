@@ -1,4 +1,4 @@
-import im.argo
+from Pyxides.im import argo
 
 from Pyxis.ModSupport import *
 

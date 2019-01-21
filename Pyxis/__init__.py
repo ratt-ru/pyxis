@@ -18,9 +18,21 @@ _initialized = False;
 
 if not _initialized:
   """Initializes Pyxis with a global context dict.""";
-  # initialize Pyxis using the globals of whoever imported the module  
-  _context = inspect.currentframe().f_back.f_globals;
-  
+  # initialize Pyxis using the globals of whoever imported the module
+  ## OMS: this was enough in Python2. Not in Py3
+  #_context = inspect.currentframe().f_back.f_globals;
+  ## in Py3:
+  frame = inspect.currentframe().f_back
+  while frame:
+    _context = frame.f_globals
+    if "PYXIS_ROOT_NAMESPACE" in _context:
+      print("root namespace is",_context.get("__name__"),_context.get("__path__"))
+      break
+    frame = frame.f_back
+
+  if not frame:
+    raise RuntimeError("Unable to find root namespace. Set PYXIS_ROOT_NAMESPACE=True before importing pyxis.")
+
   Pyxis.Internals.init(_context);  
   from Pyxis.Commands import *
  

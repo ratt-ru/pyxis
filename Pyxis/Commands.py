@@ -115,6 +115,10 @@ def _verbose (level,*msg,**kw):
     verb = int(Pyxis.Context['VERBOSE']);
   except:
     verb = 1;
+  try:
+    level = int(level)
+  except:
+    level = 1;
   if level <= verb:
     _message(_timestamp(),"PYXIS:",*msg,**kw);
 
@@ -453,7 +457,7 @@ class Safelist (object):
     """Adds an object to the safelist, in an MP-safe manner""";
     if isinstance(obj,str):
       obj = _I(obj,2);
-    ff = file(self.filename,"ab");
+    ff = open(self.filename,"a");
     fcntl.flock(ff,fcntl.LOCK_EX);
     try:
       pickle.dump(obj,ff);
@@ -464,7 +468,7 @@ class Safelist (object):
     """Reads all objects accumulated in the safelist, in an MP-safe manner""";
     ret = [];
     if os.path.exists(self.filename):
-      ff = file(self.filename);
+      ff = open(self.filename);
       fcntl.flock(ff,fcntl.LOCK_EX);
       try:
         while True:

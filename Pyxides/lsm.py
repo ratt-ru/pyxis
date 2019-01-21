@@ -4,7 +4,7 @@ import imager,std
 
 from astropy.io import fits as pyfits
 import Tigger
-import im.argo
+from im import argo
 
 register_pyxis_module(superglobals="OUTFILE");
 

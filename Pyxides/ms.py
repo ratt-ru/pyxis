@@ -8,8 +8,8 @@ import numpy as np
 from Pyxis.ModSupport import *
 
 import std
-import _utils.casa_scripts
-import im.argo
+from utils import casa_scripts
+
 
 # register ourselves with Pyxis, and define the superglobals
 register_pyxis_module();
@@ -61,7 +61,7 @@ def ms (msname="$MS",subtable=None,write=False):
   """Opens the MS or a subtable (read-only by default), returns table object."""
   msname = interpolate_locals("msname");
   if not msname:
-    raise ValueError("'msname' or global MS variable must be set");
+    raise ValueError("'msname' or global MS variable must be set and valid");
   if subtable:
     msname = table(msname,ack=False).getkeyword(subtable);
   tab = table(msname,readonly=not write,ack=False);

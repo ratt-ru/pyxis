@@ -1,13 +1,39 @@
-FROM kernsuite/base:4
+FROM kernsuite/base:5
 RUN docker-apt-install \
+    casacore-dev \
+    casacore-tools \
+    casarest \
     meqtrees-timba \
+    libqdbm-dev \
+    owlcat \
+    python-astro-tigger \
+    python-gdbm \
+    python-pip \
     python-astropy \
-    python-matplotlib \
-    python-casacore \
     python-numpy \
-    python-pip
+    python-scipy \
+    python-astlib \
+    python-casacore \
+    python-casacore \
+    python-qt4 \
+    python-qwt \
+    build-essential \
+    libboost-all-dev \
+    makems
 
-ADD . /code
-WORKDIR /code
+# Test specific external software
+RUN docker-apt-install \
+    casalite \
+    wsclean
+
+# check basic pyxis installation
+ADD . /code/pyxis
+WORKDIR /code/pyxis
 RUN pip install .
+WORKDIR /
 RUN pyxis
+
+# run test when built
+RUN pip install nose
+WORKDIR /usr/local/lib/python2.7/dist-packages/Pyxis/recipies
+RUN python2.7 -m "nose"

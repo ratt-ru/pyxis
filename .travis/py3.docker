@@ -1,13 +1,35 @@
-FROM kernsuite/base:4
+FROM kernsuite/base:5
 RUN docker-apt-install \
+    casacore-dev \
+    casacore-tools \
+    casarest \
     meqtrees-timba \
+    libqdbm-dev \
+    owlcat \
+    python-astro-tigger \
+    python3-gdbm \
+    python3-pip \
     python3-astropy \
-    python3-matplotlib \
-    python3-casacore \
     python3-numpy \
-    python3-pip
+    python3-scipy \
+    python3-astlib \
+    python3-casacore \
+    python3-casacore \
+    python3-pyqt4 \
+    python3-qwt \
+    build-essential \
+    libboost-all-dev \
+    makems \
+    wget
 
-ADD . /code
-WORKDIR /code
+# check basic pyxis installation
+ADD . /code/pyxis
+WORKDIR /code/pyxis
 RUN pip3 install .
+WORKDIR /
 RUN pyxis
+
+# run test when built
+RUN pip3 install nose
+WORKDIR /usr/local/lib/python3.6/dist-packages/Pyxis/recipies
+RUN python3.6 -m "nose"
