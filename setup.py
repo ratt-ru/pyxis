@@ -9,14 +9,14 @@ install_requires = [
       # 'timba', not available on pypi
       'matplotlib',
       'python_casacore',
-      'numpy',
+      'numpy<=1.16',
       'future'
 ] if six.PY2 else [
       'astropy>=3.0',
       # 'timba', not available on pypi
       'matplotlib',
       'python_casacore',
-      'numpy',
+      'numpy>=1.16',
       'future'
 ]
 
