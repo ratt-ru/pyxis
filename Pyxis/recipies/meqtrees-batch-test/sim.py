@@ -28,7 +28,7 @@ from Timba.TDL import *
 from Timba.Meq import meq
 import math
 from Cattery import Meow
-from Cattery import Meow.StdTrees
+#from Cattery import Meow.StdTrees
 
 import pyrap.tables
 
@@ -63,7 +63,7 @@ meqmaker = MeqMaker.MeqMaker();
 from Cattery.Siamese.OMS import gridded_sky
 from Cattery.Siamese.OMS import transient_sky
 from Cattery.Siamese.OMS import fitsimage_sky
-from Cattery import Meow.LSM
+#from Cattery import Meow.LSM
 from Cattery.Siamese.OMS.tigger_lsm import TiggerSkyModel
 lsm = Meow.LSM.MeowLSM(include_options=False);
 
