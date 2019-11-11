@@ -120,7 +120,7 @@ def _run(path='${im.CASA_PATH}',clean=False,makepsf=False,**kw):
     # have an IFR subset? Parse that too
     msname,ifrs = args['vis'],args.pop('ifrs',None)
     if ifrs and ifrs.lower() != "all":
-        from Cattery.Meow import IfrSet
+        from Meow import IfrSet
         subset = IfrSet.from_ms(msname).subset(ifrs).taql_string()
         args['selectdata'] = "(%s)&&(%s)"%(args['selectdata'],subset) if 'selectdata' in args else subset
     

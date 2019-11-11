@@ -29,8 +29,8 @@ from Timba.TDL import *
 from Timba.Meq import meq
 import math
 
-from Cattery import Meow
-from Cattery.Meow import ParmGroup,Bookmarks,StdTrees
+import Meow
+from Meow import ParmGroup,Bookmarks,StdTrees
 
 # MS options first
 mssel = Meow.Context.mssel = Meow.MSUtils.MSSelector(has_input=True,tile_sizes=None,read_flags=True,

@@ -27,7 +27,7 @@
 from Timba.TDL import *
 from Timba.Meq import meq
 import math
-from Cattery import Meow
+import Meow
 #from Cattery import Meow.StdTrees
 
 import pyrap.tables
@@ -55,7 +55,7 @@ simmode_opt = TDLCompileOption("sim_mode","Simulation mode",[SIM_ONLY,ADD_MS,SUB
 simmode_opt.when_changed(lambda mode:mssel.enable_input_column(mode!=SIM_ONLY));
 
 # now load optional modules for the ME maker
-from Cattery.Meow import MeqMaker
+from Meow import MeqMaker
 meqmaker = MeqMaker.MeqMaker();
 
 # specify available sky models
@@ -63,9 +63,9 @@ meqmaker = MeqMaker.MeqMaker();
 from Cattery.Siamese.OMS import gridded_sky
 from Cattery.Siamese.OMS import transient_sky
 from Cattery.Siamese.OMS import fitsimage_sky
-#from Cattery import Meow.LSM
+from Meow import LSM
 from Cattery.Siamese.OMS.tigger_lsm import TiggerSkyModel
-lsm = Meow.LSM.MeowLSM(include_options=False);
+lsm = LSM.MeowLSM(include_options=False);
 
 meqmaker.add_sky_models([gridded_sky,transient_sky,fitsimage_sky,lsm,TiggerSkyModel(verbose=2)]);
 

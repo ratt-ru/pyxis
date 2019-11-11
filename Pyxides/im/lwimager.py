@@ -104,7 +104,7 @@ def _run (convert_output_to_fits=True,lwimager_path="$LWIMAGER_PATH",**kw):
   # have an IFR subset? Parse that too
   msname,ifrs = kw['ms'],args.pop('ifrs',None);
   if ifrs and ifrs.lower() != "all":
-    from Cattery.Meow import IfrSet
+    from Meow import IfrSet
     subset = IfrSet.from_ms(msname).subset(ifrs).taql_string();
     args['select'] = "(%s)&&(%s)"%(args['select'],subset) if 'select' in args else subset;
   # make image names

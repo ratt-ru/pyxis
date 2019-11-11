@@ -112,7 +112,10 @@ def testMeqtreesBatchJob():
   run("""tigger-convert {0:s}/test-lsm.txt --rename --format "ra_d dec_d i q u v" --center 0.1deg,60.5deg -f""".format(PACKAGE_TEST_DIR));
   run("""tigger-convert {0:s}/test-lsm.lsm.html {0:s}/test-lsm1.txt --output-format "name ra_h dec_d i q u v freq0 spi rm tags..." -f""".format(PACKAGE_TEST_DIR));
   run("""cut -d " " -f 1-10 {0:s}/test-lsm1.txt >{0:s}/test-lsm1.txt.tmp""".format(PACKAGE_TEST_DIR));
-  run("""diff {0:s}/test-lsm1.txt.tmp {1:s}""".format(PACKAGE_TEST_DIR, path(os.path.join(PACKAGE_TEST_DIR, 'test-lsm1.txt.reference'))));
+  run("""diff {0:s}/test-lsm1.txt.tmp {1:s} || diff {0:s}/test-lsm1.txt.tmp {2:s}""".format(
+      PACKAGE_TEST_DIR, 
+      path(os.path.join(PACKAGE_TEST_DIR, 'test-lsm1.txt.reference')),
+      path(os.path.join(PACKAGE_TEST_DIR, 'test-lsm2.txt.reference'))));
   run("""tigger-convert {0:s}/test-lsm1.txt --format "name ra_h dec_d i q u v freq0 spi rm tags..." -f""".format(PACKAGE_TEST_DIR));
   run("""{0:s} plot-ms {1:s}/WSRT.MS DATA:I -o data_i.png""".format(owlcat, PACKAGE_TEST_DIR));
   run("""{0:s} run-imager ms={1:s}/WSRT.MS name_dirty=tmp""".format(owlcat, PACKAGE_TEST_DIR));
