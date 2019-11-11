@@ -28,7 +28,7 @@ from Timba.TDL import *
 from Timba.Meq import meq
 import math
 import Meow
-#from Cattery import Meow.StdTrees
+import Meow.StdTrees
 
 import pyrap.tables
 
@@ -60,12 +60,12 @@ meqmaker = MeqMaker.MeqMaker();
 
 # specify available sky models
 # these will show up in the menu automatically
-from Cattery.Siamese.OMS import gridded_sky
-from Cattery.Siamese.OMS import transient_sky
-from Cattery.Siamese.OMS import fitsimage_sky
-from Meow import LSM
-from Cattery.Siamese.OMS.tigger_lsm import TiggerSkyModel
-lsm = LSM.MeowLSM(include_options=False);
+from Siamese.OMS import gridded_sky
+from Siamese.OMS import transient_sky
+from Siamese.OMS import fitsimage_sky
+import Meow.LSM
+from Siamese.OMS.tigger_lsm import TiggerSkyModel
+lsm = Meow.LSM.MeowLSM(include_options=False);
 
 meqmaker.add_sky_models([gridded_sky,transient_sky,fitsimage_sky,lsm,TiggerSkyModel(verbose=2)]);
 
@@ -73,31 +73,31 @@ meqmaker.add_sky_models([gridded_sky,transient_sky,fitsimage_sky,lsm,TiggerSkyMo
 # these will show up in the menu automatically
 
 # Ncorr - correct for N
-from Cattery.Siamese.OMS import oms_n_inverse
+from Siamese.OMS import oms_n_inverse
 meqmaker.add_sky_jones('Ncorr','n-term correction',oms_n_inverse);
 
 # Z - ionosphere
-from Cattery.Siamese.OMS import oms_ionosphere
+from Siamese.OMS import oms_ionosphere
 meqmaker.add_sky_jones('Z','ionosphere',oms_ionosphere);
 
 # L - dipole projection
-from Cattery.Siamese.OMS import oms_dipole_projection
+from Siamese.OMS import oms_dipole_projection
 meqmaker.add_sky_jones('L','dipole projection',oms_dipole_projection);
 
 # E - beam
-from Cattery.Siamese.OMS import analytic_beams
-from Cattery.Siamese.OMS import wsrt_beams
-from Cattery.Siamese.SBY import lofar_beams
-from Cattery.Siamese.OMS import oms_pointing_errors
+from Siamese.OMS import analytic_beams
+from Siamese.OMS import wsrt_beams
+from Siamese.SBY import lofar_beams
+from Siamese.OMS import oms_pointing_errors
 meqmaker.add_sky_jones('E','beam',[analytic_beams,wsrt_beams,lofar_beams],
                                   pointing=oms_pointing_errors);
 
 # P - Parallactic angle
-from Cattery.Siamese.OMS import feed_angle
+from Siamese.OMS import feed_angle
 meqmaker.add_uv_jones('P','feed angle',feed_angle);
 
 # G - gains
-from Cattery.Siamese.OMS import oms_gain_models
+from Siamese.OMS import oms_gain_models
 meqmaker.add_uv_jones('G','gains/phases',oms_gain_models);
 
 # very important -- insert meqmaker's options properly
@@ -107,7 +107,7 @@ TDLCompileOptions(*meqmaker.compile_options());
 TDLCompileOption("noise_stddev","Add noise, Jy",[None,1e-6,1e-3],more=float);
 
 # MPI options
-# from Cattery.Meow import Parallelization
+# from Meow import Parallelization
 # TDLCompileOptions(*Parallelization.compile_options());
 
 def _define_forest (ns):
