@@ -1,9 +1,11 @@
 """Pyxis module for MS-related operations""";
+from __future__ import absolute_import, print_function, division
+
 from Pyxis.ModSupport import *
 
-import argo
-import ms
-import im
+from . import argo
+from Pyxides import ms
+from Pyxides import im
 import subprocess,glob
 
 rm_fr = x.rm.args("-fr")
@@ -58,7 +60,7 @@ def WSCLEAN_VERSION_Template (path='$WSCLEAN_PATH'):
 
     # first check if wsclean is installed
     path = interpolate_locals('path')
-    path = im.argo.findImager(path)
+    path = argo.findImager(path)
     if path is False:
         return -1
 
@@ -71,35 +73,37 @@ def WSCLEAN_VERSION_Template (path='$WSCLEAN_PATH'):
                 _wsclean_args.update(args)
 
     # the following options are not versions > 1.4 
-    if _wsclean_path_version[1]>=1.4:
+    if _wsclean_path_version[1][0]>=1.4:
         for item in 'addmodel addmodelapp savemodel'.split():
             _wsclean_args.discard(item)
-    return _wsclean_path_version[1]
+    return _wsclean_path_version[1][0]
 
 def wsclean_version(path='${WSCLEAN_PATH}'):
     """ try to find wsclean version """
 
     path = interpolate_locals('path')
     std = subprocess.Popen([path,'-version'],stderr=subprocess.PIPE,stdout=subprocess.PIPE)
-    if std.stderr.read():
+    stderr = str(std.stderr.read())
+    if not stderr:
         # if return error assume its version 0
         version = '0.0'
         tail = ""
     else:
-        stdout = std.stdout.read().lower()
+        stdout = str(std.stdout.read()).lower()
         version = stdout.split()
         try:
             ind = version.index('version')
             version = version[ind+1].split('-')[0]
             tail = version.split('-')[-1] if '-' in version else ""
-        except ValueError:
+        except ValueError:        
             version = '0.0'
             tail = ""
     info('$path version is $version${-<tail}')
 
     if '.' in version:
         if version.startswith('1.9') or version.startswith('1.10') or \
-            version.startswith('1.11') or version.startswith('1.12'):
+            version.startswith('1.11') or version.startswith('1.12') or \
+            version.startswith('2.'):
             info("using wsclean 1.9 interface for $version")
             version = '1.9'
         try:

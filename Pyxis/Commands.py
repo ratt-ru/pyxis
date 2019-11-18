@@ -457,7 +457,7 @@ class Safelist (object):
     """Adds an object to the safelist, in an MP-safe manner""";
     if isinstance(obj,str):
       obj = _I(obj,2);
-    ff = open(self.filename,"a");
+    ff = open(self.filename,"ab");
     fcntl.flock(ff,fcntl.LOCK_EX);
     try:
       pickle.dump(obj,ff);
@@ -468,7 +468,7 @@ class Safelist (object):
     """Reads all objects accumulated in the safelist, in an MP-safe manner""";
     ret = [];
     if os.path.exists(self.filename):
-      ff = open(self.filename);
+      ff = open(self.filename,"rb");
       fcntl.flock(ff,fcntl.LOCK_EX);
       try:
         while True:
