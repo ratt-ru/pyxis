@@ -98,7 +98,7 @@ def init_vm (vmname="$VM_NAME",vmtype="$VM_TYPE",
       from past.builtins import cmp
       from functools import cmp_to_key
       matching = sorted(list(get_snapshots(snapshot).keys()),
-        key=cmp_to_key(lambda a, b:-cmp(_version_suffix(a),_version_suffix(b)));
+        key=cmp_to_key(lambda a, b:-cmp(_version_suffix(a),_version_suffix(b))));
       snapshot = matching[0];
       info("using latest snapshot $snapshot");
     gc("disks create $name --source-snapshot $snapshot")
