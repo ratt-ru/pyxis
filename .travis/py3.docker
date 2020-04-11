@@ -13,8 +13,8 @@ RUN mkdir /src
 WORKDIR /src
 RUN wget https://github.com/casacore/casacore/archive/v3.1.1.tar.gz
 RUN tar xvf v3.1.1.tar.gz
-RUN mkdir casacore-3.1.1/build
-WORKDIR /src/casacore-3.1.1/build
+RUN mkdir casacore-3.2.0/build
+WORKDIR /src/casacore-3.2.0/build
 RUN echo hello
 RUN cmake -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=Release -DBUILD_DEPRECATED=ON -DBUILD_PYTHON3=ON -DBUILD_PYTHON=OFF ../
 RUN make -j 4
@@ -22,7 +22,7 @@ RUN make install
 RUN ldconfig
 #RUN pip install -U --user --force-reinstall --install-option="--prefix=/usr"  pip setuptools wheel
 WORKDIR /src
-RUN wget https://github.com/casacore/python-casacore/archive/v3.1.1.tar.gz
+RUN wget https://github.com/casacore/python-casacore/archive/v3.2.0.tar.gz
 RUN tar xvf v3.1.1.tar.gz.1
 WORKDIR /src/python-casacore-3.1.1
 RUN pip3 install .
