@@ -1,7 +1,7 @@
 FROM kernsuite/base:5
 
 RUN docker-apt-install libblitz0-dev python3-dev libblas-dev liblapack-dev libqdbm-dev wcslib-dev \
- libfftw3-dev python3-numpy libcfitsio-dev libboost-all-dev libboost-system-dev cmake g++ wget gfortran \
+ libfftw3-dev python3-numpy python-numpy python-dev libcfitsio-dev libboost-all-dev libboost-system-dev cmake g++ wget gfortran \
  libncurses5-dev libsofa1-dev bison libbison-dev flex libreadline6-dev python3-pip
 
 # casacore wheels no longer work and we need python 3 support, so build from source
@@ -11,20 +11,20 @@ RUN docker-apt-install libblitz0-dev python3-dev libblas-dev liblapack-dev libqd
 #####################################################################
 RUN mkdir /src
 WORKDIR /src
-RUN wget https://github.com/casacore/casacore/archive/v3.1.0.tar.gz
-RUN tar xvf v3.1.0.tar.gz
-RUN mkdir casacore-3.1.0/build
-WORKDIR /src/casacore-3.1.0/build
+RUN wget https://github.com/casacore/casacore/archive/v3.1.1.tar.gz
+RUN tar xvf v3.1.1.tar.gz
+RUN mkdir casacore-3.1.1/build
+WORKDIR /src/casacore-3.1.1/build
 RUN echo hello
-RUN cmake -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=Release -DBUILD_DEPRECATED=ON -DBUILD_PYTHON3=ON -DBUILD_PYTHON=OFF ../
+RUN cmake -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=Release -DBUILD_DEPRECATED=ON -DBUILD_PYTHON3=ON -DBUILD_PYTHON=OFF -DBUILD_DEPRECATED=ON ../
 RUN make -j 4
 RUN make install
 RUN ldconfig
 #RUN pip install -U --user --force-reinstall --install-option="--prefix=/usr"  pip setuptools wheel
 WORKDIR /src
-RUN wget https://github.com/casacore/python-casacore/archive/v3.1.0.tar.gz
-RUN tar xvf v3.1.0.tar.gz
-WORKDIR /src/python-casacore-3.1.0
+RUN wget https://github.com/casacore/python-casacore/archive/v3.1.1.tar.gz
+RUN tar xvf v3.1.1.tar.gz.1
+WORKDIR /src/python-casacore-3.1.1
 RUN pip3 install .
 WORKDIR /
 RUN python3 -c "from pyrap.tables import table as tbl"
@@ -83,7 +83,7 @@ WORKDIR /src
 RUN git clone -b v1.7.0 https://github.com/ska-sa/meqtrees-cattery.git
 RUN git clone -b v1.5.0 https://github.com/ska-sa/purr.git
 RUN git clone -b v1.6.0 https://github.com/ska-sa/owlcat.git
-RUN git clone -b 1.4.3 https://github.com/ska-sa/kittens.git
+RUN git clone -b v1.4.3 https://github.com/ska-sa/kittens.git
 RUN git clone -b v1.6.0 https://github.com/ska-sa/tigger-lsm.git
 RUN git clone -b v1.7.0 https://github.com/ska-sa/pyxis.git
 
