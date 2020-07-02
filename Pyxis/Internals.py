@@ -773,7 +773,7 @@ def initconf (force=False,files=[],directory="."):
   cwd = os.getcwd();
   try:
     for filename in files:
-      Pyxis.Commands.loadconf(filename,inspect.currentframe().f_back,chdir=True);
+      loadconf(filename,inspect.currentframe().f_back,chdir=True);
   finally:
     os.chdir(cwd);
   assign_templates();
