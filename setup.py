@@ -10,6 +10,7 @@ install_requires = [
       'matplotlib',
       'python_casacore',
       'numpy<=1.16',
+      'scipy',
       'future'
 ] if six.PY2 else [
       'astropy>=3.0',
@@ -17,6 +18,7 @@ install_requires = [
       'matplotlib',
       'python_casacore',
       'numpy>=1.16',
+      'scipy',
       'future'
 ]
 

@@ -12,6 +12,7 @@ import sys
 import fnmatch
 import shutil
 import shlex
+import six
 
 import Pyxis
 
@@ -822,7 +823,7 @@ def load_package (pkgname,filename,chdir=True,report=True):
     if dirname not in oldpath:
       sys.path.append(dirname);
     try:
-      exec(open(filename),Pyxis.Context);
+      exec(open(filename, "rt").read(), Pyxis.Context, Pyxis.Context)
     finally:
       sys.path = oldpath;
   except SystemExit:

@@ -12,7 +12,7 @@ try:
   PYXIS_ROOT_NAMESPACE = True  # must set this before import!
   import Pyxis
   import Pyxides
-  PACKAGE_TEST_DIR = os.path.join(os.path.dirname(Pyxis.__file__), "recipies", "imagers-test")
+  PACKAGE_TEST_DIR = os.path.join(os.path.dirname(Pyxis.__file__), "recipes", "imagers-test")
   if not os.path.exists(PACKAGE_TEST_DIR):
     raise RuntimeError("Installation excludes {}".format(PACKAGE_TEST_DIR))
 except:

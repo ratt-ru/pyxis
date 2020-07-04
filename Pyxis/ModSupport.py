@@ -1,6 +1,7 @@
 """Pyxis.ModSupport: functions for programming Pyxides modules"""
 
-import fnmatch    
+import fnmatch
+import inspect, traceback
 
 import Pyxis
 from Pyxis import *
@@ -20,10 +21,10 @@ def register_pyxis_module (superglobals=""):
   module = sys.modules[modname];
   if modname.startswith("Pyxides."):
     modname = modname.split(".",1)[-1];
-  # check for double registration
   if id(globs) in _superglobals:
     if _modules[modname] is not module:
       raise RuntimeError("a different Pyxis module named '%s' is already registered"%modname);
+    return
   _modules[modname] = module;
   # build list of superglobals
   if isinstance(superglobals,str):
@@ -34,7 +35,7 @@ def register_pyxis_module (superglobals=""):
   _verbose(1,"registered module '%s'"%modname);
   _namespaces[modname] = globs;
   _superglobals[id(globs)] = superglobs;
-  Pyxis.Context[modname] = __import__(modname,Pyxis.Context);
+  Pyxis.Context[modname] = module;
   # add superglobals
   for sym in superglobs:
     # if superglobal is already defined, copy its value to the new module
