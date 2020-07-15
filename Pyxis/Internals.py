@@ -787,7 +787,7 @@ def initconf (force=False,files=[],directory="."):
   if Pyxis.Context.get("PYXIS_AUTO_IMPORT_MODULES",True) and toplevel:
     _verbose(1,"importing top-level modules (%s) for you. Preset PYXIS_AUTO_IMPORT_MODULES=False to disable."%", ".join(toplevel));
     for mod in toplevel:
-      Pyxis.Context[mod] = sys.modules.get(mod,sys.modules.get("Pyxides."+m));
+      Pyxis.Context[mod] = sys.modules.get(mod, sys.modules.get("Pyxides."+mod));
   
 def loadconf (filename,frame=None,chdir=True):
   """Loads config file""";
