@@ -726,15 +726,15 @@ def set_logfile (filename,quiet=False):
       sys.stdout,sys.stderr = sys.__stdout__,sys.__stderr__;
       _current_logobj = None;
     else:
-      mode = "wa";
+      mode = "a";
       # append to file if name starts with +, or if file has already been used as a log this session, or if flush is off
       if Pyxis.Context.get("LOG_FLUSH"):
         mode = "w";
         if filename[0] == '+':
           filename = filename[1:];
-          mode = "wa";
+          mode = "a";
         if filename in _visited_logfiles:
-          mode = "wa";
+          mode = "a";
       Pyxis.ModSupport.makedir(os.path.dirname(filename),no_interpolate=True);
       _current_logobj = sys.stdout = sys.stderr = open(filename,mode);
       hdr = Pyxis.Context.get("LOG_HEADER");
