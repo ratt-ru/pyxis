@@ -7,7 +7,9 @@ import Pyxis
 # import some Pyxides modules.
 # Note that Pyxides is implicitly added to the include path
 # when you import Pyxis above
-import ms,imager,std,lsm,stefcal
+import ms,imager,std,lsm
+
+from Cattery.Pyxides import stefcal
 
 # import some other Python modules that we make use of below
 from astropy.io import fits as pyfits

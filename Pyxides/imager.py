@@ -1,5 +1,3 @@
-from Pyxides.im import argo
-
 from Pyxis.ModSupport import *
 
 register_pyxis_module(superglobals="MS LSM DESTDIR");
