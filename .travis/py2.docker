@@ -35,5 +35,5 @@ RUN pyxis
 
 # run test when built
 RUN pip install nose
-WORKDIR /usr/local/lib/python2.7/dist-packages/Pyxis/recipies
+WORKDIR /usr/local/lib/python2.7/dist-packages/Pyxis/recipes
 RUN python2.7 -m "nose"
