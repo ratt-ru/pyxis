@@ -118,14 +118,19 @@ meqmaker.add_vis_proc_module('IC','interferometer biases',[ifr_based_errors.IfrB
 # very important -- insert meqmaker's options properly
 TDLCompileOptions(*meqmaker.compile_options());
 
-import Purr.Pipe
+try:
+  import Purr.Pipe
+  PURRAVAIL = True
+except ImportError:
+  print("Failed to import Purr. Meq logging disabled!")
+  PURRAVAIL = False
 
 def _define_forest(ns,parent=None,**kw):
   if run_purr:
     Timba.TDL.GUI.purr(mssel.msname+".purrlog",[mssel.msname,'.']);
   # create Purr pipe
   global purrpipe;
-  purrpipe = Purr.Pipe.Pipe(mssel.msname);
+  purrpipe = Purr.Pipe.Pipe(mssel.msname) if PURRAVAIL else None
   
   # get antennas from MS
   ANTENNAS = mssel.get_antenna_set(list(range(1,15)));
@@ -245,15 +250,15 @@ def _define_forest(ns,parent=None,**kw):
     if name:
       # make a TDL job to runsthe tree
       def run_tree (mqs,parent,**kw):
-        global tile_size;
-        purrpipe.title("Calibrating").comment(comment);
-        mqs.execute(Meow.Context.vdm.name,mssel.create_io_request(tile_size),wait=False);
+        global tile_size
+        PURRAVAIL and purrpipe.title("Calibrating").comment(comment)
+        mqs.execute(Meow.Context.vdm.name,mssel.create_io_request(tile_size),wait=False)
       TDLRuntimeMenu(name,
         TDLOption('tile_size',"Tile size, in timeslots",[10,60,120,240],more=int,
                   doc="""Input data is sliced by time, and processed in chunks (tiles) of
                   the indicated size. Larger tiles are faster, but use more memory."""),
         TDLRuntimeJob(run_tree,name)
-      );
+      )
 
   # very important -- insert meqmaker's runtime options properly
   # this should come last, since runtime options may be built up during compilation.
