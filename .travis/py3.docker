@@ -87,7 +87,7 @@ WORKDIR /src
 RUN pip3 install -U -e /code/pyxis
 
 WORKDIR /src
-RUN git clone -b v1.7.0 https://github.com/ska-sa/meqtrees-timba.git
+RUN git clone -b v1.8.0 https://github.com/ska-sa/meqtrees-timba.git
 RUN mkdir /src/meqtrees-timba/build
 WORKDIR /src/meqtrees-timba/build
 RUN cmake -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=Release -DENABLE_PYTHON_3=ON ..
@@ -103,7 +103,7 @@ RUN pyxis --help
 
 # run test when built
 RUN pip3 install nose
-WORKDIR /code/pyxis/Pyxis/recipies/meqtrees-batch-test
+WORKDIR /code/pyxis/Pyxis/recipes/meqtrees-batch-test
 RUN python3 -m "nose"
 
 ENTRYPOINT ["meqtree-pipeliner.py"]
