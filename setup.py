@@ -28,7 +28,8 @@ def readme():
       return f.read()
 
 setup(name='astro-pyxis',
-      version='1.7.0',
+      version='1.7.2',
+      python_requires='>=3.0.0',
       description='Python Extensions for astronomical Interferometry Scripting',
       long_description = readme(),
       author='Oleg Smirnov',
