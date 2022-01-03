@@ -6,7 +6,7 @@ include Pyxides/utils *.py
 # any datafiles here
 recursive-include Pyxis/recipes/meqtrees-batch-test/WSRT_ANTENNA *
 recursive-include Pyxis/recipes/imagers-test/WSRT_ANTENNA *
-include Pyxis/recipes/meqtrees-batch-test/test-lsm1.txt.reference
+include Pyxis/recipes/meqtrees-batch-test/*.txt.reference
 recursive-include Pyxis/recipes/ *.py 
 recursive-include Pyxis/recipes/ *.txt 
 recursive-include Pyxis/recipes/ *.fits 
