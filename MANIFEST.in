@@ -7,8 +7,8 @@ include Pyxides/utils *.py
 recursive-include Pyxis/recipies/meqtrees-batch-test/WSRT_ANTENNA *
 recursive-include Pyxis/recipies/imagers-test/WSRT_ANTENNA *
 include Pyxis/recipies/meqtrees-batch-test/test-lsm1.txt.reference
-recursive-include Pyxis/recipies/ *.py 
-recursive-include Pyxis/recipies/ *.txt 
-recursive-include Pyxis/recipies/ *.fits 
-recursive-include Pyxis/recipies/ *.conf
-recursive-include Pyxis/recipies/ *.cfg
+recursive-include Pyxis/recipes/ *.py 
+recursive-include Pyxis/recipes/ *.txt 
+recursive-include Pyxis/recipes/ *.fits 
+recursive-include Pyxis/recipes/ *.conf
+recursive-include Pyxis/recipes/ *.cfg
