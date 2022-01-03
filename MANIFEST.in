@@ -4,9 +4,9 @@ include Pyxides/im *.py
 include Pyxides/utils *.py
 
 # any datafiles here
-recursive-include Pyxis/recipies/meqtrees-batch-test/WSRT_ANTENNA *
-recursive-include Pyxis/recipies/imagers-test/WSRT_ANTENNA *
-include Pyxis/recipies/meqtrees-batch-test/test-lsm1.txt.reference
+recursive-include Pyxis/recipes/meqtrees-batch-test/WSRT_ANTENNA *
+recursive-include Pyxis/recipes/imagers-test/WSRT_ANTENNA *
+include Pyxis/recipes/meqtrees-batch-test/test-lsm1.txt.reference
 recursive-include Pyxis/recipes/ *.py 
 recursive-include Pyxis/recipes/ *.txt 
 recursive-include Pyxis/recipes/ *.fits 
