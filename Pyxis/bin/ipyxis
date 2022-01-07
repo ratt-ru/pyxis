@@ -1,2 +1,2 @@
 #!/bin/bash
-exec ipython --InteractiveShellApp.exec_lines="[ 'import Pyxis ']" --autocall=2 $*
+exec ipython3 --InteractiveShellApp.exec_lines="[ 'import Pyxis ']" --autocall=2 $*

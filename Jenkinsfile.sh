@@ -21,4 +21,7 @@ cd $PROJECTS_DIR/meqtrees-pyxis
 IMAGENAME="mtpyxispr"
 
 # build and test
-docker build -f .travis/py3.docker -t "${IMAGENAME}36:$BUILD_NUMBER" --no-cache=true .
+BUILDTAG=${IMAGENAME}36:$BUILD_NUMBER
+docker build -f .ci/py3.6.ubuntu18.04.docker  -t "${BUILDTAG}" --no-cache=true .
+#BUILDTAG=${IMAGENAME}38:$BUILD_NUMBER
+#docker build -f .ci/py3.8.ubuntu20.04.docker  -t "${BUILDTAG}" --no-cache=true .
