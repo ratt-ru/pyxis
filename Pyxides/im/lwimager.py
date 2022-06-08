@@ -5,7 +5,7 @@ import pyrap.images
 import os
 import subprocess
 from astropy.io import fits as pyfits
-from im import argo
+from . import argo
 
 import ms
 import std

@@ -5,7 +5,7 @@ import os
 import sys
 import numpy
 import math
-import argo
+from . import argo
 import im
 # Standard options
 gain = 0.1
