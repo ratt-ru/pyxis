@@ -55,10 +55,10 @@ flux_rescale=1
 velocity = False 
 no_weight_fov = False
 
-# import wsclean
-# import lwimager
-# import casa
-# import moresane
+from . import wsclean
+from . import lwimager
+from . import casa
+from . import moresane
 
 def make_image (*args,**kw):
   imager = kw.get('imager', IMAGER).lower();

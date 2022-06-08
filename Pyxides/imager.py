@@ -1,5 +1,5 @@
 from Pyxis.ModSupport import *
-
+from Pyxides import im
 register_pyxis_module(superglobals="MS LSM DESTDIR");
 v.define("LSM","lsm.lsm.html","""current local sky model""");
 
@@ -89,7 +89,7 @@ restored_image residual_image model_image algorithm fullrest_image restoring_opt
     makedir('$DESTDIR')
     if imager in ['lwimager','wsclean']:
         __import__('im.%s'%imager.lower());
-        call_imager = getattr(getattr(im, imager.lower()), make_image)
+        call_imager = getattr(getattr(im, imager.lower()), "make_image")
 #        call_imager = eval( 'im.%s.make_image'%(imager.lower()) )
     else: 
 
