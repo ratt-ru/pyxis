@@ -417,9 +417,9 @@ def interpolate (arg,frame,depth=1,ignore=set(),skip=set(),convert_lists=False):
 # RE pattern matching the [PREFIX<][NAMESPACES.]NAME[?DEFAULT][:BASE|DIR|FILE|BASEPATH][>SUFFIX] syntax
 _substpattern = \
   "(?i)((?P<prefix>[^{}]+)<)?(?P<name>[._a-z][._a-z0-9]*)(\\?(?P<defval>[^}\\$]*?))?(:(?P<command>BASE|DIR|FILE|BASEPATH))?(>(?P<suffix>[^{}]+))?"
-    
+
 class SmartTemplate (string.Template):
-  pattern = "(?P<escaped>\\$\\$)|(\\$(?P<named>[_a-z][_a-z0-9]*))|(\\${(?P<braced>%s)})|(?P<invalid>\\$)"%_substpattern;
+  pattern = "(?P<escaped>\\$\\$)|(\\$(?P<named>[_a-z][_a-z0-9]*))|(\\${{(?P<braced>%s)}})|(?P<invalid>\\$)".format(_substpattern);
 
 class DictProxy (object):
   itempattern = re.compile(_substpattern+"$");
