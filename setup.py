@@ -29,7 +29,7 @@ def readme():
 
 setup(name='astro-pyxis',
       version='1.7.6',
-      python_requires='>=3.8',
+      python_requires='>=3.0.0',
       description='Python Extensions for astronomical Interferometry Scripting',
       author='Oleg Smirnov',
       author_email='Oleg Smirnov <osmirnov@gmail.com>',
