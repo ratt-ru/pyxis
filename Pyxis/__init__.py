@@ -2,7 +2,7 @@ import inspect
 import os.path
 import math
 import numpy
-import imp
+import importlib
 np = numpy
 
 # some useful constants
@@ -15,6 +15,16 @@ ARCSEC = DEG/3600
 import Pyxis.Internals 
 
 _initialized = False;
+
+def load_source(modname, filename):
+    loader = importlib.machinery.SourceFileLoader(modname, filename)
+    spec = importlib.util.spec_from_file_location(modname, filename, loader=loader)
+    module = importlib.util.module_from_spec(spec)
+    # The module is always executed and not cached in sys.modules.
+    # Uncomment the following line to cache the module.
+    # sys.modules[module.__name__] = module
+    loader.exec_module(module)
+    return module
 
 if not _initialized:
   """Initializes Pyxis with a global context dict.""";
@@ -48,7 +58,7 @@ if not _initialized:
   pyxides_path = os.path.realpath(os.path.join(os.path.dirname(__file__), "..", "Pyxides"))
   verbose(2,"importing Pyxides from",pyxides_path)
 
-  Pyxides = imp.load_source('Pyxides',os.path.join(pyxides_path, "__init__.py"))
+  Pyxides = load_source('Pyxides',os.path.join(pyxides_path, "__init__.py"))
   # add Pyxides path to module includes (so we can do stuff like "import ms" instead of "from Pyxides import ms"
   if _context.get("ADD_PYXIDES_PATH",True):
     verbose(2,"added %s to import path. Set ADD_PYXIDES_PATH=False to disable"%pyxides_path);
